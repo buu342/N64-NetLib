@@ -1,4 +1,5 @@
 #include "serverbrowser.h"
+#include "clientwindow.h"
 
 ServerBrowser::ServerBrowser( wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style ) : wxFrame( parent, id, title, pos, size, style )
 {
@@ -44,9 +45,20 @@ ServerBrowser::ServerBrowser( wxWindow* parent, wxWindowID id, const wxString& t
     this->Layout();
 
     this->Centre( wxBOTH );
+
+    this->CreateClient();
 }
 
 ServerBrowser::~ServerBrowser()
 {
     
+}
+
+void ServerBrowser::CreateClient()
+{
+    ClientWindow* cw = new ClientWindow(this);
+    cw->SetFocus();
+    cw->Raise();
+    cw->Show();
+    this->Lower();
 }

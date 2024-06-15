@@ -1,4 +1,5 @@
 #include "clientwindow.h"
+#include "device.h"
 
 ClientWindow::ClientWindow( wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style ) : wxFrame( parent, id, title, pos, size, style )
 {
@@ -36,9 +37,32 @@ ClientWindow::ClientWindow( wxWindow* parent, wxWindowID id, const wxString& tit
     m_StatusBar_ClientStatus = this->CreateStatusBar( 1, wxSTB_SIZEGRIP, wxID_ANY );
 
     this->Centre( wxBOTH );
+
+    this->HandleFlashcart();
 }
 
 ClientWindow::~ClientWindow()
 {
 
+}
+
+void ClientWindow::HandleFlashcart()
+{
+    DeviceError deverr;
+    device_initialize();
+    deverr = device_find();
+    if (deverr != DEVICEERR_OK)
+    {
+        this->m_RichText_Console->WriteText(wxString::Format(wxT("Error finding flashcart. Returned error %d\n"), deverr));
+        return;
+    }
+    this->m_RichText_Console->WriteText(wxT("Found "));
+    switch (device_getcart())
+    {
+        case CART_64DRIVE1: this->m_RichText_Console->WriteText(wxT("64Drive HW1")); break;
+        case CART_64DRIVE2: this->m_RichText_Console->WriteText(wxT("64Drive HW2")); break;
+        case CART_EVERDRIVE: this->m_RichText_Console->WriteText(wxT("EverDrive")); break;
+        case CART_SC64: this->m_RichText_Console->WriteText(wxT("SummerCart64")); break;
+    }
+    this->m_RichText_Console->Newline();
 }

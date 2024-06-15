@@ -1,4 +1,5 @@
 CODEFILES   = app.cpp serverbrowser.cpp clientwindow.cpp
+LIBFILES    = Include/flashcart.a Include/ftd2xx.lib
 BUILDDIR = build
 CODEOBJECTS = $(CODEFILES:%.cpp=${BUILDDIR}/%.o)
 PROGNAME = NetLibBrowser
@@ -22,9 +23,9 @@ CPPFLAGS ?=
 
 # Standard linker flags 
 ifeq ($(OS_NAME),Darwin)
-	LDFLAGS ?= -framework OpenGL
+	LDFLAGS ?= -lftd2xx -framework OpenGL
 else
-	LDFLAGS ?= -lGL -lGLU
+	LDFLAGS ?= -lftd2xx -lGL -lGLU
 endif
 
 # Location and arguments of wx-config script 
@@ -90,7 +91,7 @@ test_for_selected_wxbuild:
 	@$(WX_CONFIG) $(WX_CONFIG_FLAGS)
 
 $(PROGNAME): $(CODEOBJECTS)
-	$(CXX) -o ${BUILDDIR}/$@ $(CODEOBJECTS) $(LDFLAGS) `$(WX_CONFIG) $(WX_CONFIG_FLAGS) --libs $(LIBRARIES)` -no-pie
+	$(CXX) -o ${BUILDDIR}/$@ $(CODEOBJECTS) $(LIBFILES) $(LDFLAGS) `$(WX_CONFIG) $(WX_CONFIG_FLAGS) --libs $(LIBRARIES)` -no-pie
 
 build/%.o: %.cpp | ${BUILDDIR}
 	$(CXX) -c $(CFLAGS) -o $@ $(PROGRAM_CXXFLAGS) $(CPPDEPS) $<
