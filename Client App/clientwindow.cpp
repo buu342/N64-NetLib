@@ -33,22 +33,21 @@ ClientWindow::ClientWindow( wxWindow* parent, wxWindowID id, const wxString& tit
     m_TextCtrl_Input->Enable( false );
     m_Sizer_Input->Add( m_TextCtrl_Input, wxGBPosition( 0, 0 ), wxGBSpan( 1, 1 ), wxALL|wxEXPAND, 5 );
 
-    m_Gauge_Upload = new wxGauge( this, wxID_ANY, 100, wxDefaultPosition, wxDefaultSize, wxGA_HORIZONTAL );
+    m_Gauge_Upload = new wxGauge(this, wxID_ANY, 100, wxDefaultPosition, wxDefaultSize, wxGA_HORIZONTAL|wxGA_SMOOTH|wxGA_PROGRESS);
     m_Gauge_Upload->SetValue(0);
     m_Gauge_Upload->Disable();
     m_Gauge_Upload->Hide();
 
-    m_Button_Send = new wxButton( this, wxID_ANY, wxT("Send"), wxDefaultPosition, wxDefaultSize, 0 );
+    m_Button_Send = new wxButton( this, wxID_ANY, wxT(""), wxDefaultPosition, wxDefaultSize, 0 );
     m_Button_Send->Enable( false );
     m_Sizer_Input->Add( m_Button_Send, wxGBPosition( 0, 1 ), wxGBSpan( 1, 1 ), wxALL, 5 );
 
     m_Sizer_Input->AddGrowableCol( 0 );
     m_Sizer_Main->Add( m_Sizer_Input, 1, wxEXPAND, 5 );
 
-
     this->SetSizer( m_Sizer_Main );
     this->Layout();
-    m_StatusBar_ClientStatus = this->CreateStatusBar( 1, wxSTB_SIZEGRIP, wxID_ANY );
+    //m_StatusBar_ClientStatus = this->CreateStatusBar( 1, wxSTB_SIZEGRIP, wxID_ANY );
 
     this->Centre( wxBOTH );
     this->Connect(wxID_ANY, wxEVT_THREAD, wxThreadEventHandler(ClientWindow::ThreadEvent));
@@ -66,7 +65,7 @@ ClientWindow::ClientWindow( wxWindow* parent, wxWindowID id, const wxString& tit
 
 ClientWindow::~ClientWindow()
 {
-
+    this->Disconnect(wxID_ANY, wxEVT_THREAD, wxThreadEventHandler(ClientWindow::ThreadEvent));
 }
 
 void ClientWindow::SetClientDeviceStatus(ClientDeviceStatus status)
@@ -81,8 +80,14 @@ void ClientWindow::SetClientDeviceStatus(ClientDeviceStatus status)
             this->m_Sizer_Input->Add(this->m_Gauge_Upload, wxGBPosition( 0, 0 ), wxGBSpan( 1, 1 ), wxALL|wxEXPAND, 5);
             this->m_Gauge_Upload->Enable();
             this->m_Gauge_Upload->Show();
+            this->m_Button_Send->SetLabel(wxT("Cancel"));
+            this->m_Button_Send->Enable();
             this->Layout();
             this->Refresh();
+            break;
+        case CLSTATUS_UPLOADDONE:
+            this->m_Button_Send->SetLabel(wxT("Reupload"));
+            this->m_Button_Send->Enable();
             break;
     }
 }
@@ -98,10 +103,11 @@ void ClientWindow::ThreadEvent(wxThreadEvent& event)
             this->m_RichText_Console->WriteText(event.GetString());
             break;
         case TEVENT_SETSTATUS:
-            this->SetClientDeviceStatus((ClientDeviceStatus)event.GetInt());
+            this->SetClientDeviceStatus((ClientDeviceStatus)event.GetExtraLong());
             break;
         case TEVENT_UPLOADPROGRESS:
-            this->m_Gauge_Upload->SetValue(event.GetInt());
+            int prog = event.GetExtraLong();
+            this->m_Gauge_Upload->SetValue(prog);
             break;
     }
 }
@@ -128,7 +134,10 @@ void* DeviceThread::Entry()
 {
     FILE* fp;
     int filesize;
+    float oldprogress = 0;
     DeviceError deverr = device_find();
+
+    // Check which flashcart we found
     this->ClearConsole();
     this->WriteConsole(wxT("Searching for a valid flashcart"));
     if (deverr != DEVICEERR_OK)
@@ -144,12 +153,23 @@ void* DeviceThread::Entry()
         case CART_EVERDRIVE: this->WriteConsole(wxT("EverDrive")); break;
         case CART_SC64: this->WriteConsole(wxT("SummerCart64")); break;
     }
+
+    // Open the cart
     this->WriteConsole("\nOpening device");
     if (device_open() != DEVICEERR_OK)
     {
         this->WriteConsole(wxString::Format(wxT("\nError opening flashcart. Returned error %d."), deverr));
         return NULL;
     }
+
+    // Test that debug mode is possible
+    if (device_testdebug() != DEVICEERR_OK)
+    {
+        this->WriteConsole(wxT("\nPlease upgrade to firmware 2.05 or higher to access full USB functionality."));
+        return NULL;
+    }
+
+    // Load the ROM
     this->WriteConsole("\nLoading UNFLoader Example 4 via USB");
     this->SetClientDeviceStatus(CLSTATUS_UPLOADING);
     fp = fopen(device_getrom(), "r");
@@ -158,19 +178,28 @@ void* DeviceThread::Entry()
         this->WriteConsole(wxT("\nFailed to open ROM file."));
         return NULL;
     }
-    fseek(fp, 0L, SEEK_END);
-    filesize = ftell(fp);
-    rewind(fp);
 
-    if (device_sendrom(fp, filesize) != DEVICEERR_OK)
+    // Set the CIC for the ROM to be bootable
+    device_explicitcic();
+
+    // Upload the ROM
+    this->UploadROM(fp);
+    while (oldprogress < 100.0f)
     {
-        this->WriteConsole(wxString::Format(wxT("\nError sending ROM. Returned error %d."), deverr));
-        return NULL;
+        float curprog = device_getuploadprogress();
+        if (curprog != oldprogress)
+        {
+            oldprogress = curprog;
+            this->SetUploadProgress(device_getuploadprogress());
+        }
     }
-    while (device_getuploadprogress() < 100.0f)
-        this->SetUploadProgress(device_getuploadprogress());
+    this->SetClientDeviceStatus(CLSTATUS_UPLOADDONE);
+
+    // Finish
     fclose(fp);
-    this->WriteConsole("\nDone");
+    this->WriteConsole("\nFinished uploading.");
+    if (device_getcart() != CART_EVERDRIVE)
+        this->WriteConsole("\nYou may now boot the console.");
     return NULL;
 }
 
@@ -193,7 +222,7 @@ void DeviceThread::SetClientDeviceStatus(ClientDeviceStatus status)
 {
     wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
     evt.SetInt(TEVENT_SETSTATUS);
-    evt.SetInt(status);
+    evt.SetExtraLong(status);
     wxQueueEvent(this->m_Window, evt.Clone());
 }
 
@@ -201,6 +230,58 @@ void DeviceThread::SetUploadProgress(int progress)
 {
     wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
     evt.SetInt(TEVENT_UPLOADPROGRESS);
-    evt.SetInt(progress);
+    evt.SetExtraLong(progress);
+    wxQueueEvent(this->m_Window, evt.Clone());
+}
+
+void DeviceThread::UploadROM(FILE* fp)
+{
+    UploadThread* dev = new UploadThread(this->m_Window, fp);
+    if (dev->Create() != wxTHREAD_NO_ERROR)
+    {
+        delete dev;
+    }
+    else if (dev->Run() != wxTHREAD_NO_ERROR)
+    {
+        delete dev;
+    }
+}
+
+
+/*=============================================================
+
+=============================================================*/
+
+UploadThread::UploadThread(ClientWindow* win, FILE* fp)
+{
+    this->m_Window = win;
+    this->m_File = fp;
+}
+
+void* UploadThread::Entry()
+{
+    int filesize;
+    DeviceError deverr;
+
+    // Get the file size
+    fseek(this->m_File, 0L, SEEK_END);
+    filesize = ftell(this->m_File);
+    rewind(this->m_File);
+
+    // Upload the ROM
+    deverr = device_sendrom(this->m_File, filesize);
+    if (deverr != DEVICEERR_OK)
+    {
+        this->WriteConsole(wxString::Format(wxT("\nError sending ROM. Returned error %d."), deverr));
+        return NULL;
+    }
+    return NULL;
+}
+
+void UploadThread::WriteConsole(wxString str)
+{
+    wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
+    evt.SetInt(TEVENT_WRITECONSOLE);
+    evt.SetString(str.c_str());
     wxQueueEvent(this->m_Window, evt.Clone());
 }

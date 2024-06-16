@@ -66,4 +66,21 @@ class DeviceThread : public wxThread
         void WriteConsole(wxString str);
         void SetClientDeviceStatus(ClientDeviceStatus status);
         void SetUploadProgress(int progress);
+        void UploadROM(FILE* fp);
+};
+
+class UploadThread : public wxThread
+{
+    private:
+        ClientWindow* m_Window;
+        FILE* m_File;
+
+    protected:
+
+    public:
+        UploadThread(ClientWindow* win, FILE* fp);
+        virtual ~UploadThread() {};
+
+        virtual void* Entry() wxOVERRIDE;
+        void WriteConsole(wxString str);
 };
