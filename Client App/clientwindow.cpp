@@ -1,6 +1,6 @@
 #include <wx/event.h>
 #include "clientwindow.h"
-#include "device.h"
+#include "Include/device.h"
 
 typedef enum {
     TEVENT_CLEARCONSOLE,
@@ -133,7 +133,6 @@ DeviceThread::~DeviceThread()
 void* DeviceThread::Entry()
 {
     FILE* fp;
-    int filesize;
     float oldprogress = 0;
     DeviceError deverr = device_find();
 
