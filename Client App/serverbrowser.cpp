@@ -1,8 +1,12 @@
+#include <wx/socket.h>
 #include "serverbrowser.h"
 #include "clientwindow.h"
 
 ServerBrowser::ServerBrowser( wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style ) : wxFrame( parent, id, title, pos, size, style )
 {
+    this->m_MasterAddress = DEFAULT_MASTERSERVER_ADDRESS;
+    this->m_MasterPort = DEFAULT_MASTERSERVER_PORT;
+
     this->SetSizeHints( wxDefaultSize, wxDefaultSize );
 
     m_MenuBar = new wxMenuBar( 0 );
@@ -18,7 +22,7 @@ ServerBrowser::ServerBrowser( wxWindow* parent, wxWindowID id, const wxString& t
     m_ToolBar = this->CreateToolBar( wxTB_HORIZONTAL, wxID_ANY );
     m_Tool_Refresh = m_ToolBar->AddTool( wxID_ANY, wxT("Refresh"), wxNullBitmap, wxNullBitmap, wxITEM_NORMAL, wxEmptyString, wxEmptyString, NULL );
 
-    m_TextCtrl_MasterServerAddress = new wxTextCtrl( m_ToolBar, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0 );
+    m_TextCtrl_MasterServerAddress = new wxTextCtrl( m_ToolBar, wxID_ANY,wxString::Format("%s:%d", this->m_MasterAddress, this->m_MasterPort), wxDefaultPosition, wxDefaultSize, 0 );
     m_ToolBar->AddControl( m_TextCtrl_MasterServerAddress );
     m_ToolBar->AddSeparator();
 
@@ -46,7 +50,8 @@ ServerBrowser::ServerBrowser( wxWindow* parent, wxWindowID id, const wxString& t
 
     this->Centre( wxBOTH );
 
-    this->CreateClient();
+    //this->CreateClient();
+    this->ConnectMaster();
 }
 
 ServerBrowser::~ServerBrowser()
@@ -61,4 +66,26 @@ void ServerBrowser::CreateClient()
     cw->Raise();
     cw->Show();
     this->Lower();
+}
+
+void ServerBrowser::ConnectMaster()
+{
+    wxIPV4address addr;
+    wxSocketClient* sock = new wxSocketClient();
+
+    // Setup the event handler and subscribe to most events
+    //sock->SetEventHandler(*this, SOCKET_ID);
+    sock->SetNotify(wxSOCKET_CONNECTION_FLAG | wxSOCKET_INPUT_FLAG | wxSOCKET_LOST_FLAG);
+    sock->Notify(true);
+
+    addr.Hostname(this->m_MasterAddress);
+    addr.Service(this->m_MasterPort);
+    sock->Connect(addr, false);
+
+    delete sock;
+}
+
+void ServerBrowser::ClearServers()
+{
+
 }

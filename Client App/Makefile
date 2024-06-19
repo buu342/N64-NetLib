@@ -23,15 +23,15 @@ CPPFLAGS ?=
 
 # Standard linker flags 
 ifeq ($(OS_NAME),Darwin)
-	LDFLAGS ?= -lftd2xx -framework OpenGL
+	LDFLAGS ?= -lftd2xx
 else
-	LDFLAGS ?= -lftd2xx -lGL -lGLU
+	LDFLAGS ?= -lftd2xx
 endif
 
 # Location and arguments of wx-config script 
 WX_CONFIG ?= wx-config
 
-LIBRARIES ?= gl,core,base,richtext,html,xml
+LIBRARIES ?= core,net,base,richtext,html,xml
 
 # Port of the wx library to build against [gtk1,gtk2,msw,x11,motif,osx_cocoa,osx_carbon,dfb]
 WX_PORT ?= $(shell $(WX_CONFIG) --query-toolkit)

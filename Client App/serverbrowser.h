@@ -17,9 +17,14 @@
 #include <wx/gbsizer.h>
 #include <wx/frame.h>
 
+#define DEFAULT_MASTERSERVER_ADDRESS "localhost"
+#define DEFAULT_MASTERSERVER_PORT    6464
+
 class ServerBrowser : public wxFrame
 {
     private:
+        wxString m_MasterAddress;
+        int      m_MasterPort;
 
     protected:
         wxMenuBar* m_MenuBar;
@@ -39,4 +44,21 @@ class ServerBrowser : public wxFrame
         ~ServerBrowser();
 
         void CreateClient();
+        void ConnectMaster();
+        void ClearServers();
+};
+
+class ServerFinderThread : public wxThread
+{
+    private:
+        ServerBrowser* m_Window;
+
+    protected:
+
+    public:
+        ServerFinderThread(ServerBrowser* win);
+        virtual ~ServerFinderThread() {};
+
+        virtual void* Entry() wxOVERRIDE;
+        void AddServer(wxString name, wxString players, wxString address, wxString ROM, wxString ping);
 };

@@ -2,14 +2,14 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.io.IOException;
 import java.util.Hashtable;
-import NetLib.N64Sever;
+import NetLib.N64Server;
 
 
 public class MasterServer {
 	
 	private static final int DEFAULTPORT = 6464;
 	
-	private Hashtable<String, N64Sever> servertable = new Hashtable<>();
+	private static Hashtable<String, N64Server> servertable = new Hashtable<>();
 	
 	public static void main(String args[]) throws IOException {
 		boolean isrunning = true;
@@ -23,7 +23,12 @@ public class MasterServer {
             System.err.println("Failed to open port " + Integer.toString(DEFAULTPORT) + ".");
             System.exit(1);
         }
-        System.out.println("Successfully opened socket at port" + Integer.toString(DEFAULTPORT) + ".");
+        System.out.println("Successfully opened socket at port " + Integer.toString(DEFAULTPORT) + ".");
+
+        // Create some "servers"
+        servertable.put("someaddr1", new N64Server("Server 1", 2, "someaddr1", "tictactoe.n64"));
+        servertable.put("someaddr2", new N64Server("Server 2", 4, "someaddr2", "tictactoe.n64"));
+        servertable.put("someaddr3", new N64Server("Server 3", 3, "someaddr3", "tictactoe.n64"));
         
         // Try to connect a client
         while (isrunning) {
