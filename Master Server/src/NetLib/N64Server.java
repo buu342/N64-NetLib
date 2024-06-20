@@ -1,7 +1,9 @@
 package NetLib;
 
-public class N64Server
+public class N64Server implements java.io.Serializable
 {
+    static final long serialVersionUID = 64L;
+    
 	private String name;
 	private String address;
 	private String ROM;

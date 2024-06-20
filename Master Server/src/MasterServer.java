@@ -14,7 +14,6 @@ public class MasterServer {
 	public static void main(String args[]) throws IOException {
 		boolean isrunning = true;
 		ServerSocket ss = null;
-		Socket s = null;
 		
 		// Try to open the port
         try {
@@ -32,12 +31,15 @@ public class MasterServer {
         
         // Try to connect a client
         while (isrunning) {
+            Socket s = null;
+            ClientConnectionThread t;
 	        try {
 	            s = ss.accept();
+	            t = new ClientConnectionThread(servertable, s);
+	            new Thread(t).start();
 	        } catch (IOException e) {
-	            System.err.println("Client attempted to connect and failed.");
+	            System.err.println("Error during client connection.");
 	        }
-			System.out.println("Client connected");
         }
 		
 		// End
