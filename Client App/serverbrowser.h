@@ -16,15 +16,19 @@
 #include <wx/dataview.h>
 #include <wx/gbsizer.h>
 #include <wx/frame.h>
+#include <wx/socket.h>
 
 #define DEFAULT_MASTERSERVER_ADDRESS "localhost"
 #define DEFAULT_MASTERSERVER_PORT    6464
+
+class ServerFinderThread;
 
 class ServerBrowser : public wxFrame
 {
     private:
         wxString m_MasterAddress;
         int      m_MasterPort;
+        ServerFinderThread* m_FinderThread;
 
     protected:
         wxMenuBar* m_MenuBar;
@@ -46,19 +50,24 @@ class ServerBrowser : public wxFrame
         void CreateClient();
         void ConnectMaster();
         void ClearServers();
+        void ThreadEvent(wxThreadEvent& event);
+        wxString GetAddress();
+        int GetPort();
 };
 
 class ServerFinderThread : public wxThread
 {
     private:
+        wxSocketClient* m_Socket;
         ServerBrowser* m_Window;
 
     protected:
 
     public:
         ServerFinderThread(ServerBrowser* win);
-        virtual ~ServerFinderThread() {};
+        ~ServerFinderThread();
 
         virtual void* Entry() wxOVERRIDE;
+        void OnSocketEvent(wxSocketEvent& event);
         void AddServer(wxString name, wxString players, wxString address, wxString ROM, wxString ping);
 };

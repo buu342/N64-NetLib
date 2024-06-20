@@ -1,4 +1,3 @@
-#include <wx/socket.h>
 #include "serverbrowser.h"
 #include "clientwindow.h"
 
@@ -6,6 +5,7 @@ ServerBrowser::ServerBrowser( wxWindow* parent, wxWindowID id, const wxString& t
 {
     this->m_MasterAddress = DEFAULT_MASTERSERVER_ADDRESS;
     this->m_MasterPort = DEFAULT_MASTERSERVER_PORT;
+    this->m_FinderThread = NULL;
 
     this->SetSizeHints( wxDefaultSize, wxDefaultSize );
 
@@ -49,6 +49,7 @@ ServerBrowser::ServerBrowser( wxWindow* parent, wxWindowID id, const wxString& t
     this->Layout();
 
     this->Centre( wxBOTH );
+    this->Connect(wxID_ANY, wxEVT_THREAD, wxThreadEventHandler(ServerBrowser::ThreadEvent));
 
     //this->CreateClient();
     this->ConnectMaster();
@@ -56,7 +57,9 @@ ServerBrowser::ServerBrowser( wxWindow* parent, wxWindowID id, const wxString& t
 
 ServerBrowser::~ServerBrowser()
 {
-    
+    this->Disconnect(wxID_ANY, wxEVT_THREAD, wxThreadEventHandler(ServerBrowser::ThreadEvent));
+    if (this->m_FinderThread != NULL && this->m_FinderThread->IsRunning())
+        this->m_FinderThread->Delete();
 }
 
 void ServerBrowser::CreateClient()
@@ -70,22 +73,114 @@ void ServerBrowser::CreateClient()
 
 void ServerBrowser::ConnectMaster()
 {
-    wxIPV4address addr;
-    wxSocketClient* sock = new wxSocketClient();
+    // If the thread is running, kill it
+    if (this->m_FinderThread != NULL)
+    {
+        this->m_FinderThread->Delete();
+        this->m_FinderThread = NULL;
+    }
 
-    // Setup the event handler and subscribe to most events
-    //sock->SetEventHandler(*this, SOCKET_ID);
-    sock->SetNotify(wxSOCKET_CONNECTION_FLAG | wxSOCKET_INPUT_FLAG | wxSOCKET_LOST_FLAG);
-    sock->Notify(true);
+    // Clear the server list
+    this->ClearServers();
 
-    addr.Hostname(this->m_MasterAddress);
-    addr.Service(this->m_MasterPort);
-    sock->Connect(addr, false);
-
-    delete sock;
+    // Create the finder thread
+    this->m_FinderThread = new ServerFinderThread(this);
+    if (this->m_FinderThread->Create() != wxTHREAD_NO_ERROR || this->m_FinderThread->Run() != wxTHREAD_NO_ERROR)
+    {
+        delete this->m_FinderThread;
+        this->m_FinderThread = NULL;
+    }
 }
 
 void ServerBrowser::ClearServers()
+{
+    this->m_DataViewListCtrl_Servers->DeleteAllItems();
+}
+
+void ServerBrowser::ThreadEvent(wxThreadEvent& event)
+{
+    
+}
+
+wxString ServerBrowser::GetAddress()
+{
+    return this->m_MasterAddress;
+}
+
+int ServerBrowser::GetPort()
+{
+    return this->m_MasterPort;
+}
+
+
+/*=============================================================
+
+=============================================================*/
+
+ServerFinderThread::ServerFinderThread(ServerBrowser* win)
+{
+    this->m_Window = win;
+    this->m_Socket = NULL;
+}
+
+ServerFinderThread::~ServerFinderThread()
+{
+    if (this->m_Socket != NULL && this->m_Socket->IsConnected())
+        this->m_Socket->Close();
+}
+
+void* ServerFinderThread::Entry()
+{
+    wxIPV4address addr;
+    addr.Hostname(this->m_Window->GetAddress());
+    addr.Service(this->m_Window->GetPort());
+
+    // Attempt to connect the socket
+    this->m_Socket = new wxSocketClient(wxSOCKET_BLOCK);
+    this->m_Socket->SetTimeout(10);
+    this->m_Socket->Connect(addr);
+    if (!this->m_Socket->IsConnected())
+    {
+        this->m_Socket->Close();
+        printf("Socket failed to connect.\n");
+        return NULL;
+    }
+
+    printf("Socket connected successfully!\n");
+    while (true)
+    {
+        if (this->m_Socket->IsData())
+        {
+            int readsize;
+            const int readbuffsize = 512;
+            char* buf = (char*)malloc(readbuffsize);
+
+            // Perform a blocking read
+            this->m_Socket->Read(buf, readbuffsize);
+            if (this->m_Socket->LastError() != wxSOCKET_NOERROR)
+            {
+                printf("Socket threw error %d\n", this->m_Socket->LastError());
+                free(buf);
+                return NULL;
+            }
+
+            // Handle the read data
+            readsize = this->m_Socket->LastReadCount();
+            printf("Reading %d bytes\n", this->m_Socket->LastReadCount());
+            for (int i=0; i<readsize; i++)
+                printf("%c", buf[i]);
+            printf("\n");
+            free(buf);
+        }
+    }
+}
+
+void ServerFinderThread::OnSocketEvent(wxSocketEvent& event)
+{
+    
+}
+
+void ServerFinderThread::AddServer(wxString name, wxString players, wxString address, wxString ROM, wxString ping)
 {
 
 }

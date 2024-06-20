@@ -2,7 +2,6 @@ import java.net.Socket;
 import java.util.Hashtable;
 import java.util.Enumeration;
 import java.io.DataOutputStream;
-import java.io.ObjectOutputStream;
 import NetLib.N64Server;
 
 public class ClientConnectionThread implements Runnable {
@@ -19,19 +18,25 @@ public class ClientConnectionThread implements Runnable {
         try {
             DataOutputStream dos = new DataOutputStream(this.clientsocket.getOutputStream());
             Enumeration<String> keys = this.servers.keys();
+            System.out.println("Sending client "+this.clientsocket+" the list of servers");
             while (keys.hasMoreElements()) {
                 String key = keys.nextElement();
                 N64Server server = this.servers.get(key);
-                ObjectOutputStream out = new ObjectOutputStream(dos);
-                out.writeObject(server);
-                out.close();
-                dos.flush();
+                byte[] serverbytes = server.toByteArray();
+                if (serverbytes != null)
+                {
+	                dos.write("N64SERVER".getBytes());
+	                dos.write(serverbytes.length);
+	                dos.write(serverbytes);
+	                dos.flush();
+                }
                 Thread.sleep(1000);
             }
+            System.out.println("Finished with "+this.clientsocket);
             dos.close();
             this.clientsocket.close();
         } catch (Exception e) {
-            System.err.println("Error closing client socket.");
+            System.err.println(e);
         }
     }
 }

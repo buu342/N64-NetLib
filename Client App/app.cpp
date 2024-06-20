@@ -4,6 +4,7 @@
 This file handles the wxWidgets initialization.
 ***************************************************************/
 
+#include <wx/socket.h>
 #include "app.h"
 
 wxIMPLEMENT_APP(App);
@@ -44,6 +45,7 @@ bool App::OnInit()
 
     // Initialize image handlers
     wxInitAllImageHandlers();
+    wxSocketBase::Initialize();
 
     // Show the main window
     this->m_Frame = new ServerBrowser();

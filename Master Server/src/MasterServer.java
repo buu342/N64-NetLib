@@ -39,6 +39,7 @@ public class MasterServer {
 	            new Thread(t).start();
 	        } catch (IOException e) {
 	            System.err.println("Error during client connection.");
+	            System.err.println(e);
 	        }
         }
 		
