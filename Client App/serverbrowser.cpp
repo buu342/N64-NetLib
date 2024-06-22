@@ -1,6 +1,15 @@
 #include "serverbrowser.h"
 #include "clientwindow.h"
 
+typedef struct
+{
+    wxString name;
+    wxString address;
+    int playercount;
+    int maxplayers;
+    wxString rom;
+} FoundServer;
+
 ServerBrowser::ServerBrowser( wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style ) : wxFrame( parent, id, title, pos, size, style )
 {
     this->m_MasterAddress = DEFAULT_MASTERSERVER_ADDRESS;
@@ -131,6 +140,8 @@ ServerFinderThread::~ServerFinderThread()
 
 void* ServerFinderThread::Entry()
 {
+    int packetsize = -1;
+    FoundServer serverdata;
     wxIPV4address addr;
     addr.Hostname(this->m_Window->GetAddress());
     addr.Service(this->m_Window->GetPort());
@@ -164,12 +175,19 @@ void* ServerFinderThread::Entry()
                 return NULL;
             }
 
-            // Handle the read data
+            // Echo back the packet
             readsize = this->m_Socket->LastReadCount();
             printf("Reading %d bytes\n", this->m_Socket->LastReadCount());
             for (int i=0; i<readsize; i++)
                 printf("%c", buf[i]);
             printf("\n");
+
+            // Parse the packet
+            if (packetsize == -1)
+            {
+
+            }
+
             free(buf);
         }
     }
