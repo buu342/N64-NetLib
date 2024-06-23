@@ -405,3 +405,7 @@ FodyWeavers.xsd
 */build
 */*/build
 */*/out
+
+# ROMs
+*.n64
+*.z64
