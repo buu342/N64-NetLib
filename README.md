@@ -8,6 +8,10 @@ This repository is organized as such:
 * `Examples` - Example ROM and server applications that showcase the library in action.
 * `Master Server` - This is the master server application which every server will connect to. This will store a live database of known servers, allowing the clientside app to discover said servers.
 
+### Compilation
+
+### FAQ
+
 ### Security
 
 This project aims to keep the system extensible (IE anyone can make their own custom server for people to connect to), but safe to use. To ensure this, the following restrictions are in place:
