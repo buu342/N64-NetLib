@@ -1,6 +1,10 @@
 #include "serverbrowser.h"
 #include "clientwindow.h"
 
+typedef enum {
+    TEVENT_THREADENDED,
+} ThreadEventType;
+
 typedef struct
 {
     wxString name;
@@ -68,8 +72,14 @@ ServerBrowser::ServerBrowser( wxWindow* parent, wxWindowID id, const wxString& t
 ServerBrowser::~ServerBrowser()
 {
     this->Disconnect(wxID_ANY, wxEVT_THREAD, wxThreadEventHandler(ServerBrowser::ThreadEvent));
-    if (this->m_FinderThread != NULL && this->m_FinderThread->IsRunning())
-        this->m_FinderThread->Delete();
+    
+    // Deallocate the thread. Use a CriticalSection to access it
+    {
+        wxCriticalSectionLocker enter(this->m_FinderThreadCS);
+
+        if (this->m_FinderThread != NULL)
+            this->m_FinderThread->Delete();
+    }
 }
 
 void ServerBrowser::CreateClient()
@@ -84,10 +94,13 @@ void ServerBrowser::CreateClient()
 void ServerBrowser::ConnectMaster()
 {
     // If the thread is running, kill it
-    if (this->m_FinderThread != NULL)
     {
-        this->m_FinderThread->Delete();
-        this->m_FinderThread = NULL;
+        wxCriticalSectionLocker enter(this->m_FinderThreadCS);
+        if (this->m_FinderThread != NULL)
+        {
+            this->m_FinderThread->Delete();
+            this->m_FinderThread = NULL;
+        }
     }
 
     // Clear the server list
@@ -95,7 +108,7 @@ void ServerBrowser::ConnectMaster()
 
     // Create the finder thread
     this->m_FinderThread = new ServerFinderThread(this);
-    if (this->m_FinderThread->Create() != wxTHREAD_NO_ERROR || this->m_FinderThread->Run() != wxTHREAD_NO_ERROR)
+    if (this->m_FinderThread->Run() != wxTHREAD_NO_ERROR)
     {
         delete this->m_FinderThread;
         this->m_FinderThread = NULL;
@@ -109,7 +122,12 @@ void ServerBrowser::ClearServers()
 
 void ServerBrowser::ThreadEvent(wxThreadEvent& event)
 {
-    
+    switch ((ThreadEventType)event.GetInt())
+    {
+        case TEVENT_THREADENDED:
+            this->m_FinderThread = NULL;
+            break;
+    }
 }
 
 wxString ServerBrowser::GetAddress()
@@ -135,8 +153,8 @@ ServerFinderThread::ServerFinderThread(ServerBrowser* win)
 
 ServerFinderThread::~ServerFinderThread()
 {
-    if (this->m_Socket != NULL && this->m_Socket->IsConnected())
-        this->m_Socket->Close();
+    if (this->m_Socket != NULL)
+        delete this->m_Socket;
 }
 
 void* ServerFinderThread::Entry()
@@ -155,11 +173,12 @@ void* ServerFinderThread::Entry()
     {
         this->m_Socket->Close();
         printf("Socket failed to connect.\n");
+        this->NotifyMainOfDeath();
         return NULL;
     }
 
     printf("Socket connected successfully!\n");
-    while (true)
+    while (!TestDestroy())
     {
         if (this->m_Socket->IsData())
         {
@@ -173,6 +192,7 @@ void* ServerFinderThread::Entry()
             {
                 printf("Socket threw error %d\n", this->m_Socket->LastError());
                 free(buf);
+                this->NotifyMainOfDeath();
                 return NULL;
             }
 
@@ -192,6 +212,8 @@ void* ServerFinderThread::Entry()
             free(buf);
         }
     }
+    this->NotifyMainOfDeath();
+    return 0;
 }
 
 void ServerFinderThread::OnSocketEvent(wxSocketEvent& event)
@@ -202,4 +224,11 @@ void ServerFinderThread::OnSocketEvent(wxSocketEvent& event)
 void ServerFinderThread::AddServer(wxString name, wxString players, wxString address, wxString ROM, wxString ping)
 {
 
+}
+
+void ServerFinderThread::NotifyMainOfDeath()
+{
+    wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
+    evt.SetInt(TEVENT_THREADENDED);
+    wxQueueEvent(this->m_Window, evt.Clone());
 }

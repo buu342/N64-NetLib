@@ -29,6 +29,7 @@ class ServerBrowser : public wxFrame
         wxString m_MasterAddress;
         int      m_MasterPort;
         ServerFinderThread* m_FinderThread;
+        wxCriticalSection m_FinderThreadCS;
 
     protected:
         wxMenuBar* m_MenuBar;
@@ -70,4 +71,5 @@ class ServerFinderThread : public wxThread
         virtual void* Entry() wxOVERRIDE;
         void OnSocketEvent(wxSocketEvent& event);
         void AddServer(wxString name, wxString players, wxString address, wxString ROM, wxString ping);
+        void NotifyMainOfDeath();
 };
