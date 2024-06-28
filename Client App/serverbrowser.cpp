@@ -12,6 +12,7 @@ typedef struct
 
 ServerBrowser::ServerBrowser( wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style ) : wxFrame( parent, id, title, pos, size, style )
 {
+    printf("HEllo!\n");
     this->m_MasterAddress = DEFAULT_MASTERSERVER_ADDRESS;
     this->m_MasterPort = DEFAULT_MASTERSERVER_PORT;
     this->m_FinderThread = NULL;
@@ -29,7 +30,7 @@ ServerBrowser::ServerBrowser( wxWindow* parent, wxWindowID id, const wxString& t
     this->SetMenuBar( m_MenuBar );
 
     m_ToolBar = this->CreateToolBar( wxTB_HORIZONTAL, wxID_ANY );
-    m_Tool_Refresh = m_ToolBar->AddTool( wxID_ANY, wxT("Refresh"), wxNullBitmap, wxNullBitmap, wxITEM_NORMAL, wxEmptyString, wxEmptyString, NULL );
+    //m_Tool_Refresh = m_ToolBar->AddTool( wxID_ANY, wxT("Refresh"), wxNullBitmap, wxNullBitmap, wxITEM_NORMAL, wxEmptyString, wxEmptyString, NULL );
 
     m_TextCtrl_MasterServerAddress = new wxTextCtrl( m_ToolBar, wxID_ANY,wxString::Format("%s:%d", this->m_MasterAddress, this->m_MasterPort), wxDefaultPosition, wxDefaultSize, 0 );
     m_ToolBar->AddControl( m_TextCtrl_MasterServerAddress );
