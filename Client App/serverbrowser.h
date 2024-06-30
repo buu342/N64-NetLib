@@ -21,6 +21,15 @@
 #define DEFAULT_MASTERSERVER_ADDRESS "localhost"
 #define DEFAULT_MASTERSERVER_PORT    6464
 
+typedef struct
+{
+    wxString name;
+    wxString address;
+    int playercount;
+    int maxplayers;
+    wxString rom;
+} FoundServer;
+
 class ServerFinderThread;
 
 class ServerBrowser : public wxFrame
@@ -43,6 +52,8 @@ class ServerBrowser : public wxFrame
         wxDataViewColumn* m_DataViewListColumn_ServerName;
         wxDataViewColumn* m_DataViewListColumn_Address;
         wxDataViewColumn* m_DataViewListColumn_ROM;
+
+        void m_Tool_RefreshOnToolClicked(wxCommandEvent& event);
 
     public:
         ServerBrowser(wxWindow* parent = NULL, wxWindowID id = wxID_ANY, const wxString& title = wxEmptyString, const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 800,600 ), long style = wxDEFAULT_FRAME_STYLE|wxTAB_TRAVERSAL );
@@ -70,6 +81,7 @@ class ServerFinderThread : public wxThread
 
         virtual void* Entry() wxOVERRIDE;
         void OnSocketEvent(wxSocketEvent& event);
-        void AddServer(wxString name, wxString players, wxString address, wxString ROM, wxString ping);
+        void ParsePacket_Server(char* buf);
+        void AddServer(FoundServer* server);
         void NotifyMainOfDeath();
 };

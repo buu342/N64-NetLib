@@ -25,8 +25,10 @@ public class ClientConnectionThread implements Runnable {
                 byte[] serverbytes = server.toByteArray();
                 if (serverbytes != null)
                 {
-	                dos.write("N64SERVER".getBytes());
-	                dos.write(serverbytes.length);
+                	final String packetype = "SERVER";
+	                dos.write("N64PKT".getBytes());
+	                dos.writeInt(serverbytes.length + packetype.length());
+	                dos.write(packetype.getBytes());
 	                dos.write(serverbytes);
 	                dos.flush();
                 }

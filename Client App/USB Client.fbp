@@ -166,6 +166,7 @@
           <property name="permission">protected</property>
           <property name="statusbar"></property>
           <property name="tooltip"></property>
+          <event name="OnToolClicked">m_Tool_RefreshOnToolClicked</event>
         </object>
         <object class="wxTextCtrl" expanded="false">
           <property name="BottomDockable">1</property>
@@ -274,7 +275,7 @@
             <object class="dataViewListColumn" expanded="false">
               <property name="align">wxALIGN_LEFT</property>
               <property name="ellipsize"></property>
-              <property name="flags">wxDATAVIEW_COL_RESIZABLE</property>
+              <property name="flags">wxDATAVIEW_COL_RESIZABLE|wxDATAVIEW_COL_SORTABLE</property>
               <property name="label">Ping</property>
               <property name="mode">wxDATAVIEW_CELL_INERT</property>
               <property name="name">m_DataViewListColumn_Ping</property>
@@ -285,7 +286,7 @@
             <object class="dataViewListColumn" expanded="true">
               <property name="align">wxALIGN_LEFT</property>
               <property name="ellipsize"></property>
-              <property name="flags">wxDATAVIEW_COL_RESIZABLE</property>
+              <property name="flags">wxDATAVIEW_COL_RESIZABLE|wxDATAVIEW_COL_SORTABLE</property>
               <property name="label">Players</property>
               <property name="mode">wxDATAVIEW_CELL_INERT</property>
               <property name="name">m_DataViewListColumn_Players</property>
@@ -296,7 +297,7 @@
             <object class="dataViewListColumn" expanded="false">
               <property name="align">wxALIGN_LEFT</property>
               <property name="ellipsize"></property>
-              <property name="flags">wxDATAVIEW_COL_RESIZABLE</property>
+              <property name="flags">wxDATAVIEW_COL_RESIZABLE|wxDATAVIEW_COL_SORTABLE</property>
               <property name="label">Server Name</property>
               <property name="mode">wxDATAVIEW_CELL_INERT</property>
               <property name="name">m_DataViewListColumn_ServerName</property>
@@ -307,7 +308,7 @@
             <object class="dataViewListColumn" expanded="false">
               <property name="align">wxALIGN_LEFT</property>
               <property name="ellipsize"></property>
-              <property name="flags">wxDATAVIEW_COL_RESIZABLE</property>
+              <property name="flags">wxDATAVIEW_COL_RESIZABLE|wxDATAVIEW_COL_SORTABLE</property>
               <property name="label">Address</property>
               <property name="mode">wxDATAVIEW_CELL_INERT</property>
               <property name="name">m_DataViewListColumn_Address</property>
@@ -318,7 +319,7 @@
             <object class="dataViewListColumn" expanded="false">
               <property name="align">wxALIGN_LEFT</property>
               <property name="ellipsize"></property>
-              <property name="flags">wxDATAVIEW_COL_RESIZABLE</property>
+              <property name="flags">wxDATAVIEW_COL_RESIZABLE|wxDATAVIEW_COL_SORTABLE</property>
               <property name="label">ROM</property>
               <property name="mode">wxDATAVIEW_CELL_INERT</property>
               <property name="name">m_DataViewListColumn_ROM</property>

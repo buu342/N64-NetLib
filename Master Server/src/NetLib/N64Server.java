@@ -1,5 +1,6 @@
 package NetLib;
 import java.io.ByteArrayOutputStream;
+import java.nio.ByteBuffer;
 
 public class N64Server
 {    
@@ -22,10 +23,13 @@ public class N64Server
 	{
 		try {
 			ByteArrayOutputStream bytes	= new ByteArrayOutputStream();
+			bytes.write(ByteBuffer.allocate(4).putInt(this.name.length()).array());
 			bytes.write(this.name.getBytes());
-			bytes.write(this.curplayers);
-			bytes.write(this.maxplayers);
+			bytes.write(ByteBuffer.allocate(4).putInt(this.curplayers).array());
+			bytes.write(ByteBuffer.allocate(4).putInt(this.maxplayers).array());
+			bytes.write(ByteBuffer.allocate(4).putInt(this.address.length()).array());
 			bytes.write(this.address.getBytes());
+			bytes.write(ByteBuffer.allocate(4).putInt(this.ROM.length()).array());
 			bytes.write(this.ROM.getBytes());
 			return bytes.toByteArray();
 		} catch (Exception e) {
