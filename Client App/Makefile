@@ -23,9 +23,12 @@ CPPFLAGS ?=
 
 # Standard linker flags 
 ifeq ($(OS_NAME),Darwin)
-	LDFLAGS ?= -lftd2xx
+	HOMEBREW_PREFIX=$(shell brew --prefix)
+	HOMEBREW_CELLAR=$(shell brew --cellar)
+	CXXFLAGS += -I$(HOMEBREW_PREFIX)/include
+	LDFLAGS ?= $(shell pkg-config --libs-only-other --static libftdi1) $(HOMEBREW_CELLAR)/libusb/1.0.27/lib/libusb-1.0.a $(HOMEBREW_CELLAR)/libftdi/1.5_2/lib/libftdi1.a
 else
-	LDFLAGS ?= -lftd2xx
+	LDFLAGS ?= -l:libftdi1.a -l:libusb-1.0.a -ludev
 endif
 
 # Location and arguments of wx-config script 
