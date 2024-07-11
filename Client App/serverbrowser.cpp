@@ -195,6 +195,11 @@ void* ServerFinderThread::Entry()
     }
 
     printf("Connected to master server successfully!\n");
+    this->m_Socket->Write("N64PKT", 6);
+    packetsize = 4;
+    this->m_Socket->Write(&packetsize, sizeof(int));
+    this->m_Socket->Write("LIST", packetsize);
+    printf("Requested server list\n");
     while (!TestDestroy())
     {
         if (this->m_Socket->IsData())
