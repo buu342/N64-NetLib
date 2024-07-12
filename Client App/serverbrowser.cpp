@@ -281,12 +281,6 @@ void ServerFinderThread::ParsePacket_Server(char* buf)
     server.name = wxString(buf + buffoffset, (size_t)strsize);
     buffoffset += strsize;
 
-    // Read the player count
-    memcpy(&strsize, buf + buffoffset, sizeof(int));
-    strsize = swap_endian32(strsize);
-    buffoffset += sizeof(int);
-    server.playercount = strsize;
-
     // Read the max players
     memcpy(&strsize, buf + buffoffset, sizeof(int));
     strsize = swap_endian32(strsize);
