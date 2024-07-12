@@ -180,6 +180,7 @@ void* ServerFinderThread::Entry()
     int packetsize = -1;
     FoundServer serverdata;
     wxIPV4address addr;
+    char outtext[64];
     addr.Hostname(this->m_Window->GetAddress());
     addr.Service(this->m_Window->GetPort());
 
@@ -195,10 +196,12 @@ void* ServerFinderThread::Entry()
     }
 
     printf("Connected to master server successfully!\n");
-    this->m_Socket->Write("N64PKT", 6);
-    packetsize = 4;
+    sprintf(outtext, "N64PKT");
+    this->m_Socket->Write(outtext, strlen(outtext));
+    sprintf(outtext, "LIST");
+    packetsize = swap_endian32(strlen(outtext));
     this->m_Socket->Write(&packetsize, sizeof(int));
-    this->m_Socket->Write("LIST", packetsize);
+    this->m_Socket->Write(outtext, swap_endian32(packetsize));
     printf("Requested server list\n");
     while (!TestDestroy())
     {
