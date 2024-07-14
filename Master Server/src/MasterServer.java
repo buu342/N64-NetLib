@@ -4,16 +4,19 @@ import java.io.IOException;
 import java.util.Hashtable;
 import NetLib.N64Server;
 
-
 public class MasterServer {
 	
 	private static final int DEFAULTPORT = 6464;
 	
 	private static Hashtable<String, N64Server> servertable = new Hashtable<>();
+
+    private static String romdir = "roms/";
 	
 	public static void main(String args[]) throws IOException {
 		boolean isrunning = true;
 		ServerSocket ss = null;
+
+        // Open the ROM directory and get all the ROMs inside
 		
 		// Try to open the port
         try {
@@ -23,11 +26,6 @@ public class MasterServer {
             System.exit(1);
         }
         System.out.println("Successfully opened socket at port " + Integer.toString(DEFAULTPORT) + ".");
-
-        // Create some "servers"
-        servertable.put("someaddr1", new N64Server("Server 1", 2, "someaddr1", "tictactoe.n64"));
-        servertable.put("someaddr2", new N64Server("Server 2", 4, "someaddr2", "tictactoe.n64"));
-        servertable.put("someaddr3", new N64Server("Server 3", 3, "someaddr3", "tictactoe.n64"));
         
         // Try to connect a client
         while (isrunning) {
@@ -39,7 +37,7 @@ public class MasterServer {
 	            new Thread(t).start();
 	        } catch (IOException e) {
 	            System.err.println("Error during client connection.");
-	            System.err.println(e);
+	            e.printStackTrace();
 	        }
         }
 		

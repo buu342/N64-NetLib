@@ -5,6 +5,7 @@ import java.io.DataOutputStream;
 import java.io.DataInputStream;
 import NetLib.N64Server;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 
 public class ClientConnectionThread implements Runnable {
 
@@ -20,16 +21,17 @@ public class ClientConnectionThread implements Runnable {
     {
         DataOutputStream dos = new DataOutputStream(this.clientsocket.getOutputStream());
         Enumeration<String> keys = this.servers.keys();
-        System.out.println("Sending client "+this.clientsocket+" the list of servers");
+        System.out.println("Client "+this.clientsocket+" requested list of servers");
         while (keys.hasMoreElements()) {
             String key = keys.nextElement();
             N64Server server = this.servers.get(key);
             byte[] serverbytes = server.toByteArray();
             if (serverbytes != null) {
-            	final String packetype = "SERVER";
-                dos.write("N64PKT".getBytes());
-                dos.writeInt(serverbytes.length + packetype.length());
-                dos.write(packetype.getBytes());
+                byte[] header = {'N', '6', '4', 'P', 'K', 'T'};
+            	byte[] packetype = {'S', 'E', 'R', 'V', 'E', 'R'};
+                dos.write(header);
+                dos.writeInt(serverbytes.length + packetype.length);
+                dos.write(packetype);
                 dos.write(serverbytes);
                 dos.flush();
             }
@@ -37,9 +39,44 @@ public class ClientConnectionThread implements Runnable {
         dos.close();
     }
     
+    private void RegisterServer(byte[] data)
+    {
+    	System.out.println("Client " + this.clientsocket + " requested server register");
+    	int size;
+    	int maxcount = 0;
+    	String serveraddress = this.clientsocket.getRemoteSocketAddress().toString().replace("/","");
+    	String servername = "";
+    	String romname = "";
+    	byte[] romhash;
+    	ByteBuffer bb = ByteBuffer.wrap(data);
+    	bb.position(8);
+    	
+    	// Server name
+    	size = bb.getInt();
+    	for (int i=0; i<size; i++)
+    		servername += (char)bb.get();
+    	
+    	// Player max count
+    	maxcount = bb.getInt();
+    	
+    	// ROM name
+    	size = bb.getInt();
+    	for (int i=0; i<size; i++)
+    		romname += (char)bb.get();
+    	
+    	// ROM hash
+    	size = bb.getInt();
+    	romhash = new byte[size];
+    	for (int i=0; i<size; i++)
+    		romhash[i] += (char)bb.get();
+    	
+    	this.servers.put(serveraddress, new N64Server(servername, maxcount, serveraddress, romname, romhash));
+    }
+    
     private boolean CheckCString(byte[] data, String str)
     {
-    	for (int i=0; i<data.length; i++) {
+    	int max = Math.min(str.length(), data.length);
+    	for (int i=0; i<max; i++) {
     		char readbyte = (char) (((int) data[i]) & 0xFF);
     		if (readbyte != str.charAt(i))
     			return false;
@@ -70,13 +107,16 @@ public class ClientConnectionThread implements Runnable {
 	        	if (CheckCString(data, "LIST")) {
 	        		this.ListServers();
 	        		break;
+	        	} else if (CheckCString(data, "REGISTER")) {
+	        		this.RegisterServer(data);
+	        		break;
 	        	}
         	}
             System.out.println("Finished with "+this.clientsocket);
             this.clientsocket.close();
             dis.close();
         } catch (Exception e) {
-            System.err.println(e);
+            e.printStackTrace();
         }
     }
 }

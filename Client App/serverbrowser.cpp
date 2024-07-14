@@ -137,7 +137,7 @@ void ServerBrowser::ThreadEvent(wxThreadEvent& event)
             FoundServer* server = event.GetPayload<FoundServer*>();
             wxVector<wxVariant> data;
             data.push_back(wxVariant("?"));
-            data.push_back(wxVariant(wxString::Format("%d/%d", server->playercount, server->maxplayers)));
+            data.push_back(wxVariant(wxString::Format("?/%d", server->maxplayers)));
             data.push_back(wxVariant(server->name));
             data.push_back(wxVariant(server->address));
             data.push_back(wxVariant(server->rom));
@@ -300,6 +300,13 @@ void ServerFinderThread::ParsePacket_Server(char* buf)
     buffoffset += sizeof(int);
     server.rom = wxString(buf + buffoffset, (size_t)strsize);
     buffoffset += strsize;
+
+    // Read the rom hash
+    /*memcpy(&strsize, buf + buffoffset, sizeof(int));
+    strsize = swap_endian32(strsize);
+    buffoffset += sizeof(int);
+    server.rom = wxString(buf + buffoffset, (size_t)strsize);
+    buffoffset += strsize;*/
 
     // Send the server info to the main thread
     this->AddServer(&server);

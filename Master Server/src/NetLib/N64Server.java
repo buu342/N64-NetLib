@@ -7,10 +7,10 @@ public class N64Server
 	private String name;
 	private String address;
 	private String ROM;
-    private String ROMHash;
+    private byte[] ROMHash;
 	private int maxplayers;
 	
-	public N64Server(String name, int maxplayers, String address, String ROM, String ROMHash)
+	public N64Server(String name, int maxplayers, String address, String ROM, byte[] ROMHash)
 	{
 		this.name = name;
 		this.maxplayers = maxplayers;
@@ -30,11 +30,11 @@ public class N64Server
 			bytes.write(this.address.getBytes());
 			bytes.write(ByteBuffer.allocate(4).putInt(this.ROM.length()).array());
 			bytes.write(this.ROM.getBytes());
-            bytes.write(ByteBuffer.allocate(4).putInt(this.ROMHash.length()).array());
-            bytes.write(this.ROMHash.getBytes());
+            bytes.write(ByteBuffer.allocate(4).putInt(this.ROMHash.length).array());
+            bytes.write(this.ROMHash);
 			return bytes.toByteArray();
 		} catch (Exception e) {
-			System.out.println(e);
+            e.printStackTrace();
 			return null;
 		}
 	}
