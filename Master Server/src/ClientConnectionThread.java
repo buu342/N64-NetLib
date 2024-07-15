@@ -4,6 +4,7 @@ import java.util.Enumeration;
 import java.io.DataOutputStream;
 import java.io.DataInputStream;
 import NetLib.N64Server;
+import NetLib.N64ROM;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
@@ -73,6 +74,10 @@ public class ClientConnectionThread implements Runnable {
     	this.servers.put(serveraddress, new N64Server(servername, maxcount, serveraddress, romname, romhash));
     }
     
+    private void DownloadROM(N64ROM rom) {
+    	
+	}
+    
     private boolean CheckCString(byte[] data, String str)
     {
     	int max = Math.min(str.length(), data.length);
@@ -108,6 +113,9 @@ public class ClientConnectionThread implements Runnable {
 	        		this.ListServers();
 	        		break;
 	        	} else if (CheckCString(data, "REGISTER")) {
+	        		this.RegisterServer(data);
+	        		break;
+	        	} else if (CheckCString(data, "DOWNLOAD")) {
 	        		this.RegisterServer(data);
 	        		break;
 	        	}

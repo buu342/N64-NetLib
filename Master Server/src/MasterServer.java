@@ -1,13 +1,16 @@
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.io.File;
 import java.io.IOException;
 import java.util.Hashtable;
 import NetLib.N64Server;
+import NetLib.N64ROM;
 
 public class MasterServer {
 	
 	private static final int DEFAULTPORT = 6464;
 	
+	private static Hashtable<byte[], N64ROM> romtable = new Hashtable<>();
 	private static Hashtable<String, N64Server> servertable = new Hashtable<>();
 
     private static String romdir = "roms/";
@@ -17,6 +20,7 @@ public class MasterServer {
 		ServerSocket ss = null;
 
         // Open the ROM directory and get all the ROMs inside
+		ReadROMs();
 		
 		// Try to open the port
         try {
@@ -43,5 +47,12 @@ public class MasterServer {
 		
 		// End
 		ss.close();
+	}
+	
+	private static void ReadROMs()
+	{
+		File folder = new File("roms");
+		if (!folder.exists())
+			folder.mkdirs();
 	}
 }
