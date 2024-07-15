@@ -54,6 +54,7 @@ class ServerBrowser : public wxFrame
         wxDataViewColumn* m_DataViewListColumn_ROM;
 
         void m_Tool_RefreshOnToolClicked(wxCommandEvent& event);
+        void m_DataViewListCtrl_ServersOnDataViewListCtrlItemActivated(wxDataViewEvent& event);
 
     public:
         ServerBrowser(wxWindow* parent = NULL, wxWindowID id = wxID_ANY, const wxString& title = wxEmptyString, const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 800,600 ), long style = wxDEFAULT_FRAME_STYLE|wxTAB_TRAVERSAL );

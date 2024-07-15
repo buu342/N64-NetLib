@@ -63,6 +63,7 @@ ServerBrowser::ServerBrowser(wxWindow* parent, wxWindowID id, const wxString& ti
     this->Centre(wxBOTH);
     this->Connect(wxID_ANY, wxEVT_THREAD, wxThreadEventHandler(ServerBrowser::ThreadEvent));
     this->Connect(this->m_Tool_Refresh->GetId(), wxEVT_COMMAND_TOOL_CLICKED, wxCommandEventHandler(ServerBrowser::m_Tool_RefreshOnToolClicked));
+    this->m_DataViewListCtrl_Servers->Connect(wxEVT_COMMAND_DATAVIEW_ITEM_ACTIVATED, wxDataViewEventHandler(ServerBrowser::m_DataViewListCtrl_ServersOnDataViewListCtrlItemActivated), NULL, this);
 
     //this->CreateClient();
     this->ConnectMaster();
@@ -72,6 +73,7 @@ ServerBrowser::~ServerBrowser()
 {
     this->Disconnect(wxID_ANY, wxEVT_THREAD, wxThreadEventHandler(ServerBrowser::ThreadEvent));
     this->Disconnect(this->m_Tool_Refresh->GetId(), wxEVT_COMMAND_TOOL_CLICKED, wxCommandEventHandler(ServerBrowser::m_Tool_RefreshOnToolClicked));
+    this->m_DataViewListCtrl_Servers->Disconnect(wxEVT_COMMAND_DATAVIEW_ITEM_ACTIVATED, wxDataViewEventHandler(ServerBrowser::m_DataViewListCtrl_ServersOnDataViewListCtrlItemActivated), NULL, this);
     
     // Deallocate the thread. Use a CriticalSection to access it
     {
@@ -86,6 +88,11 @@ void ServerBrowser::m_Tool_RefreshOnToolClicked(wxCommandEvent& event)
 {
     this->ClearServers();
     this->ConnectMaster();
+}
+
+void ServerBrowser::m_DataViewListCtrl_ServersOnDataViewListCtrlItemActivated(wxDataViewEvent& event)
+{
+    
 }
 
 void ServerBrowser::CreateClient()
