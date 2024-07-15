@@ -6,15 +6,20 @@ import java.io.DataInputStream;
 import NetLib.N64Server;
 import NetLib.N64ROM;
 import java.io.IOException;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.BufferedInputStream;
 import java.nio.ByteBuffer;
 
 public class ClientConnectionThread implements Runnable {
 
+	Hashtable<String, N64ROM> roms;
     Hashtable<String, N64Server> servers;
     Socket clientsocket;
     
-    ClientConnectionThread(Hashtable<String, N64Server> servers, Socket socket) {
+    ClientConnectionThread(Hashtable<String, N64Server> servers, Hashtable<String, N64ROM> roms, Socket socket) {
         this.servers = servers;
+        this.roms = roms;
         this.clientsocket = socket;
     }
     
@@ -74,8 +79,39 @@ public class ClientConnectionThread implements Runnable {
     	this.servers.put(serveraddress, new N64Server(servername, maxcount, serveraddress, romname, romhash));
     }
     
-    private void DownloadROM(N64ROM rom) {
+    private void DownloadROM(byte[] data) throws Exception, IOException {
+    	int size, readcount;
+    	byte[] hash;
+    	N64ROM rom;
+    	byte[] buffer = new byte[8192];
+    	ByteBuffer bb = ByteBuffer.wrap(data);
+        DataOutputStream dos = new DataOutputStream(this.clientsocket.getOutputStream());
+        BufferedInputStream bis;
+        
+        // Get the hash size
+    	bb.position(8);
+    	size = bb.getInt();
     	
+    	// Store the hash
+    	hash = new byte[size];
+    	for (int i=0; i<size; i++)
+    		hash[i] = bb.get();
+    	
+    	// Find the hash in our ROM list
+    	rom = this.roms.get(N64ROM.BytesToHash(hash));
+    	if (rom == null)
+    		throw new Exception();
+    	
+    	// Transfer the ROM
+    	dos.writeInt(rom.GetSize());
+    	bis = new BufferedInputStream(new FileInputStream(new File(rom.GetPath())));
+    	while ((readcount = bis.read(buffer)) > 0)
+    		dos.write(buffer, 0, readcount);
+        dos.flush();
+    	
+    	// Cleanup
+    	bis.close();
+        dos.close();
 	}
     
     private boolean CheckCString(byte[] data, String str)
@@ -116,7 +152,7 @@ public class ClientConnectionThread implements Runnable {
 	        		this.RegisterServer(data);
 	        		break;
 	        	} else if (CheckCString(data, "DOWNLOAD")) {
-	        		this.RegisterServer(data);
+	        		this.DownloadROM(data);
 	        		break;
 	        	}
         	}
