@@ -1,4 +1,6 @@
 #include <stdint.h>
+#include <wx/msgdlg.h>
+#include <wx/dir.h>
 #include "serverbrowser.h"
 #include "clientwindow.h"
 
@@ -92,7 +94,24 @@ void ServerBrowser::m_Tool_RefreshOnToolClicked(wxCommandEvent& event)
 
 void ServerBrowser::m_DataViewListCtrl_ServersOnDataViewListCtrlItemActivated(wxDataViewEvent& event)
 {
-    
+    int column = event.GetColumn();
+    wxString rompath;
+    wxVariant var;
+    this->m_DataViewListCtrl_Servers->GetValue(var, 4, column);
+
+    rompath = wxString("roms/") + var.GetString();
+    if (!wxDirExists("roms"))
+        wxDir::Make("roms", wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL);
+    if (wxFileExists(rompath))
+    {
+        wxMessageDialog dialog(this, "Found the ROM", "Error", wxICON_ERROR);
+        dialog.ShowModal();
+    }
+    else
+    {
+        wxMessageDialog dialog(this, "Need to download ROM", "Error", wxICON_ERROR);
+        dialog.ShowModal();
+    }
 }
 
 void ServerBrowser::CreateClient()

@@ -272,6 +272,7 @@
             <property name="window_extra_style"></property>
             <property name="window_name"></property>
             <property name="window_style"></property>
+            <event name="OnDataViewListCtrlItemActivated">m_DataViewListCtrl_ServersOnDataViewListCtrlItemActivated</event>
             <object class="dataViewListColumn" expanded="false">
               <property name="align">wxALIGN_LEFT</property>
               <property name="ellipsize"></property>

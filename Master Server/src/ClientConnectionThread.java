@@ -100,7 +100,13 @@ public class ClientConnectionThread implements Runnable {
     	// Find the hash in our ROM list
     	rom = this.roms.get(N64ROM.BytesToHash(hash));
     	if (rom == null)
-    		throw new Exception();
+    	{
+    		System.out.println("Client requested non-existent ROM");
+    		dos.writeInt(0);
+    		dos.flush();
+            dos.close();
+    		return;
+    	}
     	
     	// Transfer the ROM
     	dos.writeInt(rom.GetSize());
