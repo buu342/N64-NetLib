@@ -94,12 +94,9 @@ void ServerBrowser::m_Tool_RefreshOnToolClicked(wxCommandEvent& event)
 
 void ServerBrowser::m_DataViewListCtrl_ServersOnDataViewListCtrlItemActivated(wxDataViewEvent& event)
 {
-    int column = event.GetColumn();
-    wxString rompath;
-    wxVariant var;
-    this->m_DataViewListCtrl_Servers->GetValue(var, 4, column);
+    wxString rompath = this->m_DataViewListCtrl_Servers->GetTextValue(this->m_DataViewListCtrl_Servers->GetSelectedRow(), 4);
 
-    rompath = wxString("roms/") + var.GetString();
+    rompath = wxString("roms/") + rompath;
     if (!wxDirExists("roms"))
         wxDir::Make("roms", wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL);
     if (wxFileExists(rompath))
@@ -109,7 +106,7 @@ void ServerBrowser::m_DataViewListCtrl_ServersOnDataViewListCtrlItemActivated(wx
     }
     else
     {
-        wxMessageDialog dialog(this, "Need to download ROM", "Error", wxICON_ERROR);
+        wxMessageDialog dialog(this, "Need to download ROM "+rompath, "Error", wxICON_ERROR);
         dialog.ShowModal();
     }
 }
