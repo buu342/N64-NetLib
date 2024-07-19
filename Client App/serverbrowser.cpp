@@ -11,6 +11,8 @@ typedef enum {
     TEVENT_THREADENDED,
 } ThreadEventType;
 
+std::unordered_map<std::string, wxDataViewItem*> global_knownroms;
+
 uint32_t swap_endian32(uint32_t val)
 {
     return ((val << 24)) | ((val << 8) & 0x00FF0000) | ((val >> 8) & 0x0000FF00) | ((val >> 24));
@@ -106,7 +108,7 @@ void ServerBrowser::m_DataViewListCtrl_ServersOnDataViewListCtrlItemActivated(wx
     }
     else
     {
-        wxMessageDialog dialog(this, "Need to download ROM "+rompath, "Error", wxICON_ERROR);
+        wxMessageDialog dialog(this, wxString("Need to download ROM '") + rompath + wxString("'"), "Error", wxICON_ERROR);
         dialog.ShowModal();
     }
 }
