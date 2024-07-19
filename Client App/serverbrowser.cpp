@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <wx/msgdlg.h>
 #include <wx/dir.h>
+#include <mutex>
 #include "serverbrowser.h"
 #include "clientwindow.h"
 
@@ -11,11 +12,18 @@ typedef enum {
     TEVENT_THREADENDED,
 } ThreadEventType;
 
-std::unordered_map<std::string, wxDataViewItem*> global_knownroms;
-
 uint32_t swap_endian32(uint32_t val)
 {
     return ((val << 24)) | ((val << 8) & 0x00FF0000) | ((val >> 8) & 0x0000FF00) | ((val >> 24));
+}
+
+wxString stringhash_frombytes(uint8_t* bytes, uint32_t size)
+{
+    int i;
+    wxString str = "";
+    for (i=0; i<size; i++)
+        str += wxString::Format("%02X", bytes[i]);
+    return str;
 }
 
 ServerBrowser::ServerBrowser(wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style) : wxFrame(parent, id, title, pos, size, style)
@@ -56,6 +64,7 @@ ServerBrowser::ServerBrowser(wxWindow* parent, wxWindowID id, const wxString& ti
     this->m_DataViewListColumn_ServerName = m_DataViewListCtrl_Servers->AppendTextColumn(wxT("Server Name"), wxDATAVIEW_CELL_INERT, -1, wxALIGN_LEFT, wxDATAVIEW_COL_RESIZABLE | wxDATAVIEW_COL_SORTABLE);
     this->m_DataViewListColumn_Address = m_DataViewListCtrl_Servers->AppendTextColumn(wxT("Address"), wxDATAVIEW_CELL_INERT, -1, wxALIGN_LEFT, wxDATAVIEW_COL_RESIZABLE | wxDATAVIEW_COL_SORTABLE);
     this->m_DataViewListColumn_ROM = m_DataViewListCtrl_Servers->AppendTextColumn(wxT("ROM"), wxDATAVIEW_CELL_INERT, -1, wxALIGN_LEFT, wxDATAVIEW_COL_RESIZABLE | wxDATAVIEW_COL_SORTABLE);
+    this->m_DataViewListColumn_Hash = m_DataViewListCtrl_Servers->AppendTextColumn(wxT("Hash"), wxDATAVIEW_CELL_INERT, -1, wxALIGN_LEFT, wxDATAVIEW_COL_HIDDEN);
     m_Sizer_Main->Add(m_DataViewListCtrl_Servers, wxGBPosition(0, 0), wxGBSpan(1, 1), wxALL|wxEXPAND, 5);
 
     m_Sizer_Main->AddGrowableCol(0);
@@ -166,6 +175,7 @@ void ServerBrowser::ThreadEvent(wxThreadEvent& event)
             data.push_back(wxVariant(server->name));
             data.push_back(wxVariant(server->address));
             data.push_back(wxVariant(server->rom));
+            data.push_back(wxVariant(server->hash));
             this->m_DataViewListCtrl_Servers->AppendItem(data);
             free(server);
             break;
@@ -297,6 +307,7 @@ void ServerFinderThread::ParsePacket_Server(char* buf)
 {
     int strsize;
     int buffoffset = 6;
+    uint8_t hash[32];
     FoundServer server;
 
     // Read the server name
@@ -327,11 +338,13 @@ void ServerFinderThread::ParsePacket_Server(char* buf)
     buffoffset += strsize;
 
     // Read the rom hash
-    /*memcpy(&strsize, buf + buffoffset, sizeof(int));
+    memcpy(&strsize, buf + buffoffset, sizeof(int));
     strsize = swap_endian32(strsize);
     buffoffset += sizeof(int);
-    server.rom = wxString(buf + buffoffset, (size_t)strsize);
-    buffoffset += strsize;*/
+    printf("AAA %d\n", strsize);
+    memcpy(hash, buf + buffoffset, (size_t)strsize);
+    buffoffset += strsize;
+    server.hash = "Hello";//stringhash_frombytes(hash, 32);
 
     // Send the server info to the main thread
     this->AddServer(&server);
@@ -348,6 +361,7 @@ void ServerFinderThread::AddServer(FoundServer* server)
     server_copy->maxplayers = server->maxplayers;
     server_copy->address = server->address;
     server_copy->rom = server->rom;
+    server_copy->hash = server->hash;
 
     // Send the event
     evt.SetInt(TEVENT_ADDSERVER);

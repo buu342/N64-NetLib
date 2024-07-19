@@ -28,6 +28,7 @@ typedef struct
     int playercount;
     int maxplayers;
     wxString rom;
+    wxString hash;
 } FoundServer;
 
 class ServerFinderThread;
@@ -52,6 +53,7 @@ class ServerBrowser : public wxFrame
         wxDataViewColumn* m_DataViewListColumn_ServerName;
         wxDataViewColumn* m_DataViewListColumn_Address;
         wxDataViewColumn* m_DataViewListColumn_ROM;
+        wxDataViewColumn* m_DataViewListColumn_Hash;
 
         void m_Tool_RefreshOnToolClicked(wxCommandEvent& event);
         void m_DataViewListCtrl_ServersOnDataViewListCtrlItemActivated(wxDataViewEvent& event);

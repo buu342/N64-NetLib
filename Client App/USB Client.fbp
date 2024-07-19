@@ -328,6 +328,17 @@
               <property name="type">Text</property>
               <property name="width">-1</property>
             </object>
+            <object class="dataViewListColumn" expanded="true">
+              <property name="align">wxALIGN_LEFT</property>
+              <property name="ellipsize"></property>
+              <property name="flags">wxDATAVIEW_COL_HIDDEN</property>
+              <property name="label">Hash</property>
+              <property name="mode">wxDATAVIEW_CELL_INERT</property>
+              <property name="name">m_DataViewListColumn_Hash</property>
+              <property name="permission">protected</property>
+              <property name="type">Text</property>
+              <property name="width">-1</property>
+            </object>
           </object>
         </object>
       </object>
