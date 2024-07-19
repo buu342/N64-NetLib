@@ -9,7 +9,6 @@ import java.io.FileInputStream;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.security.MessageDigest;
-import java.util.Base64;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
 
@@ -130,7 +129,6 @@ public class TicTacToeServer {
 	}
 	
 	private static byte[] GenerateHashFromROM(String rompath, byte[] rombytes) throws Exception {
-		byte[] hash;
 	    int count;
 		MessageDigest digest = MessageDigest.getInstance("SHA-256");
 	    BufferedInputStream bis = new BufferedInputStream(new FileInputStream(rompath));
@@ -139,10 +137,7 @@ public class TicTacToeServer {
 	    while ((count = bis.read(rombytes)) > 0)
 	        digest.update(rombytes, 0, count);
 	    bis.close();
-	    hash = digest.digest();
-	    
-	    // Assign the hash
-	    return Base64.getEncoder().encode(hash);
+	    return digest.digest();
 	}
 	
 	private static byte[] ToByteArray()	{
