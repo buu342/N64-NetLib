@@ -1,9 +1,8 @@
-#include <stdint.h>
-#include <wx/msgdlg.h>
-#include <wx/dir.h>
-#include <mutex>
 #include "serverbrowser.h"
 #include "clientwindow.h"
+#include <stdint.h>
+#include <wx/dir.h>
+#include <wx/msgdlg.h>
 
 #define MASTERSERVERPACKET_HEADER "N64PKT"
 
@@ -19,7 +18,7 @@ uint32_t swap_endian32(uint32_t val)
 
 wxString stringhash_frombytes(uint8_t* bytes, uint32_t size)
 {
-    int i;
+    uint32_t i;
     wxString str = "";
     for (i=0; i<size; i++)
         str += wxString::Format("%02X", bytes[i]);
