@@ -340,10 +340,9 @@ void ServerFinderThread::ParsePacket_Server(char* buf)
     memcpy(&strsize, buf + buffoffset, sizeof(int));
     strsize = swap_endian32(strsize);
     buffoffset += sizeof(int);
-    printf("AAA %d\n", strsize);
     memcpy(hash, buf + buffoffset, (size_t)strsize);
     buffoffset += strsize;
-    server.hash = "Hello";//stringhash_frombytes(hash, 32);
+    server.hash = stringhash_frombytes(hash, 32);
 
     // Send the server info to the main thread
     this->AddServer(&server);
