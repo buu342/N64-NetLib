@@ -8,7 +8,7 @@ public class N64Server
 	private String address;
 	private String ROM;
     private byte[] ROMHash;
-	private int maxplayers;
+    private int maxplayers;
 	
 	public N64Server(String name, int maxplayers, String address, String ROM, byte[] ROMHash)
 	{

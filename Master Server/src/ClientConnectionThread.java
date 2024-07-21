@@ -76,6 +76,9 @@ public class ClientConnectionThread implements Runnable {
     	for (int i=0; i<size; i++)
     		romhash[i] += (char)bb.get();
     	
+    	// TODO: Check if this ROM exists
+    	// If it doesn't, search the ROM folder to confirm if it's since been added
+    	
     	this.servers.put(serveraddress, new N64Server(servername, maxcount, serveraddress, romname, romhash));
     }
     
@@ -107,6 +110,9 @@ public class ClientConnectionThread implements Runnable {
             dos.close();
     		return;
     	}
+    	
+    	// TODO: If the file doesn't exist any longer, delete it from our ROM list
+    	// If the hash changed, update the hash and throw an error
     	
     	// Transfer the ROM
     	dos.writeInt(rom.GetSize());

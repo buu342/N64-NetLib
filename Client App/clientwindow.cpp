@@ -120,7 +120,7 @@ void ClientWindow::ThreadEvent(wxThreadEvent& event)
 DeviceThread::DeviceThread(ClientWindow* win)
 {
     device_initialize();
-    device_setrom((char*)"unflexa4.z64");
+    device_setrom((char*)"roms/tictactoe.z64");
     this->m_Window = win;
 }
 

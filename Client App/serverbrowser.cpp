@@ -1,5 +1,6 @@
 #include "serverbrowser.h"
 #include "clientwindow.h"
+#include "sha256.h"
 #include <stdint.h>
 #include <wx/dir.h>
 #include <wx/msgdlg.h>
@@ -77,7 +78,6 @@ ServerBrowser::ServerBrowser(wxWindow* parent, wxWindowID id, const wxString& ti
     this->Connect(this->m_Tool_Refresh->GetId(), wxEVT_COMMAND_TOOL_CLICKED, wxCommandEventHandler(ServerBrowser::m_Tool_RefreshOnToolClicked));
     this->m_DataViewListCtrl_Servers->Connect(wxEVT_COMMAND_DATAVIEW_ITEM_ACTIVATED, wxDataViewEventHandler(ServerBrowser::m_DataViewListCtrl_ServersOnDataViewListCtrlItemActivated), NULL, this);
 
-    //this->CreateClient();
     this->ConnectMaster();
 }
 
@@ -104,20 +104,78 @@ void ServerBrowser::m_Tool_RefreshOnToolClicked(wxCommandEvent& event)
 
 void ServerBrowser::m_DataViewListCtrl_ServersOnDataViewListCtrlItemActivated(wxDataViewEvent& event)
 {
-    wxString rompath = this->m_DataViewListCtrl_Servers->GetTextValue(this->m_DataViewListCtrl_Servers->GetSelectedRow(), 4);
+    wxString romname = this->m_DataViewListCtrl_Servers->GetTextValue(this->m_DataViewListCtrl_Servers->GetSelectedRow(), 4);
+    wxString romhash = this->m_DataViewListCtrl_Servers->GetTextValue(this->m_DataViewListCtrl_Servers->GetSelectedRow(), 5);
+    wxString romavailable = this->m_DataViewListCtrl_Servers->GetTextValue(this->m_DataViewListCtrl_Servers->GetSelectedRow(), 6);
+    wxString rompath = wxString("roms/") + romname;
 
-    rompath = wxString("roms/") + rompath;
     if (!wxDirExists("roms"))
         wxDir::Make("roms", wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL);
     if (wxFileExists(rompath))
     {
-        wxMessageDialog dialog(this, "Found the ROM", "Error", wxICON_ERROR);
-        dialog.ShowModal();
+        uint32_t i;
+        uint8_t hash[32];
+        uint8_t *filedata;
+        uint32_t filesize;
+        wxString hashstr = "";
+        SHA256_CTX ctx;
+        FILE* fp = fopen(rompath, "rb");
+        if (fp == NULL)
+        {
+            return;
+        }
+
+        // Get the file size and malloc space for the file data
+        fseek(fp, 0L, SEEK_END);
+        filesize = ftell(fp);
+        filedata = (uint8_t*)malloc(filesize);
+        if (filedata == NULL)
+        {
+            fclose(fp);
+        }
+
+        // Read the file data, and then calculate the hash
+        fseek(fp, 0L, SEEK_SET);
+        fread(filedata, 1, filesize, fp);
+        sha256_init(&ctx);
+        sha256_update(&ctx, filedata, filesize);
+        sha256_final(&ctx, hash);
+
+        // Convert it to a string
+        hashstr = "";
+        for (int i=0; i<(sizeof(hash)/sizeof(hash[0])); i++)
+            hashstr += wxString::Format("%02X", hash[i]);
+
+        // Cleanup
+        fclose(fp);
+        free(filedata);
+
+        // Now validate the ROM
+        if (hashstr == romhash)
+        {
+            this->CreateClient(this); // TODO: Set the ROM
+        }
+        else
+        {
+            wxMessageDialog dialog(this, wxString("This server requires the ROM '") + romname + wxString("', which you have in your ROM folder, however your version differs from the one the server needs.\n\nPlease remove or rename the ROM in order to download the correct one."), wxString("Bad ROM found"), wxICON_EXCLAMATION);
+            dialog.ShowModal();
+        }
     }
     else
     {
-        wxMessageDialog dialog(this, wxString("Need to download ROM '") + rompath + wxString("'"), "Error", wxICON_ERROR);
-        dialog.ShowModal();
+        if (romavailable)
+        {
+            wxMessageDialog dialog(this, wxString("In order to join this server, the ROM '") + romname + wxString("' must be downloaded. This ROM is available to download from the Master Server.\n\nContinue?"), wxString("Download ROM?"), wxICON_QUESTION | wxYES_NO);
+            if (dialog.ShowModal() == wxID_YES)
+            {
+                // TODO: Download the ROM and then create the client
+            }
+        }
+        else
+        {
+            wxMessageDialog dialog(this, wxString("This server requires the ROM '") + romname + wxString("', which is not available for download from the master server.\n\nIn order to join this server, you must manually find and download the ROM, and place it in your ROMs folder."), wxString("ROM Unavailable"), wxICON_ERROR);
+            dialog.ShowModal();
+        }
     }
 }
 
@@ -304,6 +362,7 @@ void ServerFinderThread::OnSocketEvent(wxSocketEvent& event)
 
 void ServerFinderThread::ParsePacket_Server(char* buf)
 {
+    uint32_t i;
     int strsize;
     int buffoffset = 6;
     uint8_t hash[32];
@@ -342,7 +401,11 @@ void ServerFinderThread::ParsePacket_Server(char* buf)
     buffoffset += sizeof(int);
     memcpy(hash, buf + buffoffset, (size_t)strsize);
     buffoffset += strsize;
-    server.hash = stringhash_frombytes(hash, 32);
+
+    // Convert the hash
+    server.hash = "";
+    for (i=0; i<strsize; i++)
+        server.hash += wxString::Format("%02X", hash[i]);
 
     // Send the server info to the main thread
     this->AddServer(&server);
