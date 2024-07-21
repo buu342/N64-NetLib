@@ -41,6 +41,7 @@ class ClientWindow : public wxFrame
         wxButton* m_Button_Send;
         wxGauge* m_Gauge_Upload;
         wxStatusBar* m_StatusBar_ClientStatus;
+        wxString m_ROMPath;
         ClientDeviceStatus m_DeviceStatus;
 
         void ThreadEvent(wxThreadEvent& event);
@@ -50,6 +51,8 @@ class ClientWindow : public wxFrame
         ~ClientWindow();
 
         void SetClientDeviceStatus(ClientDeviceStatus status);
+        void SetROM(wxString rom);
+        wxString GetROM();
 };
 
 class DeviceThread : public wxThread

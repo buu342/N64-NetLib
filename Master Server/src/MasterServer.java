@@ -31,6 +31,7 @@ public class MasterServer {
             System.exit(1);
         }
         System.out.println("Successfully opened socket at port " + Integer.toString(DEFAULTPORT) + ".");
+        System.out.println();
         
         // Try to connect a client
         while (isrunning) {

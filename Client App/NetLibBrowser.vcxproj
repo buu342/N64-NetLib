@@ -22,11 +22,17 @@
     <ClInclude Include="app.h" />
     <ClInclude Include="clientwindow.h" />
     <ClInclude Include="serverbrowser.h" />
+    <ClInclude Include="romdownloader.h" />
+    <ClInclude Include="helper.h" />
+    <ClInclude Include="sha256.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="app.cpp" />
     <ClCompile Include="clientwindow.cpp" />
     <ClCompile Include="serverbrowser.cpp" />
+    <ClCompile Include="romdownloader.cpp" />
+    <ClCompile Include="helper.cpp" />
+    <ClCompile Include="sha256.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

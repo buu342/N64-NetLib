@@ -29,8 +29,10 @@ typedef struct
     wxString address;
     int playercount;
     int maxplayers;
+    int ping;
     wxString rom;
     wxString hash;
+    bool romonmaster;
 } FoundServer;
 
 class ServerFinderThread;
@@ -56,6 +58,7 @@ class ServerBrowser : public wxFrame
         wxDataViewColumn* m_DataViewListColumn_Address;
         wxDataViewColumn* m_DataViewListColumn_ROM;
         wxDataViewColumn* m_DataViewListColumn_Hash;
+        wxDataViewColumn* m_DataViewListColumn_FileExistsOnMaster;
 
         void m_Tool_RefreshOnToolClicked(wxCommandEvent& event);
         void m_DataViewListCtrl_ServersOnDataViewListCtrlItemActivated(wxDataViewEvent& event);
@@ -64,7 +67,7 @@ class ServerBrowser : public wxFrame
         ServerBrowser(wxWindow* parent = NULL, wxWindowID id = wxID_ANY, const wxString& title = wxEmptyString, const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 800,600 ), long style = wxDEFAULT_FRAME_STYLE|wxTAB_TRAVERSAL );
         ~ServerBrowser();
 
-        void CreateClient();
+        void CreateClient(wxString rom);
         void ConnectMaster();
         void ClearServers();
         void ThreadEvent(wxThreadEvent& event);

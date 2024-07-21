@@ -1,6 +1,7 @@
 import java.net.Socket;
 import java.util.Hashtable;
 import java.util.Enumeration;
+import java.util.Arrays;
 import java.io.DataOutputStream;
 import java.io.DataInputStream;
 import NetLib.N64Server;
@@ -27,7 +28,7 @@ public class ClientConnectionThread implements Runnable {
     {
         DataOutputStream dos = new DataOutputStream(this.clientsocket.getOutputStream());
         Enumeration<String> keys = this.servers.keys();
-        System.out.println("Client "+this.clientsocket+" requested list of servers");
+        System.out.println("Client " + this.clientsocket + " requested list of servers");
         while (keys.hasMoreElements()) {
             String key = keys.nextElement();
             N64Server server = this.servers.get(key);
@@ -36,7 +37,8 @@ public class ClientConnectionThread implements Runnable {
                 byte[] header = {'N', '6', '4', 'P', 'K', 'T'};
                 byte[] packetype = {'S', 'E', 'R', 'V', 'E', 'R'};
                 dos.write(header);
-                dos.writeInt(serverbytes.length + packetype.length);
+                // TODO: Send the packet version
+                dos.writeInt(serverbytes.length + packetype.length + 1);
                 dos.write(packetype);
                 dos.write(serverbytes);
                 if (this.roms.get(server.GetROMHashStr()) != null)
@@ -102,9 +104,12 @@ public class ClientConnectionThread implements Runnable {
         DataOutputStream dos = new DataOutputStream(this.clientsocket.getOutputStream());
         BufferedInputStream bis;
         
+        System.out.println("Client " + this.clientsocket + " wants to download ROM");
+        
         // Get the hash size
         bb.position(8);
         size = bb.getInt();
+        
         
         // Store the hash
         hash = new byte[size];
@@ -116,7 +121,7 @@ public class ClientConnectionThread implements Runnable {
         rom = this.roms.get(romhashstr);
         if (rom == null)
         {
-            System.out.println("Client requested non-existent ROM");
+            System.err.println("    Client requested non-existent ROM");
             dos.writeInt(0);
             dos.flush();
             dos.close();
@@ -127,7 +132,7 @@ public class ClientConnectionThread implements Runnable {
         romfile = new File(rom.GetPath());
         if (!romfile.exists())
         {
-            System.out.println("Client requested since-removed ROM");
+            System.err.println("    Client requested since-removed ROM");
             this.roms.remove(romhashstr);
             dos.writeInt(0);
             dos.flush();
@@ -136,9 +141,9 @@ public class ClientConnectionThread implements Runnable {
         }
         
         // If the hash changed, update the hash and stop
-        if (N64ROM.GetROMHash(romfile).equals(hash) == false)
+        if (Arrays.equals(N64ROM.GetROMHash(romfile), hash) == false)
         {
-            System.out.println("Client requested since-changed ROM");
+            System.err.println("    Client requested since-changed ROM");
             rom = new N64ROM(romfile);
             this.roms.remove(romhashstr);
             this.roms.put(rom.GetHashString(), rom);
@@ -180,16 +185,15 @@ public class ClientConnectionThread implements Runnable {
                 int datasize = 0;
                 byte[] data = dis.readNBytes(6);
                 if (!CheckCString(data, "N64PKT")) {
-                    System.out.println("Received bad packet "+data.toString());
+                    System.err.println("    Received bad packet "+data.toString());
                     attempts--;
                     if (attempts == 0) {
-                        System.out.println("Too many bad packets from client "+this.clientsocket+". Disconnecting");
+                        System.err.println("Too many bad packets from client "+this.clientsocket+". Disconnecting");
                         break;
                     }
                     continue;
                 }
                 datasize = dis.readInt();
-                System.out.println("Packet from client has size " + String.valueOf(datasize));
                 data = dis.readNBytes(datasize);
                 if (CheckCString(data, "LIST")) {
                     this.ListServers();

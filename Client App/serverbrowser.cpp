@@ -1,5 +1,7 @@
 #include "serverbrowser.h"
 #include "clientwindow.h"
+#include "romdownloader.h"
+#include "helper.h"
 #include "sha256.h"
 #include <stdint.h>
 #include <wx/dir.h>
@@ -11,20 +13,6 @@ typedef enum {
     TEVENT_ADDSERVER,
     TEVENT_THREADENDED,
 } ThreadEventType;
-
-uint32_t swap_endian32(uint32_t val)
-{
-    return ((val << 24)) | ((val << 8) & 0x00FF0000) | ((val >> 8) & 0x0000FF00) | ((val >> 24));
-}
-
-wxString stringhash_frombytes(uint8_t* bytes, uint32_t size)
-{
-    uint32_t i;
-    wxString str = "";
-    for (i=0; i<size; i++)
-        str += wxString::Format("%02X", bytes[i]);
-    return str;
-}
 
 ServerBrowser::ServerBrowser(wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style) : wxFrame(parent, id, title, pos, size, style)
 {
@@ -65,6 +53,7 @@ ServerBrowser::ServerBrowser(wxWindow* parent, wxWindowID id, const wxString& ti
     this->m_DataViewListColumn_Address = m_DataViewListCtrl_Servers->AppendTextColumn(wxT("Address"), wxDATAVIEW_CELL_INERT, -1, wxALIGN_LEFT, wxDATAVIEW_COL_RESIZABLE | wxDATAVIEW_COL_SORTABLE);
     this->m_DataViewListColumn_ROM = m_DataViewListCtrl_Servers->AppendTextColumn(wxT("ROM"), wxDATAVIEW_CELL_INERT, -1, wxALIGN_LEFT, wxDATAVIEW_COL_RESIZABLE | wxDATAVIEW_COL_SORTABLE);
     this->m_DataViewListColumn_Hash = m_DataViewListCtrl_Servers->AppendTextColumn(wxT("Hash"), wxDATAVIEW_CELL_INERT, -1, wxALIGN_LEFT, wxDATAVIEW_COL_HIDDEN);
+    this->m_DataViewListColumn_FileExistsOnMaster = m_DataViewListCtrl_Servers->AppendTextColumn(wxT("File Exists on Master"), wxDATAVIEW_CELL_INERT, -1, wxALIGN_LEFT, wxDATAVIEW_COL_HIDDEN);
     m_Sizer_Main->Add(m_DataViewListCtrl_Servers, wxGBPosition(0, 0), wxGBSpan(1, 1), wxALL|wxEXPAND, 5);
 
     m_Sizer_Main->AddGrowableCol(0);
@@ -83,10 +72,6 @@ ServerBrowser::ServerBrowser(wxWindow* parent, wxWindowID id, const wxString& ti
 
 ServerBrowser::~ServerBrowser()
 {
-    this->Disconnect(wxID_ANY, wxEVT_THREAD, wxThreadEventHandler(ServerBrowser::ThreadEvent));
-    this->Disconnect(this->m_Tool_Refresh->GetId(), wxEVT_COMMAND_TOOL_CLICKED, wxCommandEventHandler(ServerBrowser::m_Tool_RefreshOnToolClicked));
-    this->m_DataViewListCtrl_Servers->Disconnect(wxEVT_COMMAND_DATAVIEW_ITEM_ACTIVATED, wxDataViewEventHandler(ServerBrowser::m_DataViewListCtrl_ServersOnDataViewListCtrlItemActivated), NULL, this);
-    
     // Deallocate the thread. Use a CriticalSection to access it
     {
         wxCriticalSectionLocker enter(this->m_FinderThreadCS);
@@ -94,6 +79,11 @@ ServerBrowser::~ServerBrowser()
         if (this->m_FinderThread != NULL)
             this->m_FinderThread->Delete();
     }
+
+    // Disconnect events
+    this->Disconnect(wxID_ANY, wxEVT_THREAD, wxThreadEventHandler(ServerBrowser::ThreadEvent));
+    this->Disconnect(this->m_Tool_Refresh->GetId(), wxEVT_COMMAND_TOOL_CLICKED, wxCommandEventHandler(ServerBrowser::m_Tool_RefreshOnToolClicked));
+    this->m_DataViewListCtrl_Servers->Disconnect(wxEVT_COMMAND_DATAVIEW_ITEM_ACTIVATED, wxDataViewEventHandler(ServerBrowser::m_DataViewListCtrl_ServersOnDataViewListCtrlItemActivated), NULL, this);
 }
 
 void ServerBrowser::m_Tool_RefreshOnToolClicked(wxCommandEvent& event)
@@ -106,8 +96,8 @@ void ServerBrowser::m_DataViewListCtrl_ServersOnDataViewListCtrlItemActivated(wx
 {
     wxString romname = this->m_DataViewListCtrl_Servers->GetTextValue(this->m_DataViewListCtrl_Servers->GetSelectedRow(), 4);
     wxString romhash = this->m_DataViewListCtrl_Servers->GetTextValue(this->m_DataViewListCtrl_Servers->GetSelectedRow(), 5);
-    wxString romavailable = this->m_DataViewListCtrl_Servers->GetTextValue(this->m_DataViewListCtrl_Servers->GetSelectedRow(), 6);
     wxString rompath = wxString("roms/") + romname;
+    bool romavailable = this->m_DataViewListCtrl_Servers->GetTextValue(this->m_DataViewListCtrl_Servers->GetSelectedRow(), 6) == "1";
 
     if (!wxDirExists("roms"))
         wxDir::Make("roms", wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL);
@@ -132,6 +122,7 @@ void ServerBrowser::m_DataViewListCtrl_ServersOnDataViewListCtrlItemActivated(wx
         if (filedata == NULL)
         {
             fclose(fp);
+            return;
         }
 
         // Read the file data, and then calculate the hash
@@ -151,15 +142,13 @@ void ServerBrowser::m_DataViewListCtrl_ServersOnDataViewListCtrlItemActivated(wx
         free(filedata);
 
         // Now validate the ROM
-        if (hashstr == romhash)
-        {
-            this->CreateClient(this); // TODO: Set the ROM
-        }
-        else
+        if (hashstr != romhash)
         {
             wxMessageDialog dialog(this, wxString("This server requires the ROM '") + romname + wxString("', which you have in your ROM folder, however your version differs from the one the server needs.\n\nPlease remove or rename the ROM in order to download the correct one."), wxString("Bad ROM found"), wxICON_EXCLAMATION);
             dialog.ShowModal();
         }
+        else
+            this->CreateClient(rompath);
     }
     else
     {
@@ -168,7 +157,28 @@ void ServerBrowser::m_DataViewListCtrl_ServersOnDataViewListCtrlItemActivated(wx
             wxMessageDialog dialog(this, wxString("In order to join this server, the ROM '") + romname + wxString("' must be downloaded. This ROM is available to download from the Master Server.\n\nContinue?"), wxString("Download ROM?"), wxICON_QUESTION | wxYES_NO);
             if (dialog.ShowModal() == wxID_YES)
             {
-                // TODO: Download the ROM and then create the client
+                // Stop the server retrieval thread if it is running
+                {
+                    wxCriticalSectionLocker enter(this->m_FinderThreadCS);
+
+                    if (this->m_FinderThread != NULL)
+                        this->m_FinderThread->Delete();
+                }
+
+                // Create the ROM download dialog
+                ROMDownloadWindow* rdw = new ROMDownloadWindow(this);
+                rdw->SetROMPath(rompath);
+                rdw->SetROMHash(romhash);
+                rdw->SetAddress(this->m_MasterAddress);
+                rdw->SetPort(this->m_MasterPort);
+                rdw->BeginConnection();
+                if (rdw->ShowModal() == 0)
+                {
+                    wxMessageDialog dialog(this, wxString("ROM download was unsuccessful."), wxString("ROM Download Failed"), wxICON_ERROR);
+                    dialog.ShowModal();
+                }
+                else
+                    this->CreateClient(rompath);
             }
         }
         else
@@ -179,9 +189,10 @@ void ServerBrowser::m_DataViewListCtrl_ServersOnDataViewListCtrlItemActivated(wx
     }
 }
 
-void ServerBrowser::CreateClient()
+void ServerBrowser::CreateClient(wxString rom)
 {
     ClientWindow* cw = new ClientWindow(this);
+    cw->SetROM(rom);
     cw->SetFocus();
     cw->Raise();
     cw->Show();
@@ -233,6 +244,7 @@ void ServerBrowser::ThreadEvent(wxThreadEvent& event)
             data.push_back(wxVariant(server->address));
             data.push_back(wxVariant(server->rom));
             data.push_back(wxVariant(server->hash));
+            data.push_back(wxVariant(wxString::Format("%d", server->romonmaster)));
             this->m_DataViewListCtrl_Servers->AppendItem(data);
             free(server);
             break;
@@ -294,6 +306,7 @@ void* ServerFinderThread::Entry()
     packetsize = swap_endian32(strlen(outtext));
     this->m_Socket->Write(&packetsize, sizeof(int));
     this->m_Socket->Write(outtext, swap_endian32(packetsize));
+    // TODO: Send the packet version
     printf("Requested server list\n");
     while (!TestDestroy())
     {
@@ -407,6 +420,11 @@ void ServerFinderThread::ParsePacket_Server(char* buf)
     for (i=0; i<strsize; i++)
         server.hash += wxString::Format("%02X", hash[i]);
 
+    // Read if the ROM is on the master
+    memcpy(hash, buf + buffoffset, sizeof(char));
+    buffoffset += sizeof(char);
+    server.romonmaster = hash[0];
+
     // Send the server info to the main thread
     this->AddServer(&server);
 }
@@ -418,11 +436,11 @@ void ServerFinderThread::AddServer(FoundServer* server)
 
     // Copy the server data
     server_copy->name = server->name;
-    server_copy->playercount = server->playercount;
     server_copy->maxplayers = server->maxplayers;
     server_copy->address = server->address;
     server_copy->rom = server->rom;
     server_copy->hash = server->hash;
+    server_copy->romonmaster = server->romonmaster;
 
     // Send the event
     evt.SetInt(TEVENT_ADDSERVER);

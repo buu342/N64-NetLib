@@ -66,6 +66,7 @@ public class TicTacToeServer {
             byte[] header = {'N', '6', '4', 'P', 'K', 'T'};
             byte[] packetype = {'R', 'E', 'G', 'I', 'S', 'T', 'E', 'R'};
             dos.write(header);
+            // TODO: Send the packet version
             dos.writeInt(serverbytes.length + packetype.length);
             dos.write(packetype);
             dos.write(serverbytes);

@@ -112,6 +112,16 @@ void ClientWindow::ThreadEvent(wxThreadEvent& event)
     }
 }
 
+void ClientWindow::SetROM(wxString rom)
+{
+    this->m_ROMPath = rom;
+}
+
+wxString ClientWindow::GetROM()
+{
+    return this->m_ROMPath;
+}
+
 
 /*=============================================================
 
@@ -119,9 +129,8 @@ void ClientWindow::ThreadEvent(wxThreadEvent& event)
 
 DeviceThread::DeviceThread(ClientWindow* win)
 {
-    device_initialize();
-    device_setrom((char*)"roms/tictactoe.z64");
     this->m_Window = win;
+    device_initialize();
 }
 
 DeviceThread::~DeviceThread()
@@ -135,6 +144,12 @@ void* DeviceThread::Entry()
     FILE* fp;
     float oldprogress = 0;
     DeviceError deverr = device_find();
+    wxString rompath_str = this->m_Window->GetROM();
+    const char* rompath = rompath_str.c_str();
+    printf("%s\n", rompath);
+
+    // Set the ROM
+    device_setrom((char*)rompath);
 
     // Check which flashcart we found
     this->ClearConsole();
@@ -169,7 +184,7 @@ void* DeviceThread::Entry()
     }
 
     // Load the ROM
-    this->WriteConsole("\nLoading UNFLoader Example 4 via USB");
+    this->WriteConsole("\nLoading '" + wxString(rompath) + "' via USB");
     this->SetClientDeviceStatus(CLSTATUS_UPLOADING);
     fp = fopen(device_getrom(), "r");
     if (fp == NULL)
