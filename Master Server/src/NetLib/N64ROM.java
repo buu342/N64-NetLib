@@ -13,10 +13,6 @@ public class N64ROM {
 	private int size;
 	
 	public N64ROM(File file) throws Exception {
-	    byte[] buffer= new byte[8192];
-	    int count;
-	    MessageDigest digest = MessageDigest.getInstance("SHA-256");
-	    BufferedInputStream bis;
 	    byte[] rombytes;
 	    
 		// Validate the ROM header. No reason to support v64 ROMs.
@@ -28,13 +24,7 @@ public class N64ROM {
 		this.name = file.getName();
 		this.path = file.getAbsolutePath();
 		this.size = rombytes.length;
-	    
-		// Generate the sha256 hash, and assign the ROM size
-		bis = new BufferedInputStream(new FileInputStream(this.path));
-	    while ((count = bis.read(buffer)) > 0)
-	        digest.update(buffer, 0, count);
-	    bis.close();
-	    this.hash = digest.digest();
+	    this.hash = GetROMHash(file);
 	}
 	
 	public String GetName() {
@@ -55,6 +45,23 @@ public class N64ROM {
 	
 	public String GetHashString() {
 		return BytesToHash(this.hash);
+	}
+	
+	public static byte[] GetROMHash(File file) {
+		int count;
+	    byte[] buffer = new byte[8192];
+	    try {
+		    MessageDigest digest = MessageDigest.getInstance("SHA-256");
+		    BufferedInputStream bis = new BufferedInputStream(new FileInputStream(file));
+		    while ((count = bis.read(buffer)) > 0)
+		        digest.update(buffer, 0, count);
+		    bis.close();
+		    return digest.digest();
+	    } catch (Exception e) {
+			System.err.println("Error when generating hash for '"+file.getName()+"'.");
+            e.printStackTrace();
+            return null;
+	    }
 	}
 	
 	public static String BytesToHash(byte[] bytes) {

@@ -75,4 +75,19 @@ public class MasterServer {
 		}
 		System.out.println("Done parsing ROMs folder. "+romtable.size()+" ROMs found.");
 	}
+	
+	public static void ValidateROM(String name)
+	{
+		File file = new File(romdir + name);
+		if (file.exists())
+		{
+			try {
+				N64ROM rom = new N64ROM(file);
+				romtable.put(rom.GetHashString(), rom);
+				return;
+			} catch (Exception e) {
+	            e.printStackTrace();
+			}
+		}
+	}
 }
