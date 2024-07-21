@@ -39,6 +39,10 @@ public class ClientConnectionThread implements Runnable {
                 dos.writeInt(serverbytes.length + packetype.length);
                 dos.write(packetype);
                 dos.write(serverbytes);
+                if (this.roms.get(server.GetROMHashStr()) != null)
+                	dos.write(new byte[]{1});
+                else
+                	dos.write(new byte[]{0});
                 dos.flush();
             }
         }
@@ -83,6 +87,7 @@ public class ClientConnectionThread implements Runnable {
     		MasterServer.ValidateROM(romname);
 
     	// Store this server in our list
+    	// If the server already exists, this will update it instead
     	this.servers.put(serveraddress, new N64Server(servername, maxcount, serveraddress, romname, romhash));
     }
     
