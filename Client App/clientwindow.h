@@ -69,6 +69,7 @@ class DeviceThread : public wxThread
         virtual void* Entry() wxOVERRIDE;
         void ClearConsole();
         void WriteConsole(wxString str);
+        void WriteConsoleError(wxString str);
         void SetClientDeviceStatus(ClientDeviceStatus status);
         void SetUploadProgress(int progress);
         void UploadROM(FILE* fp);
@@ -88,4 +89,5 @@ class UploadThread : public wxThread
 
         virtual void* Entry() wxOVERRIDE;
         void WriteConsole(wxString str);
+        void WriteConsoleError(wxString str);
 };

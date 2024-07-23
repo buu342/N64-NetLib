@@ -245,6 +245,7 @@ void ServerBrowser::ThreadEvent(wxThreadEvent& event)
             data.push_back(wxVariant(server->rom));
             data.push_back(wxVariant(server->hash));
             data.push_back(wxVariant(wxString::Format("%d", server->romonmaster)));
+            // TODO: Poke the server to get its ping and player count
             this->m_DataViewListCtrl_Servers->AppendItem(data);
             free(server);
             break;
