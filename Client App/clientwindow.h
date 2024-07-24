@@ -20,6 +20,7 @@ typedef struct IUnknown IUnknown;
 #include <wx/sizer.h>
 #include <wx/statusbr.h>
 #include <wx/frame.h>
+#include <stdint.h>
 
 typedef enum {
     CLSTATUS_STARTED = 0,
@@ -67,6 +68,8 @@ class DeviceThread : public wxThread
         ~DeviceThread();
 
         virtual void* Entry() wxOVERRIDE;
+        void ParseUSB_TextPacket(uint8_t* buff, uint32_t size);
+        void ParseUSB_HeartbeatPacket(uint8_t* buff, uint32_t size);
         void ClearConsole();
         void WriteConsole(wxString str);
         void WriteConsoleError(wxString str);

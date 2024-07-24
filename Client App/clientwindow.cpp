@@ -158,7 +158,6 @@ void* DeviceThread::Entry()
     DeviceError deverr = device_find();
     wxString rompath_str = this->m_Window->GetROM();
     const char* rompath = rompath_str.c_str();
-    bool firstprint = TRUE;
 
     // Set the ROM
     if (rompath_str != "")
@@ -258,60 +257,8 @@ void* DeviceThread::Entry()
             // Decide what to do with the data based off the command type
             switch (command)
             {
-                case DATATYPE_TEXT:
-                    {
-                        char* text;
-                        text = (char*)malloc(size+1);
-                        if (text == NULL)
-                        {
-                            this->WriteConsoleError("\nError: Unable to allocate memory for incoming string.");
-                            break;
-                        }
-                        memset(text, 0, size+1);
-                        strncpy(text, (char*)outbuff, size);
-                        if (firstprint)
-                        {
-                            firstprint = false;
-                            this->ClearConsole();
-                        }
-                        this->WriteConsole(wxString(text));
-                        free(text);
-                    }
-                    break;
-                case DATATYPE_HEARTBEAT:
-                    {
-                        uint32_t header;
-                        uint16_t heartbeat_version;
-                        uint16_t protocol_version;
-                        if (size < 4)
-                        {
-                            this->WriteConsoleError("\nError: Malformed heartbeat received.");
-                            break;
-                        }
-
-                        // Read the heartbeat header
-                        header = (outbuff[3] << 24) | (outbuff[2] << 16) | (outbuff[1] << 8) | (outbuff[0]);
-                        header = swap_endian(header);
-                        heartbeat_version = (uint16_t)(header&0x0000FFFF);
-                        protocol_version = (header&0xFFFF0000)>>16;
-
-                        // Ensure we support this protocol version
-                        if (protocol_version > USBPROTOCOL_VERSION)
-                        {
-                            this->WriteConsoleError(wxString::Format("\nError: USB protocol %d unsupported. Your NetLib Client is probably out of date.", protocol_version));
-                            break;
-                        }
-                        device_setprotocol((ProtocolVer)protocol_version);
-
-                        // Handle the heartbeat by reading more stuff based on the version
-                        // Currently, nothing here.
-                        if (heartbeat_version != 0x01)
-                        {
-                            this->WriteConsoleError(wxString::Format("\nError: Heartbeat version %d unsupported. Your NetLib Client is probably out of date.", heartbeat_version));
-                            break;
-                        }
-                    }
-                    break;
+                case DATATYPE_TEXT: this->ParseUSB_TextPacket(outbuff, size); break;
+                case DATATYPE_HEARTBEAT: this->ParseUSB_HeartbeatPacket(outbuff, size); break;
                 default:
                     this->WriteConsoleError(wxString::Format("\nError: Received unknown datatype '%02X' from the flashcart.", command));
                     break;
@@ -324,6 +271,61 @@ void* DeviceThread::Entry()
     }
 
     return NULL;
+}
+
+void DeviceThread::ParseUSB_TextPacket(uint8_t* buff, uint32_t size)
+{
+    char* text;
+    static bool firstprint = TRUE;
+    text = (char*)malloc(size+1);
+    if (text == NULL)
+    {
+        this->WriteConsoleError("\nError: Unable to allocate memory for incoming string.");
+        return;
+    }
+    memset(text, 0, size+1);
+    strncpy(text, (char*)buff, size);
+    if (firstprint)
+    {
+        firstprint = false;
+        this->ClearConsole();
+    }
+    this->WriteConsole(wxString(text));
+    free(text);
+}
+
+void DeviceThread::ParseUSB_HeartbeatPacket(uint8_t* buff, uint32_t size)
+{
+    uint32_t header;
+    uint16_t heartbeat_version;
+    uint16_t protocol_version;
+    if (size < 4)
+    {
+        this->WriteConsoleError("\nError: Malformed heartbeat received.");
+        return;
+    }
+
+    // Read the heartbeat header
+    header = (buff[3] << 24) | (buff[2] << 16) | (buff[1] << 8) | (buff[0]);
+    header = swap_endian(header);
+    heartbeat_version = (uint16_t)(header&0x0000FFFF);
+    protocol_version = (header&0xFFFF0000)>>16;
+
+    // Ensure we support this protocol version
+    if (protocol_version > USBPROTOCOL_VERSION)
+    {
+        this->WriteConsoleError(wxString::Format("\nError: USB protocol %d unsupported. Your NetLib Client is probably out of date.", protocol_version));
+        return;
+    }
+    device_setprotocol((ProtocolVer)protocol_version);
+
+    // Handle the heartbeat by reading more stuff based on the version
+    // Currently, nothing here.
+    if (heartbeat_version != 0x01)
+    {
+        this->WriteConsoleError(wxString::Format("\nError: Heartbeat version %d unsupported. Your NetLib Client is probably out of date.", heartbeat_version));
+        return;
+    }
 }
 
 void DeviceThread::ClearConsole()
