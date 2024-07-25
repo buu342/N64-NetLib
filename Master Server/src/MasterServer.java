@@ -18,6 +18,12 @@ public class MasterServer {
     public static void main(String args[]) throws IOException {
         boolean isrunning = true;
         ServerSocket ss = null;
+        int port = DEFAULTPORT;
+        
+        if (args.length == 1 ) {
+            port = Integer.getInteger(args[0]);
+        }
+        
         System.out.println("Starting N64NetLib Master Server.");
 
         // Open the ROM directory and get all the ROMs inside
@@ -25,12 +31,12 @@ public class MasterServer {
         
         // Try to open the port
         try {
-            ss = new ServerSocket(DEFAULTPORT);
+            ss = new ServerSocket(port);
         } catch (IOException e) {
-            System.err.println("Failed to open port " + Integer.toString(DEFAULTPORT) + ".");
+            System.err.println("Failed to open port " + Integer.toString(port) + ".");
             System.exit(1);
         }
-        System.out.println("Successfully opened socket at port " + Integer.toString(DEFAULTPORT) + ".");
+        System.out.println("Successfully opened socket at port " + Integer.toString(port) + ".");
         System.out.println();
         
         // Try to connect a client
