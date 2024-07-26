@@ -52,7 +52,6 @@ public class TicTacToeServer {
             if (cpos > 0)
                 port = Integer.getInteger(masteraddress.substring(cpos+1 , masteraddress.length()));
             masteraddress = masteraddress.substring(0 , cpos);
-            System.out.println("Address = " + masteraddress + ", port = " + Integer.toString(masterport));
         }
             
         // Try to connect to the master server and register ourselves
@@ -77,6 +76,7 @@ public class TicTacToeServer {
             System.err.println("Unable to register to master server");
             e.printStackTrace();
         }
+        System.out.println("Done. Comitting seppuku.");
             
         // Try to open the server port
         /*try {

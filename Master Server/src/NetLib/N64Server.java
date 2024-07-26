@@ -26,7 +26,7 @@ public class N64Server {
     
     public byte[] toByteArray() {
         try {
-            ByteArrayOutputStream bytes    = new ByteArrayOutputStream();
+            ByteArrayOutputStream bytes = new ByteArrayOutputStream();
             bytes.write(ByteBuffer.allocate(4).putInt(this.name.length()).array());
             bytes.write(this.name.getBytes());
             bytes.write(ByteBuffer.allocate(4).putInt(this.maxplayers).array());
