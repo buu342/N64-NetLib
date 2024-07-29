@@ -16,7 +16,7 @@ typedef enum {
 
 ServerBrowser::ServerBrowser(wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style) : wxFrame(parent, id, title, pos, size, style)
 {
-    this->m_MasterAddress = DEFAULT_MASTERSERVER_ADDRESS;
+    this->m_MasterAddress = DEFAULT_MASTERSERVER_ADDRESS; // TODO: This has to actually be editable
     this->m_MasterPort = DEFAULT_MASTERSERVER_PORT;
     this->m_FinderThread = NULL;
 

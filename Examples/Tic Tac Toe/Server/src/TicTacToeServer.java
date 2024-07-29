@@ -1,4 +1,3 @@
-import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.io.BufferedInputStream;
@@ -24,10 +23,11 @@ public class TicTacToeServer {
     private static byte[] romhash;
     
     public static void main(String args[]) throws Exception {
-        //ServerSocket ss = null;
-        //boolean isrunning = true;
+        ServerSocket ss = null;
+        boolean isrunning = true;
         String masteraddress = MASTER_DEFAULTADDRESS;
         int masterport = MASTER_DEFAULTPORT;
+        ClientConnectionThread t;
 
         // Validate program arguments
         if (args.length < 3 || args.length > 4) {
@@ -79,19 +79,21 @@ public class TicTacToeServer {
         System.out.println("Done. Comitting seppuku.");
             
         // Try to open the server port
-        /*try {
+        try {
             ss = new ServerSocket(port);
-        } catch (IOException e) {
-            System.err.println("Failed to open server port.");
+        } catch (Exception e) {
+            System.err.println("Failed to open server port "+port+".");
             e.printStackTrace();
             System.exit(1);
         }
         
-        // Try to connect a client
+        // Allow clients to connect
         while (isrunning) {
             Socket s = null;
             try {
                 s = ss.accept();
+                t = new ClientConnectionThread(s);
+                new Thread(t).start();
             } catch (Exception e) {
                 System.err.println("Error during client connection.");
                 e.printStackTrace();
@@ -99,7 +101,7 @@ public class TicTacToeServer {
         }
         
         // End
-        ss.close();*/
+        ss.close();
     }
     
     private static String ValidateN64ROM(String rompath) {    
