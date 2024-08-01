@@ -103,7 +103,6 @@ void ServerBrowser::m_DataViewListCtrl_ServersOnDataViewListCtrlItemActivated(wx
         wxDir::Make("roms", wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL);
     if (wxFileExists(rompath))
     {
-        uint32_t i;
         uint8_t hash[32];
         uint8_t *filedata;
         uint32_t filesize;
@@ -377,7 +376,7 @@ void ServerFinderThread::OnSocketEvent(wxSocketEvent& event)
 void ServerFinderThread::ParsePacket_Server(char* buf)
 {
     uint32_t i;
-    int strsize;
+    uint32_t strsize;
     int buffoffset = 6;
     uint8_t hash[32];
     FoundServer server;
