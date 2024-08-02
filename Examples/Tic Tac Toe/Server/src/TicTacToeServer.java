@@ -57,8 +57,6 @@ public class TicTacToeServer {
         // Try to connect to the master server and register ourselves
         System.out.println("Registering to master server");
         try {
-            System.out.println(masteraddress);
-            System.out.println(masterport);
             Socket smaster = new Socket(masteraddress, masterport);
             DataOutputStream dos = new DataOutputStream(smaster.getOutputStream());
             byte[] serverbytes = ToByteArray();
@@ -76,7 +74,7 @@ public class TicTacToeServer {
             System.err.println("Unable to register to master server");
             e.printStackTrace();
         }
-        System.out.println("Done. Comitting seppuku.");
+        System.out.println("Success.");
             
         // Try to open the server port
         try {
