@@ -2,7 +2,6 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.nio.ByteBuffer;
@@ -27,7 +26,6 @@ public class TicTacToeServer {
         boolean isrunning = true;
         String masteraddress = MASTER_DEFAULTADDRESS;
         int masterport = MASTER_DEFAULTPORT;
-        ClientConnectionThread t;
 
         // Validate program arguments
         if (args.length < 3 || args.length > 4) {
@@ -58,20 +56,10 @@ public class TicTacToeServer {
         System.out.println("Registering to master server");
         try {
             Socket smaster = new Socket(masteraddress, masterport);
-            DataOutputStream dos = new DataOutputStream(smaster.getOutputStream());
-            byte[] serverbytes = ToByteArray();
-            byte[] header = {'N', '6', '4', 'P', 'K', 'T'};
-            byte[] packetype = {'R', 'E', 'G', 'I', 'S', 'T', 'E', 'R'};
-            dos.write(header);
-            // TODO: Send the packet version
-            dos.writeInt(serverbytes.length + packetype.length);
-            dos.write(packetype);
-            dos.write(serverbytes);
-            dos.flush();
-            dos.close();
-            smaster.close();
+            MasterConnectionThread t = new MasterConnectionThread(smaster);
+            new Thread(t).start();
         } catch (Exception e) {
-            System.err.println("Unable to register to master server");
+            System.err.println("Unable to connect to master server");
             e.printStackTrace();
         }
         System.out.println("Success.");
@@ -90,7 +78,7 @@ public class TicTacToeServer {
             Socket s = null;
             try {
                 s = ss.accept();
-                t = new ClientConnectionThread(s);
+                ClientConnectionThread t = new ClientConnectionThread(s);
                 new Thread(t).start();
             } catch (Exception e) {
                 System.err.println("Error during client connection.");
@@ -141,7 +129,7 @@ public class TicTacToeServer {
         return digest.digest();
     }
     
-    private static byte[] ToByteArray()    {
+    public static byte[] ToByteArray() {
         try {
             ByteArrayOutputStream bytes    = new ByteArrayOutputStream();
             bytes.write(ByteBuffer.allocate(4).putInt(servername.length()).array());
