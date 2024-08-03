@@ -61,6 +61,7 @@ public class ClientConnectionThread implements Runnable {
         String romname = "";
         String romhashstr;
         byte[] romhash;
+        N64Server server;
         ByteBuffer bb = ByteBuffer.wrap(data);
         bb.position(8);
         
@@ -88,9 +89,30 @@ public class ClientConnectionThread implements Runnable {
         if (this.roms.get(romhashstr) == null)
             MasterServer.ValidateROM(romname);
 
+        // If a server already exists in this address, and for some reason the socket is still open, force close it
+        server = this.servers.get(serveraddress);
+        if (server != null) {
+        	try {
+        		server.GetSocket().close();
+        	} catch (Exception e) {
+                System.err.println("Unable to close already existing server socket.");
+                e.printStackTrace();
+        	}
+        }
+        
         // Store this server in our list
         // If the server already exists, this will update it instead
-        this.servers.put(serveraddress, new N64Server(servername, maxcount, serveraddress, romname, romhash));
+        server = new N64Server(servername, maxcount, serveraddress, romname, romhash, this.clientsocket);
+        this.servers.put(serveraddress, server);
+    
+        // Keep the server connected and listen to heartbeat packets
+        while (!this.clientsocket.isClosed()) {
+        	
+        }
+        
+        // Remove the server from the list, if it hasn't been overwritten (updated) by another server instance
+        if (this.servers.get(serveraddress) == server)
+        	this.servers.remove(serveraddress);
     }
     
     private void DownloadROM(byte[] data) throws Exception, IOException {

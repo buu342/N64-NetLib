@@ -2,6 +2,7 @@ package NetLib;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
+import java.net.Socket;
 
 public class N64Server {    
     private String name;
@@ -10,18 +11,24 @@ public class N64Server {
     private byte[] ROMHash;
     private String ROMHashStr;
     private int maxplayers;
+    private Socket socket;
     
-    public N64Server(String name, int maxplayers, String address, String ROM, byte[] ROMHash) {
+    public N64Server(String name, int maxplayers, String address, String ROM, byte[] ROMHash, Socket socket) {
         this.name = name;
         this.maxplayers = maxplayers;
         this.address = address;
         this.ROM = ROM;
         this.ROMHash = ROMHash;
         this.ROMHashStr = N64ROM.BytesToHash(ROMHash);
+        this.socket = socket;
     }
     
     public String GetROMHashStr() {
         return this.ROMHashStr;
+    }
+    
+    public Socket GetSocket() {
+    	return this.socket;
     }
     
     public byte[] toByteArray() {
