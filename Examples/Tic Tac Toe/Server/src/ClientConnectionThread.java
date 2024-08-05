@@ -39,6 +39,8 @@ public class ClientConnectionThread implements Runnable {
                 }
                 datasize = dis.readInt();
                 data = dis.readNBytes(datasize);
+                
+                // Check packets here
             }
             System.out.println("Finished with "+this.clientsocket);
             this.clientsocket.close();
