@@ -1,6 +1,36 @@
 #ifndef _N64_NETLIB_H
 #define _N64_NETLIB_H
     
+    
+    /*==============================================================
+                                Includes
+    ==============================================================*/
+
+    #include <stdint.h>
+    #include <stdlib.h>
+    
+    
+    /*==============================================================
+                              Custom types
+    ==============================================================*/
+
+    #ifndef bool
+        #define bool char
+    #endif
+
+    #ifndef byte
+        #define byte uint8_t
+    #endif
+    
+    typedef uint32_t NetPacket;
+    
+    typedef uint32_t ClientNumber;
+    
+    
+    /*==============================================================
+                    Initialization and Configuration
+    ==============================================================*/
+    
     void netlib_initialize();
     
     
@@ -8,37 +38,37 @@
                         N64 -> Network Functions
     ==============================================================*/
     
-    void netlib_start();
+    bool netlib_start(NetPacket name);
     
-    void netlib_writebyte();
+    void netlib_writebyte(uint8_t data);
     
-    void netlib_writeword();
+    void netlib_writeword(uint16_t data);
     
-    void netlib_writedword();
+    void netlib_writedword(uint32_t data);
     
-    void netlib_writebytes();
+    void netlib_writebytes(byte* data, size_t size);
     
     void netlib_broadcast();
     
+    void netlib_send(ClientNumber client);
+    
     void netlib_sendtoserver();
-    
-    void netlib_sendtoclient();
-    
+   
     
     /*==============================================================
                         Network -> N64 Functions
     ==============================================================*/
     
-    void netlib_register();
+    void netlib_receive(NetPacket name, void* (*callback)(size_t, ClientNumber));
     
     void netlib_poll();
     
-    void netlib_readbyte();
+    void netlib_readbyte(uint8_t* output);
     
-    void netlib_readword();
+    void netlib_readword(uint16_t* output);
     
-    void netlib_readdword();
+    void netlib_readdword(uint32_t* output);
     
-    void netlib_readbytes();
+    size_t netlib_readbytes(byte* output);
     
 #endif
