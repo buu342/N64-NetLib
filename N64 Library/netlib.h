@@ -46,7 +46,7 @@
                         N64 -> Network Functions
     ==============================================================*/
     
-    bool netlib_start(NetPacket name);
+    bool netlib_start(NetPacket id);
     
     void netlib_writebyte(uint8_t data);
     
@@ -67,7 +67,7 @@
                         Network -> N64 Functions
     ==============================================================*/
     
-    void netlib_register(NetPacket name, void* (*callback)(size_t, ClientNumber));
+    void netlib_register(NetPacket id, void* (*callback)(size_t, ClientNumber));
     
     void netlib_poll();
     
