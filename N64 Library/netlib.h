@@ -14,8 +14,10 @@
                              Configuration
     ==============================================================*/
     
-    #define MAX_UNIQUEPACKETS 64
-    #define MAX_PACKETSIZE    4*1024
+    #define MAX_UNIQUEPACKETS  64
+    #define MAX_PACKETSIZE     4*1024
+    
+    #define SAFETYCHECKS  1
     
     
     /*==============================================================
@@ -54,6 +56,10 @@
     
     void netlib_writedword(uint32_t data);
     
+    void netlib_writefloat(float data);
+    
+    void netlib_writedouble(double data);
+    
     void netlib_writebytes(byte* data, size_t size);
     
     void netlib_broadcast();
@@ -76,6 +82,10 @@
     void netlib_readword(uint16_t* output);
     
     void netlib_readdword(uint32_t* output);
+    
+    void netlib_readfloat(float* output);
+    
+    void netlib_readdouble(double* output);
     
     size_t netlib_readbytes(byte* output);
     
