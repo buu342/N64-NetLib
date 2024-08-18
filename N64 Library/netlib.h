@@ -32,9 +32,9 @@
         #define byte uint8_t
     #endif
     
-    typedef uint32_t NetPacket;
+    typedef uint8_t  NetPacket;
     
-    typedef uint32_t ClientNumber;
+    typedef uint8_t ClientNumber;
     
     
     /*==============================================================
