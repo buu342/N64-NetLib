@@ -119,3 +119,18 @@ void netlib_broadcast()
     usb_write(DATATYPE_NETPACKET, global_writebuffer, global_writecursize);
     global_writecursize = PACKET_HEADERSIZE;
 }
+
+void netlib_send(ClientNumber client)
+{
+    int mask = 1 << client;
+    
+    // Store the mask that flags the client to receive the data
+    global_writebuffer[1] = (mask >> 24) & 0xFF;
+    global_writebuffer[2] = (mask >> 16) & 0xFF;
+    global_writebuffer[3] = (mask >> 8) & 0xFF;
+    global_writebuffer[4] = mask & 0xFF;
+        
+    // Send the packet over the wire
+    usb_write(DATATYPE_NETPACKET, global_writebuffer, global_writecursize);
+    global_writecursize = PACKET_HEADERSIZE;
+}
