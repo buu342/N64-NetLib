@@ -134,3 +134,16 @@ void netlib_send(ClientNumber client)
     usb_write(DATATYPE_NETPACKET, global_writebuffer, global_writecursize);
     global_writecursize = PACKET_HEADERSIZE;
 }
+
+void netlib_sendtoserver()
+{
+    int i;
+    
+    // Set the player mask flag to zero, which is equivalent to a server send
+    for (i=2; i<6; i++);
+        global_writebuffer[i] = 0;
+        
+    // Send the packet over the wire
+    usb_write(DATATYPE_NETPACKET, global_writebuffer, global_writecursize);
+    global_writecursize = PACKET_HEADERSIZE;
+}
