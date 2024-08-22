@@ -87,6 +87,6 @@
     
     void netlib_readdouble(double* output);
     
-    size_t netlib_readbytes(byte* output);
+    void netlib_readbytes(byte* output, size_t maxsize);
     
 #endif

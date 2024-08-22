@@ -207,3 +207,33 @@ void netlib_poll()
         header = usb_poll();
     }
 }
+
+void netlib_readbyte(uint8_t* output)
+{
+    usb_read(output, sizeof(uint8_t));
+}
+
+void netlib_readword(uint16_t* output)
+{
+    usb_read(output, sizeof(uint16_t));
+}
+
+void netlib_readdword(uint32_t* output)
+{
+    usb_read(output, sizeof(uint32_t));
+}
+
+void netlib_readfloat(float* output)
+{
+    usb_read(output, sizeof(float));
+}
+
+void netlib_readdouble(double* output)
+{
+    usb_read(output, sizeof(double));
+}
+
+void netlib_readbytes(byte* output, size_t maxsize)
+{
+    usb_read(output, maxsize);
+}
