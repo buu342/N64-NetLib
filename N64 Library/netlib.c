@@ -5,20 +5,19 @@
 #define PACKET_HEADERSIZE   6
 #define DATATYPE_NETPACKET  0x27
 
-static size_t    global_writecursize = 1;
+static size_t    global_writecursize;
 static byte      global_writebuffer[PACKET_HEADERSIZE + MAX_PACKETSIZE];
 
-static size_t global_curfuncptrs = 0;
-void (*global_funcptrs[MAX_UNIQUEPACKETS])(size_t, ClientNumber);
+void (*global_funcptrs[MAX_UNIQUEPACKETS])(size_t, ClientNumber) = {0};
 
 void netlib_initialize()
 {
     usb_initialize();
+    global_writebuffer[0] = (byte)NETLIB_VERSION;
 }
 
 bool netlib_start(NetPacket id)
 {
-    global_writebuffer[0] = (byte)NETLIB_VERSION;
     global_writebuffer[1] = (byte)id;
     global_writecursize = PACKET_HEADERSIZE;
 }
@@ -146,4 +145,65 @@ void netlib_sendtoserver()
     // Send the packet over the wire
     usb_write(DATATYPE_NETPACKET, global_writebuffer, global_writecursize);
     global_writecursize = PACKET_HEADERSIZE;
+}
+
+void netlib_register(NetPacket id, void (*callback)(size_t, ClientNumber))
+{
+    global_funcptrs[id] = callback;
+}
+
+void netlib_poll()
+{
+    unsigned int header = usb_poll();
+    
+    while (USBHEADER_GETTYPE(header) == DATATYPE_NETPACKET)
+    {
+        uint8_t version;
+        NetPacket id;
+        uint32_t clientmask;
+        ClientNumber client = 0;
+        
+        // Read the version packet
+        usb_read(&version, 1);
+        #if SAFETYCHECKS
+            if (version > NETLIB_VERSION)
+            {
+                usb_purge();
+                usb_write(DATATYPE_TEXT, "Warning: Unsupported packet version. Discarding!\n", 50);
+                return;
+            }
+        #endif
+        
+        // Get the packet id  and client mask
+        usb_read(&id, 1);
+        usb_read(&clientmask, 4);
+        
+        // Figure out which client sent this packet
+        // Use a binary search to make it easier
+        if (clientmask != 0)
+        {
+            uint32_t mask = 0xFFFFFFFF;
+            int pos = 0;
+            int shift = 32;
+            int i;
+            for (i = 6; i != 0; i--)
+            {
+                if (!(val & mask))
+                {
+                    val >>= shift;
+                    pos += shift;
+                }
+                shift >>= 1;
+                mask >>= shift;
+            }
+            client = (ClientNumber)pos;
+        }
+        
+        // Call the relevant packet handling function
+        global_funcptrs[id](USBHEADER_GETSIZE(header) - 6, client);
+        
+        // Poll again
+        usb_purge();
+        header = usb_poll();
+    }
 }
