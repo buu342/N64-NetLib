@@ -14,6 +14,7 @@ void netlib_initialize()
 {
     usb_initialize();
     global_writebuffer[0] = (byte)NETLIB_VERSION;
+    memset(global_funcptrs, sizeof(global_funcptrs), 1);
 }
 
 bool netlib_start(NetPacket id)
@@ -200,7 +201,8 @@ void netlib_poll()
         }
         
         // Call the relevant packet handling function
-        global_funcptrs[id](USBHEADER_GETSIZE(header) - 6, client);
+        if (global_funcptrs[id] != NULL)
+            global_funcptrs[id](USBHEADER_GETSIZE(header) - 6, client);
         
         // Poll again
         usb_purge();
