@@ -9,6 +9,7 @@ import java.nio.file.Files;
 import java.security.MessageDigest;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
+import com.dosse.upnp.UPnP;
 
 public class TicTacToeServer {
     
@@ -50,6 +51,20 @@ public class TicTacToeServer {
             if (cpos > 0)
                 port = Integer.getInteger(masteraddress.substring(cpos+1 , masteraddress.length()));
             masteraddress = masteraddress.substring(0 , cpos);
+        }
+        
+        // Try to UPnP the port
+        System.out.println("Attempting UPnP port forwarding...");
+        if (UPnP.isUPnPAvailable()){
+            if (UPnP.isMappedTCP(port)) {
+                System.out.println("UPnP not enabled: port is already mapped");
+            } else if (UPnP.openPortTCP(port)) {
+                System.out.println("UPnP enabled");
+            } else {
+                System.out.println("UPnP failed");
+            }
+        } else {
+            System.out.println("UPnP is not available");
         }
             
         // Try to connect to the master server and register ourselves

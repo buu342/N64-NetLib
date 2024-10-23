@@ -409,3 +409,6 @@ FodyWeavers.xsd
 # ROMs
 *.n64
 *.z64
+*.o
+*.out
+*.cvt
