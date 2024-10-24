@@ -19,6 +19,16 @@ Program entrypoint.
 
 static void callback_prenmi();
 static void callback_vsync(int tasksleft);
+static void stagetable_init();
+
+
+/*********************************
+             Globals
+*********************************/
+
+StageNum global_curstage = STAGE_INIT;
+StageNum global_nextstage = STAGE_NONE;
+StageDef global_stagetable[STAGE_COUNT];
 
 // Controller data
 NUContData contdata[1];
@@ -53,6 +63,9 @@ void mainproc(void)
     // Initialize the controller
     nuContInit();
     
+    // Initialize the stage table
+    stagetable_init();
+    
     // Initialize the net library
     netlib_initialize();
 
@@ -62,16 +75,29 @@ void mainproc(void)
     // Initialize the heap
     InitHeap(heapmem, sizeof(heapmem));
     
-    // Initialize stage 0
-    stage00_init();
-        
-    // Set callback functions for reset and graphics
-    nuGfxFuncSet((NUGfxFunc)callback_vsync);
-    
-    // Turn on the screen and loop forever to keep the idle thread busy
-    nuGfxDisplayOn();
     while(1)
-        ;
+    {
+        global_stagetable[global_curstage].funcptr_init();
+    
+        // Set callback functions for reset and graphics
+        nuGfxFuncSet((NUGfxFunc)callback_vsync);
+        
+        // Turn on the screen and loop forever to keep the idle thread busy
+        nuGfxDisplayOn();
+        
+        // Wait while the stage hasn't changed
+        while (global_nextstage == STAGE_NONE)
+            ;
+        
+        // Stop
+        nuGfxFuncRemove();
+        nuGfxDisplayOff();
+        
+        // Cleanup and change the stage function pointer
+        global_stagetable[global_curstage].funcptr_cleanup();
+        global_curstage = global_nextstage;
+        global_nextstage = STAGE_NONE;
+    }
 }
 
 
@@ -84,10 +110,10 @@ void mainproc(void)
 
 static void callback_vsync(int tasksleft)
 {
-    // Update the stage, then draw it when the RDP is ready
-    stage00_update();
+    // Update the stage, then draw it when the RCP is ready
+    global_stagetable[global_curstage].funcptr_update();
     if (tasksleft < 1)
-        stage00_draw();
+        global_stagetable[global_curstage].funcptr_draw();
 }
 
 
@@ -101,4 +127,32 @@ static void callback_prenmi()
 {
     nuGfxDisplayOff();
     osViSetYScale(1);
+}
+
+
+/*==============================
+    stages_changeto
+    Changes the stage
+    @param The stage number
+==============================*/
+
+static void stages_changeto(StageNum num)
+{
+    if (num == STAGE_NONE)
+        return;
+    global_curstage = num;
+}
+
+
+/*==============================
+    stagetable_init
+    Initialize the stage table
+==============================*/
+
+static void stagetable_init()
+{
+    global_stagetable[STAGE_INIT].funcptr_init = &stage_init_init;
+    global_stagetable[STAGE_INIT].funcptr_update = &stage_init_update;
+    global_stagetable[STAGE_INIT].funcptr_draw = &stage_init_draw;
+    global_stagetable[STAGE_INIT].funcptr_cleanup = &stage_init_cleanup;
 }

@@ -3,7 +3,7 @@
 ################################################################
 
 ROMNAME     = tictactoe
-CODECFILES  = main.c graphic.c helper.c stage00.c datastructs.c text.c netlib.c usb.c
+CODECFILES  = main.c graphic.c helper.c stage_init.c datastructs.c text.c netlib.c usb.c
 CODEHFILES  =
 
 DEBUGFILES = debug.c 

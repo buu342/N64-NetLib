@@ -1,5 +1,5 @@
-#ifndef _PRESENTATION_TEXT_H
-#define _PRESENTATION_TEXT_H
+#ifndef TICTACTOE_TEXT_H
+#define TICTACTOE_TEXT_H
 
 
     /*********************************

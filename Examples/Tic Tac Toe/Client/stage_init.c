@@ -1,5 +1,5 @@
 /***************************************************************
-                           stage00.c
+                          stage_init.c
                                
 Handles the first level of the game.
 ***************************************************************/
@@ -11,11 +11,11 @@ Handles the first level of the game.
 
 
 /*==============================
-    stage00_init
+    stage_init_init
     Initialize the stage
 ==============================*/
 
-void stage00_init(void)
+void stage_init_init(void)
 {
     text_setfont(&font_default);
     text_setalign(ALIGN_CENTER);
@@ -28,11 +28,11 @@ void stage00_init(void)
 
 
 /*==============================
-    stage00_update
+    stage_init_update
     Update stage variables every frame
 ==============================*/
 
-void stage00_update(void)
+void stage_init_update(void)
 {
 
 }
@@ -43,7 +43,7 @@ void stage00_update(void)
     Draw the stage
 ==============================*/
 
-void stage00_draw(void)
+void stage_init_draw(void)
 {
     glistp = glist;
 
@@ -58,4 +58,15 @@ void stage00_draw(void)
     gDPFullSync(glistp++);
     gSPEndDisplayList(glistp++);
     nuGfxTaskStart(glist, (s32)(glistp - glist) * sizeof(Gfx), NU_GFX_UCODE_F3DEX, NU_SC_SWAPBUFFER);
+}
+
+
+/*==============================
+    stage_init_cleanup
+    Cleans up memory used by the stage
+==============================*/
+
+void stage_init_cleanup(void)
+{
+    text_cleanup();
 }

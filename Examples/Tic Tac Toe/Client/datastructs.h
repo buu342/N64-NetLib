@@ -1,5 +1,5 @@
-#ifndef _PRESENTATION_DATASTRUCTS_H
-#define _PRESENTATION_DATASTRUCTS_H
+#ifndef TICTACTOE_DATASTRUCTS_H
+#define TICTACTOE_DATASTRUCTS_H
 
     /*********************************
                   Macros

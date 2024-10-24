@@ -1,5 +1,5 @@
-#ifndef UNFLEX_HELPER_H
-#define UNFLEX_HELPER_H
+#ifndef TICTACTOE_HELPER_H
+#define TICTACTOE_HELPER_H
 
     /*********************************
                 Functions

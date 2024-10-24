@@ -1,5 +1,5 @@
-#ifndef UNFLEX_CONFIG_H
-#define UNFLEX_CONFIG_H
+#ifndef TICTACTOE_CONFIG_H
+#define TICTACTOE_CONFIG_H
 
     /*********************************
            Configuration Macros
