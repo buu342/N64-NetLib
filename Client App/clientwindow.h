@@ -36,6 +36,8 @@ class ClientWindow : public wxFrame
     private:
 
     protected:
+        wxString m_ServerAddress;
+        int m_ServerPort;
         wxGridBagSizer* m_Sizer_Input;
         wxRichTextCtrl* m_RichText_Console;
         wxTextCtrl* m_TextCtrl_Input;
@@ -53,7 +55,11 @@ class ClientWindow : public wxFrame
 
         void SetClientDeviceStatus(ClientDeviceStatus status);
         void SetROM(wxString rom);
+        void SetAddress(wxString addr);
+        void SetPort(int port);
         wxString GetROM();
+        wxString GetAddress();
+        int GetPort();
 };
 
 class DeviceThread : public wxThread
@@ -89,6 +95,24 @@ class UploadThread : public wxThread
     public:
         UploadThread(ClientWindow* win, FILE* fp);
         virtual ~UploadThread() {};
+
+        virtual void* Entry() wxOVERRIDE;
+        void WriteConsole(wxString str);
+        void WriteConsoleError(wxString str);
+};
+
+class ServerConnectionThread : public wxThread
+{
+    private:
+        ClientWindow* m_Window;
+        wxString m_ServerAddress;
+        int m_ServerPort;
+
+    protected:
+
+    public:
+        ServerConnectionThread(ClientWindow* win, wxString addr, int port);
+        virtual ~ServerConnectionThread() {};
 
         virtual void* Entry() wxOVERRIDE;
         void WriteConsole(wxString str);

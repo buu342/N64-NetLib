@@ -6,8 +6,15 @@ Handles the first level of the game.
 
 #include <nusys.h>
 #include "config.h"
+#include "netlib.h"
 #include "helper.h"
 #include "text.h"
+
+typedef enum {
+    PACKETTYPE_SERVERINFO = 0,
+} NetPacketType;
+
+void netcallback_serverinfo(size_t size, ClientNumber client);
 
 
 /*==============================
@@ -17,6 +24,9 @@ Handles the first level of the game.
 
 void stage_init_init(void)
 {
+    netlib_register(PACKETTYPE_SERVERINFO, &netcallback_serverinfo);
+    
+    // Generate the wait text
     text_setfont(&font_default);
     text_setalign(ALIGN_CENTER);
     text_setcolor(255, 255, 255, 255);
@@ -34,7 +44,7 @@ void stage_init_init(void)
 
 void stage_init_update(void)
 {
-
+    netlib_poll();
 }
 
 
@@ -69,4 +79,14 @@ void stage_init_draw(void)
 void stage_init_cleanup(void)
 {
     text_cleanup();
+}
+
+
+/**************************************************************
+                         Net Callbacks
+**************************************************************/
+
+void netcallback_serverinfo(size_t size, ClientNumber client)
+{
+
 }

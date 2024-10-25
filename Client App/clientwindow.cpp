@@ -129,9 +129,30 @@ void ClientWindow::SetROM(wxString rom)
     this->m_ROMPath = rom;
 }
 
+
+void ClientWindow::SetAddress(wxString addr)
+{
+    this->m_ServerAddress = addr;
+}
+
+void ClientWindow::SetPort(int port)
+{
+    this->m_ServerPort = port;
+}
+
 wxString ClientWindow::GetROM()
 {
     return this->m_ROMPath;
+}
+
+wxString ClientWindow::GetAddress()
+{
+    return this->m_ServerAddress;
+}
+
+int ClientWindow::GetPort()
+{
+    return this->m_ServerPort;
 }
 
 
@@ -420,6 +441,43 @@ void UploadThread::WriteConsole(wxString str)
 }
 
 void UploadThread::WriteConsoleError(wxString str)
+{
+    wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
+    evt.SetInt(TEVENT_WRITECONSOLEERROR);
+    evt.SetString(str.c_str());
+    wxQueueEvent(this->m_Window, evt.Clone());
+}
+
+
+/*=============================================================
+
+=============================================================*/
+
+ServerConnectionThread::ServerConnectionThread(ClientWindow* win, wxString addr, int port)
+{
+    this->m_Window = win;
+    this->m_ServerAddress = addr;
+    this->m_ServerPort = port;
+}
+
+void* ServerConnectionThread::Entry()
+{
+    while (!TestDestroy())
+    {
+
+    }
+    return NULL;
+}
+
+void ServerConnectionThread::WriteConsole(wxString str)
+{
+    wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
+    evt.SetInt(TEVENT_WRITECONSOLE);
+    evt.SetString(str.c_str());
+    wxQueueEvent(this->m_Window, evt.Clone());
+}
+
+void ServerConnectionThread::WriteConsoleError(wxString str)
 {
     wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
     evt.SetInt(TEVENT_WRITECONSOLEERROR);

@@ -136,7 +136,7 @@ static void callback_prenmi()
     @param The stage number
 ==============================*/
 
-static void stages_changeto(StageNum num)
+void stages_changeto(StageNum num)
 {
     if (num == STAGE_NONE)
         return;
