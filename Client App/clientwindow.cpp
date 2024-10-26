@@ -16,7 +16,6 @@ typedef enum {
 
 ClientWindow::ClientWindow( wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style ) : wxFrame( parent, id, title, pos, size, style )
 {
-    DeviceThread* dev;
     this->SetSizeHints( wxDefaultSize, wxDefaultSize );
 
     wxFlexGridSizer* m_Sizer_Main;
@@ -57,19 +56,26 @@ ClientWindow::ClientWindow( wxWindow* parent, wxWindowID id, const wxString& tit
     this->Centre( wxBOTH );
     this->Connect(wxID_ANY, wxEVT_THREAD, wxThreadEventHandler(ClientWindow::ThreadEvent));
 
-    dev = new DeviceThread(this);
-    if (dev->Create() != wxTHREAD_NO_ERROR)
+    this->m_DeviceThread = new DeviceThread(this);
+    if (this->m_DeviceThread->Create() != wxTHREAD_NO_ERROR)
     {
-        delete dev;
+        delete this->m_DeviceThread;
+        this->m_DeviceThread = NULL;
     }
-    else if (dev->Run() != wxTHREAD_NO_ERROR)
+    else if (this->m_DeviceThread->Run() != wxTHREAD_NO_ERROR)
     {
-        delete dev;
+        delete this->m_DeviceThread;
+        this->m_DeviceThread = NULL;
     }
 }
 
 ClientWindow::~ClientWindow()
 {
+    {
+        wxCriticalSectionLocker enter(this->m_DeviceThreadCS);
+        if (this->m_DeviceThread != NULL)
+            this->m_DeviceThread->Delete();
+    }
     this->Disconnect(wxID_ANY, wxEVT_THREAD, wxThreadEventHandler(ClientWindow::ThreadEvent));
 }
 
@@ -257,7 +263,19 @@ void* DeviceThread::Entry()
     else
     {
         // If no ROM was uploaded, assume async, and switch to latest protocol
-        //device_setprotocol(USBPROTOCOL_LATEST);
+        device_setprotocol(USBPROTOCOL_LATEST);
+    }
+
+    // Launch the server connection thread
+    ServerConnectionThread* server;
+    server = new ServerConnectionThread(this->m_Window);
+    if (server->Create() != wxTHREAD_NO_ERROR)
+    {
+        delete server;
+    }
+    else if (server->Run() != wxTHREAD_NO_ERROR)
+    {
+        delete server;
     }
 
     // Now just read from USB in a loop
@@ -290,7 +308,6 @@ void* DeviceThread::Entry()
             outbuff = NULL;
         }
     }
-
     return NULL;
 }
 
@@ -453,15 +470,29 @@ void UploadThread::WriteConsoleError(wxString str)
 
 =============================================================*/
 
-ServerConnectionThread::ServerConnectionThread(ClientWindow* win, wxString addr, int port)
+ServerConnectionThread::ServerConnectionThread(ClientWindow* win)
 {
     this->m_Window = win;
-    this->m_ServerAddress = addr;
-    this->m_ServerPort = port;
 }
 
 void* ServerConnectionThread::Entry()
 {
+    wxIPV4address addr;
+    addr.Hostname(this->m_Window->GetAddress());
+    addr.Service(this->m_Window->GetPort());
+
+    // Attempt to connect the socket
+    this->m_Socket = new wxSocketClient(wxSOCKET_BLOCK | wxSOCKET_WAITALL);
+    this->m_Socket->SetTimeout(10);
+    this->m_Socket->Connect(addr);
+    if (!this->m_Socket->IsConnected())
+    {
+        this->m_Socket->Close();
+        printf("Socket failed to connect.\n");
+        return NULL;
+    }
+    printf("Socket connected!\n");
+
     while (!TestDestroy())
     {
 

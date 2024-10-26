@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <wx/dir.h>
 #include <wx/msgdlg.h>
+#include <wx/tokenzr.h>
 
 #define MASTERSERVERPACKET_HEADER "N64PKT"
 
@@ -94,6 +95,7 @@ void ServerBrowser::m_Tool_RefreshOnToolClicked(wxCommandEvent& event)
 
 void ServerBrowser::m_DataViewListCtrl_ServersOnDataViewListCtrlItemActivated(wxDataViewEvent& event)
 {
+    wxString serveraddr = this->m_DataViewListCtrl_Servers->GetTextValue(this->m_DataViewListCtrl_Servers->GetSelectedRow(), 3);
     wxString romname = this->m_DataViewListCtrl_Servers->GetTextValue(this->m_DataViewListCtrl_Servers->GetSelectedRow(), 4);
     wxString romhash = this->m_DataViewListCtrl_Servers->GetTextValue(this->m_DataViewListCtrl_Servers->GetSelectedRow(), 5);
     wxString rompath = wxString("roms/") + romname;
@@ -147,7 +149,7 @@ void ServerBrowser::m_DataViewListCtrl_ServersOnDataViewListCtrlItemActivated(wx
             dialog.ShowModal();
         }
         else
-            this->CreateClient(rompath);
+            this->CreateClient(rompath, serveraddr);
     }
     else
     {
@@ -177,7 +179,7 @@ void ServerBrowser::m_DataViewListCtrl_ServersOnDataViewListCtrlItemActivated(wx
                     dialog.ShowModal();
                 }
                 else
-                    this->CreateClient(rompath);
+                    this->CreateClient(rompath, serveraddr);
             }
         }
         else
@@ -188,10 +190,15 @@ void ServerBrowser::m_DataViewListCtrl_ServersOnDataViewListCtrlItemActivated(wx
     }
 }
 
-void ServerBrowser::CreateClient(wxString rom)
+void ServerBrowser::CreateClient(wxString rom, wxString address)
 {
+    int port;
+    wxStringTokenizer tokenizer(address, ":");
     ClientWindow* cw = new ClientWindow(this);
     cw->SetROM(rom);
+    cw->SetAddress(tokenizer.GetNextToken());
+    tokenizer.GetNextToken().ToInt(&port);
+    cw->SetPort(port);
     cw->SetFocus();
     cw->Raise();
     cw->Show();

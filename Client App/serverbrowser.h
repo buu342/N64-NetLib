@@ -67,7 +67,7 @@ class ServerBrowser : public wxFrame
         ServerBrowser(wxWindow* parent = NULL, wxWindowID id = wxID_ANY, const wxString& title = wxEmptyString, const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 800,600 ), long style = wxDEFAULT_FRAME_STYLE|wxTAB_TRAVERSAL );
         ~ServerBrowser();
 
-        void CreateClient(wxString rom);
+        void CreateClient(wxString rom, wxString address);
         void ConnectMaster();
         void ClearServers();
         void ThreadEvent(wxThreadEvent& event);

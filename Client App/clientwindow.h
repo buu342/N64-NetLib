@@ -20,6 +20,7 @@ typedef struct IUnknown IUnknown;
 #include <wx/sizer.h>
 #include <wx/statusbr.h>
 #include <wx/frame.h>
+#include <wx/socket.h>
 #include <stdint.h>
 
 typedef enum {
@@ -30,6 +31,10 @@ typedef enum {
     CLSTATUS_RUNNING,
     CLSTATUS_STOPPED,
 } ClientDeviceStatus;
+
+class ClientWindow;
+class DeviceThread;
+class ServerConnectionThread;
 
 class ClientWindow : public wxFrame
 {
@@ -45,6 +50,8 @@ class ClientWindow : public wxFrame
         wxGauge* m_Gauge_Upload;
         wxStatusBar* m_StatusBar_ClientStatus;
         wxString m_ROMPath;
+        DeviceThread* m_DeviceThread;
+        wxCriticalSection m_DeviceThreadCS;
         ClientDeviceStatus m_DeviceStatus;
 
         void ThreadEvent(wxThreadEvent& event);
@@ -53,6 +60,7 @@ class ClientWindow : public wxFrame
         ClientWindow( wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxEmptyString, const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 640,480 ), long style = wxDEFAULT_FRAME_STYLE|wxTAB_TRAVERSAL|wxSTAY_ON_TOP );
         ~ClientWindow();
 
+        void ConnectServer();
         void SetClientDeviceStatus(ClientDeviceStatus status);
         void SetROM(wxString rom);
         void SetAddress(wxString addr);
@@ -104,14 +112,13 @@ class UploadThread : public wxThread
 class ServerConnectionThread : public wxThread
 {
     private:
+        wxSocketClient* m_Socket;
         ClientWindow* m_Window;
-        wxString m_ServerAddress;
-        int m_ServerPort;
 
     protected:
 
     public:
-        ServerConnectionThread(ClientWindow* win, wxString addr, int port);
+        ServerConnectionThread(ClientWindow* win);
         virtual ~ServerConnectionThread() {};
 
         virtual void* Entry() wxOVERRIDE;
