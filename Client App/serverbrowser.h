@@ -60,8 +60,11 @@ class ServerBrowser : public wxFrame
         wxDataViewColumn* m_DataViewListColumn_Hash;
         wxDataViewColumn* m_DataViewListColumn_FileExistsOnMaster;
 
-        void m_Tool_RefreshOnToolClicked(wxCommandEvent& event);
-        void m_DataViewListCtrl_ServersOnDataViewListCtrlItemActivated(wxDataViewEvent& event);
+        void m_MenuItem_File_Connect_OnMenuSelection(wxCommandEvent& event);
+        void m_MenuItem_File_Quit_OnMenuSelection(wxCommandEvent& event);
+        void m_Tool_Refresh_OnToolClicked(wxCommandEvent& event);
+        void m_TextCtrl_MasterServerAddress_OnText(wxCommandEvent& event);
+        void m_DataViewListCtrl_Servers_OnDataViewListCtrlItemActivated(wxDataViewEvent& event);
 
     public:
         ServerBrowser(wxWindow* parent = NULL, wxWindowID id = wxID_ANY, const wxString& title = wxEmptyString, const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 800,600 ), long style = wxDEFAULT_FRAME_STYLE|wxTAB_TRAVERSAL );

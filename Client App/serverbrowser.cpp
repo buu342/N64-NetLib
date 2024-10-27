@@ -7,6 +7,7 @@
 #include <wx/dir.h>
 #include <wx/msgdlg.h>
 #include <wx/tokenzr.h>
+#include "Resources/resources.h"
 
 #define MASTERSERVERPACKET_HEADER "N64PKT"
 
@@ -17,56 +18,68 @@ typedef enum {
 
 ServerBrowser::ServerBrowser(wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style) : wxFrame(parent, id, title, pos, size, style)
 {
+    wxString addrstr;
     this->m_MasterAddress = DEFAULT_MASTERSERVER_ADDRESS; // TODO: This has to actually be editable
     this->m_MasterPort = DEFAULT_MASTERSERVER_PORT;
     this->m_FinderThread = NULL;
+    addrstr = wxString::Format("%s:%d", this->m_MasterAddress, this->m_MasterPort);
 
-    this->SetSizeHints(wxDefaultSize, wxDefaultSize);
+    this->SetSizeHints( wxDefaultSize, wxDefaultSize );
 
-    this->m_MenuBar = new wxMenuBar(0);
-    this->m_Menu_File = new wxMenu();
+    m_MenuBar = new wxMenuBar( 0 );
+    m_Menu_File = new wxMenu();
+    wxMenuItem* m_MenuItem_File_Connect;
+    m_MenuItem_File_Connect = new wxMenuItem( m_Menu_File, wxID_ANY, wxString( wxT("Manual Connect") ) + wxT('\t') + wxT("ALT+C"), wxEmptyString, wxITEM_NORMAL );
+    m_Menu_File->Append( m_MenuItem_File_Connect );
+
+    m_Menu_File->AppendSeparator();
+
     wxMenuItem* m_MenuItem_File_Quit;
-    m_MenuItem_File_Quit = new wxMenuItem(m_Menu_File, wxID_ANY, wxString(wxT("Quit")) + wxT('\t') + wxT("ALT+F4"), wxEmptyString, wxITEM_NORMAL);
-    this->m_Menu_File->Append(m_MenuItem_File_Quit);
+    m_MenuItem_File_Quit = new wxMenuItem( m_Menu_File, wxID_ANY, wxString( wxT("Quit") ) + wxT('\t') + wxT("ALT+F4"), wxEmptyString, wxITEM_NORMAL );
+    m_Menu_File->Append( m_MenuItem_File_Quit );
 
-    this->m_MenuBar->Append(m_Menu_File, wxT("File"));
+    m_MenuBar->Append( m_Menu_File, wxT("File") );
 
-    this->SetMenuBar(m_MenuBar);
+    this->SetMenuBar( m_MenuBar );
 
-    this->m_ToolBar = this->CreateToolBar(wxTB_HORIZONTAL, wxID_ANY);
-    this->m_Tool_Refresh = m_ToolBar->AddTool(wxID_ANY, wxT("Refresh"), wxNullBitmap, wxNullBitmap, wxITEM_NORMAL, wxEmptyString, wxEmptyString, NULL);
+    m_ToolBar = this->CreateToolBar( wxTB_HORIZONTAL, wxID_ANY );
+    m_Tool_Refresh = m_ToolBar->AddTool( wxID_ANY, wxT("Refresh"), icon_refresh, wxNullBitmap, wxITEM_NORMAL, wxEmptyString, wxEmptyString, NULL );
 
-    this->m_TextCtrl_MasterServerAddress = new wxTextCtrl(this->m_ToolBar, wxID_ANY,wxString::Format("%s:%d", this->m_MasterAddress, this->m_MasterPort), wxDefaultPosition, wxDefaultSize, 0);
-    this->m_ToolBar->AddControl(this->m_TextCtrl_MasterServerAddress);
-    this->m_ToolBar->AddSeparator();
+    m_TextCtrl_MasterServerAddress = new wxTextCtrl( m_ToolBar, wxID_ANY, addrstr, wxDefaultPosition, wxDefaultSize, 0 );
+    m_ToolBar->AddControl( m_TextCtrl_MasterServerAddress );
+    m_ToolBar->AddSeparator();
 
-    this->m_ToolBar->Realize();
+    m_ToolBar->Realize();
 
     wxGridBagSizer* m_Sizer_Main;
-    m_Sizer_Main = new wxGridBagSizer(0, 0);
-    m_Sizer_Main->SetFlexibleDirection(wxBOTH);
-    m_Sizer_Main->SetNonFlexibleGrowMode(wxFLEX_GROWMODE_SPECIFIED);
+    m_Sizer_Main = new wxGridBagSizer( 0, 0 );
+    m_Sizer_Main->SetFlexibleDirection( wxBOTH );
+    m_Sizer_Main->SetNonFlexibleGrowMode( wxFLEX_GROWMODE_SPECIFIED );
 
-    this->m_DataViewListCtrl_Servers = new wxDataViewListCtrl(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxDV_ROW_LINES);
-    this->m_DataViewListColumn_Ping = m_DataViewListCtrl_Servers->AppendTextColumn(wxT("Ping"), wxDATAVIEW_CELL_INERT, -1, wxALIGN_LEFT, wxDATAVIEW_COL_RESIZABLE | wxDATAVIEW_COL_SORTABLE);
-    this->m_DataViewListColumn_Players = m_DataViewListCtrl_Servers->AppendTextColumn(wxT("Players"), wxDATAVIEW_CELL_INERT, -1, wxALIGN_LEFT, wxDATAVIEW_COL_RESIZABLE | wxDATAVIEW_COL_SORTABLE);
-    this->m_DataViewListColumn_ServerName = m_DataViewListCtrl_Servers->AppendTextColumn(wxT("Server Name"), wxDATAVIEW_CELL_INERT, -1, wxALIGN_LEFT, wxDATAVIEW_COL_RESIZABLE | wxDATAVIEW_COL_SORTABLE);
-    this->m_DataViewListColumn_Address = m_DataViewListCtrl_Servers->AppendTextColumn(wxT("Address"), wxDATAVIEW_CELL_INERT, -1, wxALIGN_LEFT, wxDATAVIEW_COL_RESIZABLE | wxDATAVIEW_COL_SORTABLE);
-    this->m_DataViewListColumn_ROM = m_DataViewListCtrl_Servers->AppendTextColumn(wxT("ROM"), wxDATAVIEW_CELL_INERT, -1, wxALIGN_LEFT, wxDATAVIEW_COL_RESIZABLE | wxDATAVIEW_COL_SORTABLE);
-    this->m_DataViewListColumn_Hash = m_DataViewListCtrl_Servers->AppendTextColumn(wxT("Hash"), wxDATAVIEW_CELL_INERT, -1, wxALIGN_LEFT, wxDATAVIEW_COL_HIDDEN);
-    this->m_DataViewListColumn_FileExistsOnMaster = m_DataViewListCtrl_Servers->AppendTextColumn(wxT("File Exists on Master"), wxDATAVIEW_CELL_INERT, -1, wxALIGN_LEFT, wxDATAVIEW_COL_HIDDEN);
-    m_Sizer_Main->Add(m_DataViewListCtrl_Servers, wxGBPosition(0, 0), wxGBSpan(1, 1), wxALL|wxEXPAND, 5);
+    m_DataViewListCtrl_Servers = new wxDataViewListCtrl( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxDV_ROW_LINES );
+    m_DataViewListColumn_Ping = m_DataViewListCtrl_Servers->AppendTextColumn( wxT("Ping"), wxDATAVIEW_CELL_INERT, -1, static_cast<wxAlignment>(wxALIGN_LEFT), wxDATAVIEW_COL_RESIZABLE|wxDATAVIEW_COL_SORTABLE );
+    m_DataViewListColumn_Players = m_DataViewListCtrl_Servers->AppendTextColumn( wxT("Players"), wxDATAVIEW_CELL_INERT, -1, static_cast<wxAlignment>(wxALIGN_LEFT), wxDATAVIEW_COL_RESIZABLE|wxDATAVIEW_COL_SORTABLE );
+    m_DataViewListColumn_ServerName = m_DataViewListCtrl_Servers->AppendTextColumn( wxT("Server Name"), wxDATAVIEW_CELL_INERT, -1, static_cast<wxAlignment>(wxALIGN_LEFT), wxDATAVIEW_COL_RESIZABLE|wxDATAVIEW_COL_SORTABLE );
+    m_DataViewListColumn_Address = m_DataViewListCtrl_Servers->AppendTextColumn( wxT("Address"), wxDATAVIEW_CELL_INERT, -1, static_cast<wxAlignment>(wxALIGN_LEFT), wxDATAVIEW_COL_RESIZABLE|wxDATAVIEW_COL_SORTABLE );
+    m_DataViewListColumn_ROM = m_DataViewListCtrl_Servers->AppendTextColumn( wxT("ROM"), wxDATAVIEW_CELL_INERT, -1, static_cast<wxAlignment>(wxALIGN_LEFT), wxDATAVIEW_COL_RESIZABLE|wxDATAVIEW_COL_SORTABLE );
+    m_DataViewListColumn_Hash = m_DataViewListCtrl_Servers->AppendTextColumn( wxT("Hash"), wxDATAVIEW_CELL_INERT, -1, static_cast<wxAlignment>(wxALIGN_LEFT), wxDATAVIEW_COL_HIDDEN );
+    m_DataViewListColumn_FileExistsOnMaster = m_DataViewListCtrl_Servers->AppendTextColumn( wxT("File Exists on Master"), wxDATAVIEW_CELL_INERT, -1, static_cast<wxAlignment>(wxALIGN_LEFT), wxDATAVIEW_COL_HIDDEN );
+    m_Sizer_Main->Add( m_DataViewListCtrl_Servers, wxGBPosition( 0, 0 ), wxGBSpan( 1, 1 ), wxALL|wxEXPAND, 5 );
 
-    m_Sizer_Main->AddGrowableCol(0);
-    m_Sizer_Main->AddGrowableRow(0);
+    m_Sizer_Main->AddGrowableCol( 0 );
+    m_Sizer_Main->AddGrowableRow( 0 );
 
-    this->SetSizer(m_Sizer_Main);
+    this->SetSizer( m_Sizer_Main );
     this->Layout();
 
-    this->Centre(wxBOTH);
-    this->Connect(wxID_ANY, wxEVT_THREAD, wxThreadEventHandler(ServerBrowser::ThreadEvent));
-    this->Connect(this->m_Tool_Refresh->GetId(), wxEVT_COMMAND_TOOL_CLICKED, wxCommandEventHandler(ServerBrowser::m_Tool_RefreshOnToolClicked));
-    this->m_DataViewListCtrl_Servers->Connect(wxEVT_COMMAND_DATAVIEW_ITEM_ACTIVATED, wxDataViewEventHandler(ServerBrowser::m_DataViewListCtrl_ServersOnDataViewListCtrlItemActivated), NULL, this);
+    this->Centre( wxBOTH );
+
+    // Connect Events
+    m_Menu_File->Bind(wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler( ServerBrowser::m_MenuItem_File_Connect_OnMenuSelection ), this, m_MenuItem_File_Connect->GetId());
+    m_Menu_File->Bind(wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler( ServerBrowser::m_MenuItem_File_Quit_OnMenuSelection ), this, m_MenuItem_File_Quit->GetId());
+    this->Connect( m_Tool_Refresh->GetId(), wxEVT_COMMAND_TOOL_CLICKED, wxCommandEventHandler( ServerBrowser::m_Tool_Refresh_OnToolClicked ) );
+    m_TextCtrl_MasterServerAddress->Connect( wxEVT_COMMAND_TEXT_UPDATED, wxCommandEventHandler( ServerBrowser::m_TextCtrl_MasterServerAddress_OnText ), NULL, this );
+    m_DataViewListCtrl_Servers->Connect( wxEVT_COMMAND_DATAVIEW_ITEM_ACTIVATED, wxDataViewEventHandler( ServerBrowser::m_DataViewListCtrl_Servers_OnDataViewListCtrlItemActivated ), NULL, this );
 
     this->ConnectMaster();
 }
@@ -83,17 +96,17 @@ ServerBrowser::~ServerBrowser()
 
     // Disconnect events
     this->Disconnect(wxID_ANY, wxEVT_THREAD, wxThreadEventHandler(ServerBrowser::ThreadEvent));
-    this->Disconnect(this->m_Tool_Refresh->GetId(), wxEVT_COMMAND_TOOL_CLICKED, wxCommandEventHandler(ServerBrowser::m_Tool_RefreshOnToolClicked));
-    this->m_DataViewListCtrl_Servers->Disconnect(wxEVT_COMMAND_DATAVIEW_ITEM_ACTIVATED, wxDataViewEventHandler(ServerBrowser::m_DataViewListCtrl_ServersOnDataViewListCtrlItemActivated), NULL, this);
+    this->Disconnect(this->m_Tool_Refresh->GetId(), wxEVT_COMMAND_TOOL_CLICKED, wxCommandEventHandler(ServerBrowser::m_Tool_Refresh_OnToolClicked));
+    this->m_DataViewListCtrl_Servers->Disconnect(wxEVT_COMMAND_DATAVIEW_ITEM_ACTIVATED, wxDataViewEventHandler(ServerBrowser::m_DataViewListCtrl_Servers_OnDataViewListCtrlItemActivated), NULL, this);
 }
 
-void ServerBrowser::m_Tool_RefreshOnToolClicked(wxCommandEvent& event)
+void ServerBrowser::m_Tool_Refresh_OnToolClicked(wxCommandEvent& event)
 {
     this->ClearServers();
     this->ConnectMaster();
 }
 
-void ServerBrowser::m_DataViewListCtrl_ServersOnDataViewListCtrlItemActivated(wxDataViewEvent& event)
+void ServerBrowser::m_DataViewListCtrl_Servers_OnDataViewListCtrlItemActivated(wxDataViewEvent& event)
 {
     wxString serveraddr = this->m_DataViewListCtrl_Servers->GetTextValue(this->m_DataViewListCtrl_Servers->GetSelectedRow(), 3);
     wxString romname = this->m_DataViewListCtrl_Servers->GetTextValue(this->m_DataViewListCtrl_Servers->GetSelectedRow(), 4);
@@ -190,6 +203,29 @@ void ServerBrowser::m_DataViewListCtrl_ServersOnDataViewListCtrlItemActivated(wx
     }
 }
 
+void ServerBrowser::m_TextCtrl_MasterServerAddress_OnText(wxCommandEvent& event)
+{
+    int port;
+    wxString str = event.GetString();
+    wxStringTokenizer tokenizer(str, ":");
+    this->m_MasterAddress = tokenizer.GetNextToken();
+    if (tokenizer.HasMoreTokens())
+    {
+        tokenizer.GetNextToken().ToInt(&port);
+        this->m_MasterPort = port;
+    }
+}
+
+void ServerBrowser::m_MenuItem_File_Connect_OnMenuSelection(wxCommandEvent& event)
+{
+
+}
+
+void ServerBrowser::m_MenuItem_File_Quit_OnMenuSelection(wxCommandEvent& event)
+{
+    this->Destroy();
+}
+
 void ServerBrowser::CreateClient(wxString rom, wxString address)
 {
     int port;
@@ -207,6 +243,7 @@ void ServerBrowser::CreateClient(wxString rom, wxString address)
 
 void ServerBrowser::ConnectMaster()
 {
+    /*
     // If the thread is running, kill it
     {
         wxCriticalSectionLocker enter(this->m_FinderThreadCS);
@@ -227,6 +264,7 @@ void ServerBrowser::ConnectMaster()
         delete this->m_FinderThread;
         this->m_FinderThread = NULL;
     }
+    */
 }
 
 void ServerBrowser::ClearServers()
