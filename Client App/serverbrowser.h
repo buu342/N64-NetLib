@@ -19,6 +19,12 @@ typedef struct IUnknown IUnknown;
 #include <wx/gbsizer.h>
 #include <wx/frame.h>
 #include <wx/socket.h>
+#include <wx/artprov.h>
+#include <wx/stattext.h>
+#include <wx/filepicker.h>
+#include <wx/button.h>
+#include <wx/sizer.h>
+#include <wx/dialog.h>
 
 #define DEFAULT_MASTERSERVER_ADDRESS "localhost"
 #define DEFAULT_MASTERSERVER_PORT    6464
@@ -77,6 +83,25 @@ class ServerBrowser : public wxFrame
         wxString GetAddress();
         int GetPort();
 };
+
+class ManualConnectWindow : public wxDialog
+{
+    private:
+
+    protected:
+        wxTextCtrl* m_TextCtrl_Server;
+        wxFilePickerCtrl* m_FilePicker_ROM;
+        wxButton* m_Button_Connect;
+
+        //void m_TextCtrl_Server_OnText(wxCommandEvent& event);
+        //void m_FilePicker_ROM_OnFileChanged(wxFileDirPickerEvent& event);
+        void m_Button_Connect_OnButtonClick(wxCommandEvent& event);
+
+    public:
+        ManualConnectWindow( wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxT("Manual Server Connect"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 300,125 ), long style = wxDEFAULT_DIALOG_STYLE|wxRESIZE_BORDER );
+        ~ManualConnectWindow();
+};
+
 
 class ServerFinderThread : public wxThread
 {

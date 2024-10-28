@@ -218,7 +218,8 @@ void ServerBrowser::m_TextCtrl_MasterServerAddress_OnText(wxCommandEvent& event)
 
 void ServerBrowser::m_MenuItem_File_Connect_OnMenuSelection(wxCommandEvent& event)
 {
-
+    ManualConnectWindow* win = new ManualConnectWindow(this);
+    win->ShowModal();
 }
 
 void ServerBrowser::m_MenuItem_File_Quit_OnMenuSelection(wxCommandEvent& event)
@@ -304,6 +305,96 @@ wxString ServerBrowser::GetAddress()
 int ServerBrowser::GetPort()
 {
     return this->m_MasterPort;
+}
+
+
+/*=============================================================
+
+=============================================================*/
+
+ManualConnectWindow::ManualConnectWindow( wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style ) : wxDialog( parent, id, title, pos, size, style )
+{
+    this->SetSizeHints( wxDefaultSize, wxDefaultSize );
+
+    wxFlexGridSizer* m_Sizer_Main;
+    m_Sizer_Main = new wxFlexGridSizer( 2, 1, 0, 0 );
+    m_Sizer_Main->AddGrowableCol( 0 );
+    m_Sizer_Main->AddGrowableRow( 0 );
+    m_Sizer_Main->SetFlexibleDirection( wxBOTH );
+    m_Sizer_Main->SetNonFlexibleGrowMode( wxFLEX_GROWMODE_SPECIFIED );
+
+    wxFlexGridSizer* m_Sizer_Inputs;
+    m_Sizer_Inputs = new wxFlexGridSizer( 0, 2, 0, 0 );
+    m_Sizer_Inputs->AddGrowableCol( 1 );
+    m_Sizer_Inputs->AddGrowableRow( 1 );
+    m_Sizer_Inputs->SetFlexibleDirection( wxBOTH );
+    m_Sizer_Inputs->SetNonFlexibleGrowMode( wxFLEX_GROWMODE_SPECIFIED );
+
+    wxStaticText* m_StaticText_Server;
+    m_StaticText_Server = new wxStaticText( this, wxID_ANY, wxT("Server IP:"), wxDefaultPosition, wxDefaultSize, 0 );
+    m_StaticText_Server->Wrap( -1 );
+    m_Sizer_Inputs->Add( m_StaticText_Server, 0, wxALL, 5 );
+
+    m_TextCtrl_Server = new wxTextCtrl( this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0 );
+    m_Sizer_Inputs->Add( m_TextCtrl_Server, 0, wxALL|wxEXPAND, 5 );
+
+    wxStaticText* m_StaticText_ROM;
+    m_StaticText_ROM = new wxStaticText( this, wxID_ANY, wxT("ROM Path:"), wxDefaultPosition, wxDefaultSize, 0 );
+    m_StaticText_ROM->Wrap( -1 );
+    m_Sizer_Inputs->Add( m_StaticText_ROM, 0, wxALIGN_CENTER|wxALL, 5 );
+
+    m_FilePicker_ROM = new wxFilePickerCtrl( this, wxID_ANY, wxEmptyString, wxT("Load ROM"), wxT("*.*"), wxDefaultPosition, wxDefaultSize, wxFLP_DEFAULT_STYLE|wxFLP_FILE_MUST_EXIST|wxFLP_OPEN|wxFLP_SMALL|wxFLP_USE_TEXTCTRL );
+    m_FilePicker_ROM->DragAcceptFiles( true );
+
+    m_Sizer_Inputs->Add( m_FilePicker_ROM, 0, wxALL|wxEXPAND, 5 );
+
+    m_Sizer_Main->Add( m_Sizer_Inputs, 1, wxEXPAND, 5 );
+
+    m_Button_Connect = new wxButton( this, wxID_ANY, wxT("Connect"), wxDefaultPosition, wxDefaultSize, 0 );
+    m_Sizer_Main->Add( m_Button_Connect, 0, wxALIGN_CENTER|wxALL, 5 );
+
+    this->SetSizer( m_Sizer_Main );
+    this->Layout();
+
+    this->Centre( wxBOTH );
+
+    // Connect Events
+    //m_TextCtrl_Server->Connect( wxEVT_COMMAND_TEXT_UPDATED, wxCommandEventHandler( ManualConnectWindow::m_TextCtrl_Server_OnText ), NULL, this );
+    //m_FilePicker_ROM->Connect( wxEVT_COMMAND_FILEPICKER_CHANGED, wxFileDirPickerEventHandler( ManualConnectWindow::m_FilePicker_ROM_OnFileChanged ), NULL, this );
+    m_Button_Connect->Connect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( ManualConnectWindow::m_Button_Connect_OnButtonClick ), NULL, this );
+}
+
+ManualConnectWindow::~ManualConnectWindow()
+{
+    // Disconnect Events
+    //m_TextCtrl_Server->Disconnect( wxEVT_COMMAND_TEXT_UPDATED, wxCommandEventHandler( ManualConnectWindow::m_TextCtrl_Server_OnText ), NULL, this );
+    //m_FilePicker_ROM->Disconnect( wxEVT_COMMAND_FILEPICKER_CHANGED, wxFileDirPickerEventHandler( ManualConnectWindow::m_FilePicker_ROM_OnFileChanged ), NULL, this );
+    m_Button_Connect->Disconnect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( ManualConnectWindow::m_Button_Connect_OnButtonClick ), NULL, this );
+}
+
+/*void ManualConnectWindow::m_TextCtrl_Server_OnText(wxCommandEvent& event)
+{
+
+}
+
+void ManualConnectWindow::m_FilePicker_ROM_OnFileChanged(wxFileDirPickerEvent& event)
+{
+
+}*/
+
+void ManualConnectWindow::m_Button_Connect_OnButtonClick(wxCommandEvent& event)
+{
+    int port;
+    wxStringTokenizer tokenizer(this->m_TextCtrl_Server->GetValue(), ":");
+    ClientWindow* cw = new ClientWindow(this->GetParent());
+    cw->SetROM(this->m_TextCtrl_Server->GetValue());
+    cw->SetAddress(tokenizer.GetNextToken());
+    tokenizer.GetNextToken().ToInt(&port);
+    cw->SetPort(port);
+    cw->SetFocus();
+    cw->Raise();
+    cw->Show();
+    this->Destroy();
 }
 
 
