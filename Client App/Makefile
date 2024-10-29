@@ -66,16 +66,20 @@ PROGRAM_CXXFLAGS = -I. `$(WX_CONFIG) --cxxflags $(WX_CONFIG_FLAGS)` $(CPPFLAGS) 
 ### Conditionally set variables: ###
 
 ifeq ($(WX_UNICODE),0)
-WX_CONFIG_UNICODE_FLAG = --unicode=no
+	WX_CONFIG_UNICODE_FLAG = --unicode=no
 endif
 ifeq ($(WX_UNICODE),1)
-WX_CONFIG_UNICODE_FLAG = --unicode=yes
+	WX_CONFIG_UNICODE_FLAG = --unicode=yes
 endif
 ifeq ($(WX_SHARED),0)
-WX_CONFIG_SHARED_FLAG = --static=yes
+	WX_CONFIG_SHARED_FLAG = --static=yes
 endif
 ifeq ($(WX_SHARED),1)
-WX_CONFIG_SHARED_FLAG = --static=no
+	WX_CONFIG_SHARED_FLAG = --static=no
+endif
+
+ifeq ($(DEBUG),1)
+	CFLAGS += -Wall -Wextra -ggdb -O0 -g
 endif
 
 

@@ -72,9 +72,10 @@ ServerBrowser::ServerBrowser(wxWindow* parent, wxWindowID id, const wxString& ti
     this->SetSizer( m_Sizer_Main );
     this->Layout();
 
-    this->Centre( wxBOTH );
+    this->Centre(wxBOTH);
 
     // Connect Events
+    this->Connect(wxID_ANY, wxEVT_THREAD, wxThreadEventHandler(ServerBrowser::ThreadEvent));
     m_Menu_File->Bind(wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler( ServerBrowser::m_MenuItem_File_Connect_OnMenuSelection ), this, m_MenuItem_File_Connect->GetId());
     m_Menu_File->Bind(wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler( ServerBrowser::m_MenuItem_File_Quit_OnMenuSelection ), this, m_MenuItem_File_Quit->GetId());
     this->Connect( m_Tool_Refresh->GetId(), wxEVT_COMMAND_TOOL_CLICKED, wxCommandEventHandler( ServerBrowser::m_Tool_Refresh_OnToolClicked ) );
@@ -244,7 +245,7 @@ void ServerBrowser::CreateClient(wxString rom, wxString address)
 
 void ServerBrowser::ConnectMaster()
 {
-    /*
+    
     // If the thread is running, kill it
     {
         wxCriticalSectionLocker enter(this->m_FinderThreadCS);
@@ -265,7 +266,7 @@ void ServerBrowser::ConnectMaster()
         delete this->m_FinderThread;
         this->m_FinderThread = NULL;
     }
-    */
+    
 }
 
 void ServerBrowser::ClearServers()

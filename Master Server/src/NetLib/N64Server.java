@@ -7,16 +7,18 @@ import java.net.Socket;
 public class N64Server {    
     private String name;
     private String address;
+    private int    publicport;
     private String ROM;
     private byte[] ROMHash;
     private String ROMHashStr;
     private int maxplayers;
     private Socket socket;
     
-    public N64Server(String name, int maxplayers, String address, String ROM, byte[] ROMHash, Socket socket) {
+    public N64Server(String name, int maxplayers, String address, int publicport, String ROM, byte[] ROMHash, Socket socket) {
         this.name = name;
         this.maxplayers = maxplayers;
         this.address = address;
+        this.publicport = publicport;
         this.ROM = ROM;
         this.ROMHash = ROMHash;
         this.ROMHashStr = N64ROM.BytesToHash(ROMHash);
@@ -33,12 +35,13 @@ public class N64Server {
     
     public byte[] toByteArray() {
         try {
+            String publicaddr = this.address + ":" + this.publicport;
             ByteArrayOutputStream bytes = new ByteArrayOutputStream();
             bytes.write(ByteBuffer.allocate(4).putInt(this.name.length()).array());
             bytes.write(this.name.getBytes());
             bytes.write(ByteBuffer.allocate(4).putInt(this.maxplayers).array());
-            bytes.write(ByteBuffer.allocate(4).putInt(this.address.length()).array());
-            bytes.write(this.address.getBytes());
+            bytes.write(ByteBuffer.allocate(4).putInt(publicaddr.length()).array());
+            bytes.write(publicaddr.getBytes());
             bytes.write(ByteBuffer.allocate(4).putInt(this.ROM.length()).array());
             bytes.write(this.ROM.getBytes());
             bytes.write(ByteBuffer.allocate(4).putInt(this.ROMHash.length).array());

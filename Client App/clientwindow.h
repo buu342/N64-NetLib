@@ -51,7 +51,9 @@ class ClientWindow : public wxFrame
         wxStatusBar* m_StatusBar_ClientStatus;
         wxString m_ROMPath;
         DeviceThread* m_DeviceThread;
+        ServerConnectionThread* m_ServerThread;
         wxCriticalSection m_DeviceThreadCS;
+        wxCriticalSection m_ServerThreadCS;
         ClientDeviceStatus m_DeviceStatus;
 
         void ThreadEvent(wxThreadEvent& event);

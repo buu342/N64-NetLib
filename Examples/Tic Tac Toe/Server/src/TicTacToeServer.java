@@ -49,7 +49,7 @@ public class TicTacToeServer {
             masteraddress = matcher.group();
             cpos = masteraddress.indexOf(":");
             if (cpos > 0)
-                port = Integer.getInteger(masteraddress.substring(cpos+1 , masteraddress.length()));
+                masterport = Integer.getInteger(masteraddress.substring(cpos+1 , masteraddress.length()));
             masteraddress = masteraddress.substring(0 , cpos);
         }
         
@@ -73,11 +73,11 @@ public class TicTacToeServer {
             Socket smaster = new Socket(masteraddress, masterport);
             MasterConnectionThread t = new MasterConnectionThread(smaster);
             new Thread(t).start();
+            System.out.println("Success.");
         } catch (Exception e) {
             System.err.println("Unable to connect to master server");
             e.printStackTrace();
         }
-        System.out.println("Success.");
             
         // Try to open the server port
         try {
@@ -87,6 +87,7 @@ public class TicTacToeServer {
             e.printStackTrace();
             System.exit(1);
         }
+        System.out.println("Server is ready to accept players.");
         
         // Allow clients to connect
         while (isrunning) {
@@ -94,6 +95,7 @@ public class TicTacToeServer {
             try {
                 s = ss.accept();
                 ClientConnectionThread t = new ClientConnectionThread(s);
+                System.out.println("Client connected.");
                 new Thread(t).start();
             } catch (Exception e) {
                 System.err.println("Error during client connection.");
@@ -146,9 +148,10 @@ public class TicTacToeServer {
     
     public static byte[] ToByteArray() {
         try {
-            ByteArrayOutputStream bytes    = new ByteArrayOutputStream();
+            ByteArrayOutputStream bytes = new ByteArrayOutputStream();
             bytes.write(ByteBuffer.allocate(4).putInt(servername.length()).array());
             bytes.write(servername.getBytes());
+            bytes.write(ByteBuffer.allocate(4).putInt(port).array());
             bytes.write(ByteBuffer.allocate(4).putInt(maxplayers).array());
             bytes.write(ByteBuffer.allocate(4).putInt(romname.length()).array());
             bytes.write(romname.getBytes());

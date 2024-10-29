@@ -56,9 +56,11 @@ public class ClientConnectionThread implements Runnable {
         System.out.println("Client " + this.clientsocket + " requested server register");
         int size;
         int maxcount = 0;
-        String serveraddress = this.clientsocket.getRemoteSocketAddress().toString().replace("/","");
+        String serveraddress = this.clientsocket.getInetAddress().getHostAddress();
+        int publicport = 0;
         String servername = "";
         String romname = "";
+        String fullserveraddr;
         String romhashstr;
         byte[] romhash;
         N64Server server;
@@ -69,6 +71,9 @@ public class ClientConnectionThread implements Runnable {
         size = bb.getInt();
         for (int i=0; i<size; i++)
             servername += (char)bb.get();
+        
+        // Public port
+        publicport = bb.getInt();
         
         // Player max count
         maxcount = bb.getInt();
@@ -88,9 +93,11 @@ public class ClientConnectionThread implements Runnable {
         romhashstr = N64ROM.BytesToHash(romhash);
         if (this.roms.get(romhashstr) == null)
             MasterServer.ValidateROM(romname);
+        
+        fullserveraddr = serveraddress + ":" + publicport;
 
         // If a server already exists in this address, and for some reason the socket is still open, force close it
-        server = this.servers.get(serveraddress);
+        server = this.servers.get(fullserveraddr);
         if (server != null) {
         	try {
         		server.GetSocket().close();
@@ -102,17 +109,22 @@ public class ClientConnectionThread implements Runnable {
         
         // Store this server in our list
         // If the server already exists, this will update it instead
-        server = new N64Server(servername, maxcount, serveraddress, romname, romhash, this.clientsocket);
-        this.servers.put(serveraddress, server);
+        server = new N64Server(servername, maxcount, serveraddress, publicport, romname, romhash, this.clientsocket);
+        this.servers.put(fullserveraddr, server);
     
         // Keep the server connected and listen to heartbeat packets
         while (!this.clientsocket.isClosed()) {
-        	
+        	try {
+                Thread.sleep(10000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+                break;
+            }
         }
         
         // Remove the server from the list, if it hasn't been overwritten (updated) by another server instance
-        if (this.servers.get(serveraddress) == server)
-        	this.servers.remove(serveraddress);
+        if (this.servers.get(fullserveraddr) == server)
+        	this.servers.remove(fullserveraddr);
     }
     
     private void DownloadROM(byte[] data) throws Exception, IOException {

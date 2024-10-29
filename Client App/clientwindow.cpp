@@ -67,6 +67,18 @@ ClientWindow::ClientWindow( wxWindow* parent, wxWindowID id, const wxString& tit
         delete this->m_DeviceThread;
         this->m_DeviceThread = NULL;
     }
+
+    this->m_ServerThread = new ServerConnectionThread(this);
+    if (this->m_ServerThread->Create() != wxTHREAD_NO_ERROR)
+    {
+        delete this->m_ServerThread;
+        this->m_ServerThread = NULL;
+    }
+    else if (this->m_ServerThread->Run() != wxTHREAD_NO_ERROR)
+    {
+        delete this->m_ServerThread;
+        this->m_ServerThread = NULL;
+    }
 }
 
 ClientWindow::~ClientWindow()
@@ -75,6 +87,11 @@ ClientWindow::~ClientWindow()
         wxCriticalSectionLocker enter(this->m_DeviceThreadCS);
         if (this->m_DeviceThread != NULL)
             this->m_DeviceThread->Delete();
+    }
+    {
+        wxCriticalSectionLocker enter(this->m_ServerThreadCS);
+        if (this->m_ServerThread != NULL)
+            this->m_ServerThread->Delete();
     }
     this->Disconnect(wxID_ANY, wxEVT_THREAD, wxThreadEventHandler(ClientWindow::ThreadEvent));
 }
@@ -264,18 +281,6 @@ void* DeviceThread::Entry()
     {
         // If no ROM was uploaded, assume async, and switch to latest protocol
         device_setprotocol(USBPROTOCOL_LATEST);
-    }
-
-    // Launch the server connection thread
-    ServerConnectionThread* server;
-    server = new ServerConnectionThread(this->m_Window);
-    if (server->Create() != wxTHREAD_NO_ERROR)
-    {
-        delete server;
-    }
-    else if (server->Run() != wxTHREAD_NO_ERROR)
-    {
-        delete server;
     }
 
     // Now just read from USB in a loop
