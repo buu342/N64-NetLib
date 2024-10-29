@@ -103,12 +103,14 @@ ServerBrowser::~ServerBrowser()
 
 void ServerBrowser::m_Tool_Refresh_OnToolClicked(wxCommandEvent& event)
 {
+    (void)event;
     this->ClearServers();
     this->ConnectMaster();
 }
 
 void ServerBrowser::m_DataViewListCtrl_Servers_OnDataViewListCtrlItemActivated(wxDataViewEvent& event)
 {
+    (void)event;
     wxString serveraddr = this->m_DataViewListCtrl_Servers->GetTextValue(this->m_DataViewListCtrl_Servers->GetSelectedRow(), 3);
     wxString romname = this->m_DataViewListCtrl_Servers->GetTextValue(this->m_DataViewListCtrl_Servers->GetSelectedRow(), 4);
     wxString romhash = this->m_DataViewListCtrl_Servers->GetTextValue(this->m_DataViewListCtrl_Servers->GetSelectedRow(), 5);
@@ -149,7 +151,7 @@ void ServerBrowser::m_DataViewListCtrl_Servers_OnDataViewListCtrlItemActivated(w
 
         // Convert it to a string
         hashstr = "";
-        for (int i=0; i<(sizeof(hash)/sizeof(hash[0])); i++)
+        for (uint32_t i=0; i<(sizeof(hash)/sizeof(hash[0])); i++)
             hashstr += wxString::Format("%02X", hash[i]);
 
         // Cleanup
@@ -219,12 +221,14 @@ void ServerBrowser::m_TextCtrl_MasterServerAddress_OnText(wxCommandEvent& event)
 
 void ServerBrowser::m_MenuItem_File_Connect_OnMenuSelection(wxCommandEvent& event)
 {
+    (void)event;
     ManualConnectWindow* win = new ManualConnectWindow(this);
     win->ShowModal();
 }
 
 void ServerBrowser::m_MenuItem_File_Quit_OnMenuSelection(wxCommandEvent& event)
 {
+    (void)event;
     this->Destroy();
 }
 
@@ -245,7 +249,6 @@ void ServerBrowser::CreateClient(wxString rom, wxString address)
 
 void ServerBrowser::ConnectMaster()
 {
-    
     // If the thread is running, kill it
     {
         wxCriticalSectionLocker enter(this->m_FinderThreadCS);
@@ -385,10 +388,11 @@ void ManualConnectWindow::m_FilePicker_ROM_OnFileChanged(wxFileDirPickerEvent& e
 
 void ManualConnectWindow::m_Button_Connect_OnButtonClick(wxCommandEvent& event)
 {
+    (void)event;
     int port;
     wxStringTokenizer tokenizer(this->m_TextCtrl_Server->GetValue(), ":");
     ClientWindow* cw = new ClientWindow(this->GetParent());
-    cw->SetROM(this->m_TextCtrl_Server->GetValue());
+    cw->SetROM(this->m_FilePicker_ROM->GetPath());
     cw->SetAddress(tokenizer.GetNextToken());
     tokenizer.GetNextToken().ToInt(&port);
     cw->SetPort(port);
@@ -507,7 +511,7 @@ void* ServerFinderThread::Entry()
 
 void ServerFinderThread::OnSocketEvent(wxSocketEvent& event)
 {
-    
+    (void)event;
 }
 
 void ServerFinderThread::ParsePacket_Server(char* buf)

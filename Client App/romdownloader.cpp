@@ -75,6 +75,7 @@ void ROMDownloadWindow::ThreadEvent(wxThreadEvent& event)
 
 void ROMDownloadWindow::m_Button_CancelOnButtonClick(wxCommandEvent& event)
 {
+    (void)event;
     // Stop the thread if it is running
     {
         wxCriticalSectionLocker enter(this->m_DownloadThreadCS);

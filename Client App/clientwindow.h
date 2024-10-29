@@ -51,10 +51,10 @@ class ClientWindow : public wxFrame
         wxStatusBar* m_StatusBar_ClientStatus;
         wxString m_ROMPath;
         DeviceThread* m_DeviceThread;
-        ServerConnectionThread* m_ServerThread;
-        wxCriticalSection m_DeviceThreadCS;
-        wxCriticalSection m_ServerThreadCS;
         ClientDeviceStatus m_DeviceStatus;
+        wxCriticalSection m_DeviceThreadCS;
+        ServerConnectionThread* m_ServerThread;
+        wxCriticalSection m_ServerThreadCS;
 
         void ThreadEvent(wxThreadEvent& event);
 
@@ -91,7 +91,9 @@ class DeviceThread : public wxThread
         void WriteConsoleError(wxString str);
         void SetClientDeviceStatus(ClientDeviceStatus status);
         void SetUploadProgress(int progress);
+        void SetMainWindow(ClientWindow* win);
         void UploadROM(FILE* fp);
+        void NotifyDeath();
 };
 
 class UploadThread : public wxThread
@@ -104,7 +106,7 @@ class UploadThread : public wxThread
 
     public:
         UploadThread(ClientWindow* win, FILE* fp);
-        virtual ~UploadThread() {};
+        ~UploadThread();
 
         virtual void* Entry() wxOVERRIDE;
         void WriteConsole(wxString str);
@@ -121,9 +123,11 @@ class ServerConnectionThread : public wxThread
 
     public:
         ServerConnectionThread(ClientWindow* win);
-        virtual ~ServerConnectionThread() {};
+        ~ServerConnectionThread();
 
         virtual void* Entry() wxOVERRIDE;
+        void SetMainWindow(ClientWindow* win);
         void WriteConsole(wxString str);
         void WriteConsoleError(wxString str);
+        void NotifyDeath();
 };

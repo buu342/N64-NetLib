@@ -12,6 +12,8 @@ typedef enum {
     TEVENT_WRITECONSOLEERROR,
     TEVENT_SETSTATUS,
     TEVENT_UPLOADPROGRESS,
+    TEVENT_DEATH_DEVICE,
+    TEVENT_DEATH_SERVER,
 } ThreadEventType;
 
 ClientWindow::ClientWindow( wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style ) : wxFrame( parent, id, title, pos, size, style )
@@ -86,12 +88,18 @@ ClientWindow::~ClientWindow()
     {
         wxCriticalSectionLocker enter(this->m_DeviceThreadCS);
         if (this->m_DeviceThread != NULL)
+        {
+            this->m_DeviceThread->SetMainWindow(NULL);
             this->m_DeviceThread->Delete();
+        }
     }
     {
         wxCriticalSectionLocker enter(this->m_ServerThreadCS);
         if (this->m_ServerThread != NULL)
+        {
+            this->m_ServerThread->SetMainWindow(NULL);
             this->m_ServerThread->Delete();
+        }
     }
     this->Disconnect(wxID_ANY, wxEVT_THREAD, wxThreadEventHandler(ClientWindow::ThreadEvent));
 }
@@ -117,6 +125,8 @@ void ClientWindow::SetClientDeviceStatus(ClientDeviceStatus status)
             this->m_Button_Send->SetLabel(wxT("Reupload"));
             this->m_Button_Send->Enable();
             break;
+        default:
+            break;
     }
 }
 
@@ -141,8 +151,22 @@ void ClientWindow::ThreadEvent(wxThreadEvent& event)
             this->SetClientDeviceStatus((ClientDeviceStatus)event.GetExtraLong());
             break;
         case TEVENT_UPLOADPROGRESS:
-            int prog = event.GetExtraLong();
-            this->m_Gauge_Upload->SetValue(prog);
+            {
+                int prog = event.GetExtraLong();
+                this->m_Gauge_Upload->SetValue(prog);
+            }
+            break;
+        case TEVENT_DEATH_DEVICE:
+            {
+                wxCriticalSectionLocker enter(this->m_DeviceThreadCS);
+                this->m_DeviceThread = NULL;
+            }
+            break;
+        case TEVENT_DEATH_SERVER:
+            {
+                wxCriticalSectionLocker enter(this->m_ServerThreadCS);
+                this->m_ServerThread = NULL;
+            }
             break;
     }
 }
@@ -193,6 +217,7 @@ DeviceThread::~DeviceThread()
 {
     if (device_isopen())
         device_close();
+    this->NotifyDeath();
 }
 
 void* DeviceThread::Entry()
@@ -204,7 +229,7 @@ void* DeviceThread::Entry()
     const char* rompath = rompath_str.c_str();
 
     // Set the ROM
-    if (rompath_str != "")
+    if (rompath_str != "" && wxFileExists(rompath_str))
         device_setrom((char*)rompath);
     else
         device_setrom(NULL);
@@ -215,6 +240,7 @@ void* DeviceThread::Entry()
     if (deverr != DEVICEERR_OK)
     {
         this->WriteConsoleError(wxString::Format(wxT("\nError finding flashcart. Returned error %d."), deverr));
+        this->NotifyDeath();
         return NULL;
     }
     this->WriteConsole(wxT("\nFound "));
@@ -224,6 +250,10 @@ void* DeviceThread::Entry()
         case CART_64DRIVE2: this->WriteConsole(wxT("64Drive HW2")); break;
         case CART_EVERDRIVE: this->WriteConsole(wxT("EverDrive")); break;
         case CART_SC64: this->WriteConsole(wxT("SummerCart64")); break;
+        case CART_NONE: 
+            this->WriteConsole(wxT("Unknown"));
+            this->NotifyDeath();
+            return NULL;
     }
 
     // Open the cart
@@ -231,6 +261,7 @@ void* DeviceThread::Entry()
     if (device_open() != DEVICEERR_OK)
     {
         this->WriteConsoleError(wxString::Format(wxT("\nError opening flashcart. Returned error %d."), deverr));
+        this->NotifyDeath();
         return NULL;
     }
 
@@ -238,6 +269,7 @@ void* DeviceThread::Entry()
     if (device_testdebug() != DEVICEERR_OK)
     {
         this->WriteConsoleError(wxT("\nPlease upgrade to firmware 2.05 or higher to access full USB functionality."));
+        this->NotifyDeath();
         return NULL;
     }
 
@@ -250,6 +282,7 @@ void* DeviceThread::Entry()
         if (fp == NULL)
         {
             this->WriteConsoleError(wxT("\nFailed to open ROM file."));
+            this->NotifyDeath();
             return NULL;
         }
 
@@ -284,6 +317,7 @@ void* DeviceThread::Entry()
     }
 
     // Now just read from USB in a loop
+    this->WriteConsole("\nUSB polling begun");
     while (!TestDestroy())
     {
         uint8_t* outbuff = NULL;
@@ -313,6 +347,7 @@ void* DeviceThread::Entry()
             outbuff = NULL;
         }
     }
+    this->NotifyDeath();
     return NULL;
 }
 
@@ -410,6 +445,11 @@ void DeviceThread::SetUploadProgress(int progress)
     wxQueueEvent(this->m_Window, evt.Clone());
 }
 
+void DeviceThread::SetMainWindow(ClientWindow* win)
+{
+    this->m_Window = win;
+}
+
 void DeviceThread::UploadROM(FILE* fp)
 {
     UploadThread* dev = new UploadThread(this->m_Window, fp);
@@ -423,6 +463,15 @@ void DeviceThread::UploadROM(FILE* fp)
     }
 }
 
+void DeviceThread::NotifyDeath()
+{
+    if (this->m_Window == NULL)
+        return;
+    wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
+    evt.SetInt(TEVENT_DEATH_DEVICE);
+    wxQueueEvent(this->m_Window, evt.Clone());
+}
+
 
 /*=============================================================
 
@@ -432,6 +481,11 @@ UploadThread::UploadThread(ClientWindow* win, FILE* fp)
 {
     this->m_Window = win;
     this->m_File = fp;
+}
+
+UploadThread::~UploadThread()
+{
+
 }
 
 void* UploadThread::Entry()
@@ -480,6 +534,13 @@ ServerConnectionThread::ServerConnectionThread(ClientWindow* win)
     this->m_Window = win;
 }
 
+ServerConnectionThread::~ServerConnectionThread()
+{
+    if (this->m_Socket->IsConnected())
+        this->m_Socket->Close();
+    this->NotifyDeath();
+}
+
 void* ServerConnectionThread::Entry()
 {
     wxIPV4address addr;
@@ -493,15 +554,17 @@ void* ServerConnectionThread::Entry()
     if (!this->m_Socket->IsConnected())
     {
         this->m_Socket->Close();
-        printf("Socket failed to connect.\n");
+        this->WriteConsoleError("Socket failed to connect.\n");
+        this->NotifyDeath();
         return NULL;
     }
-    printf("Socket connected!\n");
+    this->WriteConsole("Socket connected!\n");
 
     while (!TestDestroy())
     {
 
     }
+    this->NotifyDeath();
     return NULL;
 }
 
@@ -518,5 +581,19 @@ void ServerConnectionThread::WriteConsoleError(wxString str)
     wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
     evt.SetInt(TEVENT_WRITECONSOLEERROR);
     evt.SetString(str.c_str());
+    wxQueueEvent(this->m_Window, evt.Clone());
+}
+
+void ServerConnectionThread::SetMainWindow(ClientWindow* win)
+{
+    this->m_Window = win;
+}
+
+void ServerConnectionThread::NotifyDeath()
+{
+    if (this->m_Window == NULL)
+        return;
+    wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
+    evt.SetInt(TEVENT_DEATH_SERVER);
     wxQueueEvent(this->m_Window, evt.Clone());
 }
