@@ -89,6 +89,10 @@ public class TicTacToeServer {
         }
         System.out.println("Server is ready to accept players.");
         
+        // Begin the game
+        TicTacToe.Game game = new TicTacToe.Game();
+        new Thread(game).start();
+        
         // Allow clients to connect
         while (isrunning) {
             Socket s = null;

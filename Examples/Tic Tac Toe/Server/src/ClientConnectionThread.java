@@ -24,8 +24,7 @@ public class ClientConnectionThread implements Runnable {
         try {
             int attempts = 5;
             DataInputStream dis = new DataInputStream(this.clientsocket.getInputStream());
-            while (true)
-            {
+            while (true) {
                 int datasize = 0;
                 byte[] data = dis.readNBytes(6);
                 if (!CheckCString(data, "N64PKT")) {
