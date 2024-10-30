@@ -1,10 +1,13 @@
 #include <wx/event.h>
+#include <wx/msgqueue.h>
 #include "clientwindow.h"
 #include "Include/device.h"
 
 // Max supported protocol versions
 #define USBPROTOCOL_VERSION PROTOCOL_VERSION2
 #define HEARTBEAT_VERSION   1
+
+#define DATATYPE_NETPACKET  (USBDataType)0x27 
 
 typedef enum {
     TEVENT_CLEARCONSOLE,
@@ -14,7 +17,12 @@ typedef enum {
     TEVENT_UPLOADPROGRESS,
     TEVENT_DEATH_DEVICE,
     TEVENT_DEATH_SERVER,
+    TEVENT_NETPACKET_USB_TO_SERVER,
+    TEVENT_NETPACKET_SERVER_TO_USB,
 } ThreadEventType;
+
+wxMessageQueue<USBNetPacket*> global_msgqueue_usbthread;
+wxMessageQueue<USBNetPacket*> global_msgqueue_serverthread;
 
 ClientWindow::ClientWindow( wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style ) : wxFrame( parent, id, title, pos, size, style )
 {
@@ -168,6 +176,30 @@ void ClientWindow::ThreadEvent(wxThreadEvent& event)
                 this->m_ServerThread = NULL;
             }
             break;
+        case TEVENT_NETPACKET_USB_TO_SERVER:
+            {
+                USBNetPacket* pkt = event.GetPayload<USBNetPacket*>();
+                if (this->m_ServerThread == NULL)
+                {
+                    free(pkt->data);
+                    free(pkt);
+                }
+                else
+                    global_msgqueue_serverthread.Post(pkt);
+            }
+            break;
+        case TEVENT_NETPACKET_SERVER_TO_USB:
+            {
+                USBNetPacket* pkt = event.GetPayload<USBNetPacket*>();
+                if (this->m_DeviceThread == NULL)
+                {
+                    free(pkt->data);
+                    free(pkt);
+                }
+                else
+                    global_msgqueue_usbthread.Post(pkt);
+            }
+            break;
     }
 }
 
@@ -210,6 +242,7 @@ int ClientWindow::GetPort()
 DeviceThread::DeviceThread(ClientWindow* win)
 {
     this->m_Window = win;
+    global_msgqueue_usbthread.Clear();
     device_initialize();
 }
 
@@ -336,6 +369,7 @@ void* DeviceThread::Entry()
             switch (command)
             {
                 case DATATYPE_TEXT: this->ParseUSB_TextPacket(outbuff, size); break;
+                case DATATYPE_NETPACKET: this->ParseUSB_NetLibPacket(outbuff, size); break;
                 case DATATYPE_HEARTBEAT: this->ParseUSB_HeartbeatPacket(outbuff, size); break;
                 default:
                     this->WriteConsoleError(wxString::Format("\nError: Received unknown datatype '%02X' from the flashcart.", command));
@@ -346,6 +380,17 @@ void* DeviceThread::Entry()
             free(outbuff);
             outbuff = NULL;
         }
+        else // No incoming USB data, that means we can send data safely
+        {
+            USBNetPacket* pkt;
+            if (global_msgqueue_usbthread.ReceiveTimeout(0, pkt) == wxMSGQUEUE_NO_ERROR)
+            {
+                device_senddata(DATATYPE_NETPACKET, pkt->data, pkt->size);
+                free(pkt->data);
+                free(pkt);
+            }
+        }
+
     }
     this->NotifyDeath();
     return NULL;
@@ -370,6 +415,18 @@ void DeviceThread::ParseUSB_TextPacket(uint8_t* buff, uint32_t size)
     }
     this->WriteConsole(wxString(text));
     free(text);
+}
+
+void DeviceThread::ParseUSB_NetLibPacket(uint8_t* buff, uint32_t size)
+{
+    USBNetPacket* pkt = (USBNetPacket*)malloc(sizeof(USBNetPacket));
+    wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
+    pkt->size = size;
+    pkt->data = (uint8_t*)malloc(sizeof(uint8_t)*size);
+    memcpy(pkt->data, buff, size);
+    evt.SetInt(TEVENT_NETPACKET_USB_TO_SERVER);
+    evt.SetPayload<USBNetPacket*>(pkt);
+    wxQueueEvent(this->m_Window, evt.Clone());
 }
 
 void DeviceThread::ParseUSB_HeartbeatPacket(uint8_t* buff, uint32_t size)
@@ -532,6 +589,7 @@ void UploadThread::WriteConsoleError(wxString str)
 ServerConnectionThread::ServerConnectionThread(ClientWindow* win)
 {
     this->m_Window = win;
+    global_msgqueue_serverthread.Clear();
 }
 
 ServerConnectionThread::~ServerConnectionThread()
@@ -554,15 +612,24 @@ void* ServerConnectionThread::Entry()
     if (!this->m_Socket->IsConnected())
     {
         this->m_Socket->Close();
-        this->WriteConsoleError("Socket failed to connect.\n");
+        this->WriteConsoleError("Server socket failed to connect.\n");
         this->NotifyDeath();
         return NULL;
     }
     this->WriteConsole("Socket connected!\n");
 
-    while (!TestDestroy())
+    while (!TestDestroy() && this->m_Socket->IsConnected())
     {
-
+        // Check for incoming data from the server
+        if (this->m_Socket->IsData())
+        {
+            // TODO: ALL OF THIS
+        }
+        else
+        {
+            // Check for data that needs to be sent
+            // TODO: ALL OF THIS
+        }
     }
     this->NotifyDeath();
     return NULL;

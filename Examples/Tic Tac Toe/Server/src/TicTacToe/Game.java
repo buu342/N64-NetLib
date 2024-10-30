@@ -39,6 +39,8 @@ public class Game implements Runnable  {
                 this.state = GameState.PLAYING;
                 while (this.state != GameState.ENDED)
                 {
+                    // Receive packets from the player who's turn it is to play
+                    
                     // Check for winners
                     board.CheckWinner();
                     if (board.GetWinner() != null)
@@ -56,6 +58,8 @@ public class Game implements Runnable  {
                 System.out.println("Game Ended.");
                 if (board.GetWinner() != null)
                     System.out.println("Player " + board.GetWinner().GetNumber() + " wins!");
+                else if (this.PlayerCount() < 2)
+                    System.out.println("Player disconnected!");
                 else
                     System.out.println("Tie game!");
                 this.state = GameState.ENDED;
@@ -94,6 +98,8 @@ public class Game implements Runnable  {
         for (int i=0; i<this.players.length; i++) {
             if (this.players[i] == ply) {
                 this.players[i] = null;
+                if (this.state == GameState.PLAYING)
+                    this.state = GameState.ENDED;
                 return;
             }
         }

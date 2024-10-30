@@ -227,6 +227,7 @@ public class ClientConnectionThread implements Runnable {
                     }
                     continue;
                 }
+                attempts = 5;
                 datasize = dis.readInt();
                 data = dis.readNBytes(datasize);
                 if (CheckCString(data, "LIST")) {

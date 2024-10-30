@@ -98,7 +98,7 @@ public class TicTacToeServer {
             Socket s = null;
             try {
                 s = ss.accept();
-                ClientConnectionThread t = new ClientConnectionThread(s);
+                ClientConnectionThread t = new ClientConnectionThread(s, game);
                 System.out.println("Client connected.");
                 new Thread(t).start();
             } catch (Exception e) {

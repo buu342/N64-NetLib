@@ -436,7 +436,7 @@ void* ServerFinderThread::Entry()
     if (!this->m_Socket->IsConnected())
     {
         this->m_Socket->Close();
-        printf("Socket failed to connect.\n");
+        printf("Master Server socket failed to connect.\n");
         return NULL;
     }
 

@@ -18,7 +18,7 @@ void netlib_initialize()
     memset(global_funcptrs, sizeof(global_funcptrs), 1);
 }
 
-bool netlib_start(NetPacket id)
+void netlib_start(NetPacket id)
 {
     global_writebuffer[1] = (byte)id;
     global_writecursize = PACKET_HEADERSIZE;

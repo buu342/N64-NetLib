@@ -11,10 +11,12 @@ Handles the first level of the game.
 #include "text.h"
 
 typedef enum {
-    PACKETTYPE_SERVERINFO = 0,
+    PACKETTYPE_PLAYERINFO = 0,
 } NetPacketType;
 
-void netcallback_serverinfo(size_t size, ClientNumber client);
+bool global_hasrequestedinfo;
+
+void netcallback_playerinfo(size_t size, ClientNumber client);
 
 
 /*==============================
@@ -24,7 +26,7 @@ void netcallback_serverinfo(size_t size, ClientNumber client);
 
 void stage_init_init(void)
 {
-    netlib_register(PACKETTYPE_SERVERINFO, &netcallback_serverinfo);
+    netlib_register(PACKETTYPE_PLAYERINFO, &netcallback_playerinfo);
     
     // Generate the wait text
     text_setfont(&font_default);
@@ -34,6 +36,9 @@ void stage_init_init(void)
     text_setfont(&font_small);
     text_create("Ensure the USB is connected", SCREEN_WD/2, SCREEN_HT/2 + 16);
     text_create("and the client is running", SCREEN_WD/2, SCREEN_HT/2 + 32);
+    
+    // Get player info from the server
+    global_hasrequestedinfo = FALSE;
 }
 
 
@@ -44,6 +49,15 @@ void stage_init_init(void)
 
 void stage_init_update(void)
 {
+    // If we have no player info, then request it from the server
+    if (!usb_timedout() && !global_hasrequestedinfo)
+    {
+        global_hasrequestedinfo = TRUE;
+        netlib_start(PACKETTYPE_PLAYERINFO);
+        netlib_sendtoserver();
+    }
+    
+    // Poll for incoming data
     netlib_poll();
 }
 
@@ -86,7 +100,7 @@ void stage_init_cleanup(void)
                          Net Callbacks
 **************************************************************/
 
-void netcallback_serverinfo(size_t size, ClientNumber client)
+void netcallback_playerinfo(size_t size, ClientNumber client)
 {
 
 }

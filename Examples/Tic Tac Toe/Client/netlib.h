@@ -58,7 +58,7 @@
                         N64 -> Network Functions
     ==============================================================*/
     
-    bool netlib_start(NetPacket id);
+    void netlib_start(NetPacket id);
     
     void netlib_writebyte(uint8_t data);
     
