@@ -1,10 +1,14 @@
 package NetLib;
 
 import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
-import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 
 public class N64Packet {
+    
+    private static final String PACKET_HEADER = "N64PKT";
+    private static final int PACKET_VERSION = 1;
     
     private int version;
     private int size;
@@ -13,6 +17,12 @@ public class N64Packet {
     private N64Packet(int version, int size, byte data[]) {
         this.version = version;
         this.size = size;
+        this.data = data;
+    }
+    
+    public N64Packet(byte data[]) {
+        this.version = PACKET_VERSION;
+        this.size = data.length;
         this.data = data;
     }
     
@@ -29,28 +39,27 @@ public class N64Packet {
     static public N64Packet ReadPacket(DataInputStream dis) throws IOException {
         int version;
         int size;
-        ByteBuffer bb;
         byte[] data;
         
         // Get the packet header
         data = dis.readNBytes(6);
-        if (!CheckCString(data, "N64PKT")) {
+        if (!CheckCString(data, PACKET_HEADER)) {
             return null;
         }
         
-        // Get the packet version
-        data = dis.readNBytes(2);
-        bb = ByteBuffer.wrap(data);
-        version = bb.getShort();
-        
-        // Get the packet size
-        data = dis.readNBytes(4);
-        bb = ByteBuffer.wrap(data);
-        size = bb.getInt();
-        
         // Create the packet
+        version = dis.readShort();
+        size = dis.readInt();
         data = dis.readNBytes(size);
         return new N64Packet(version, size, data);
+    }
+
+    public void WritePacket(DataOutputStream dos) throws IOException {
+        dos.write(PACKET_HEADER.getBytes(StandardCharsets.US_ASCII));
+        dos.writeShort(this.version);
+        dos.writeInt(this.size);
+        dos.write(this.data);
+        dos.flush();
     }
     
     public int GetVersion() {
