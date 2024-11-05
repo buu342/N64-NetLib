@@ -1,11 +1,13 @@
 import java.net.Socket;
 import java.util.Hashtable;
+
+import N64.N64ROM;
+import N64.N64Server;
+
 import java.util.Enumeration;
 import java.util.Arrays;
 import java.io.DataOutputStream;
 import java.io.DataInputStream;
-import NetLib.N64Server;
-import NetLib.N64ROM;
 import java.io.IOException;
 import java.io.File;
 import java.io.FileInputStream;
@@ -34,7 +36,7 @@ public class ClientConnectionThread implements Runnable {
             N64Server server = this.servers.get(key);
             byte[] serverbytes = server.toByteArray();
             if (serverbytes != null) {
-                byte[] header = {'N', '6', '4', 'P', 'K', 'T'};
+                byte[] header = {'S', '6', '4', 'P', 'K', 'T'};
                 byte[] packetype = {'S', 'E', 'R', 'V', 'E', 'R'};
                 dos.write(header);
                 // TODO: Send the packet version
@@ -218,7 +220,7 @@ public class ClientConnectionThread implements Runnable {
             {
                 int datasize = 0;
                 byte[] data = dis.readNBytes(6);
-                if (!CheckCString(data, "N64PKT")) {
+                if (!CheckCString(data, "S64PKT")) {
                     System.err.println("    Received bad packet "+data.toString());
                     attempts--;
                     if (attempts == 0) {

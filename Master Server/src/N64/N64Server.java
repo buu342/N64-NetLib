@@ -1,4 +1,4 @@
-package NetLib;
+package N64;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;

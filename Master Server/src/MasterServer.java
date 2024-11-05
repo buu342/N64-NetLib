@@ -3,8 +3,9 @@ import java.net.Socket;
 import java.io.File;
 import java.io.IOException;
 import java.util.Hashtable;
-import NetLib.N64Server;
-import NetLib.N64ROM;
+
+import N64.N64ROM;
+import N64.N64Server;
 
 public class MasterServer {
     

@@ -26,7 +26,7 @@ public class MasterConnectionThread implements Runnable {
         // Register to the master server
         try {
             byte[] serverbytes = TicTacToeServer.ToByteArray();
-            byte[] header = {'N', '6', '4', 'P', 'K', 'T'};
+            byte[] header = {'S', '6', '4', 'P', 'K', 'T'};
             byte[] packetype = {'R', 'E', 'G', 'I', 'S', 'T', 'E', 'R'};
             dos.write(header);
             // TODO: Send the packet version
@@ -43,7 +43,7 @@ public class MasterConnectionThread implements Runnable {
         try {
             while (!this.mastersocket.isClosed())
             {
-                byte[] header = {'N', '6', '4', 'P', 'K', 'T'};
+                byte[] header = {'S', '6', '4', 'P', 'K', 'T'};
                 byte[] packetype = {'P', 'I', 'N', 'G'};
                 dos.write(header);
                 // TODO: Send the packet version

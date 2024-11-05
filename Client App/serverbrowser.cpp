@@ -9,7 +9,7 @@
 #include <wx/tokenzr.h>
 #include "Resources/resources.h"
 
-#define MASTERSERVERPACKET_HEADER "N64PKT"
+#define MASTERSERVERPACKET_HEADER "S64PKT"
 
 typedef enum {
     TEVENT_ADDSERVER,
@@ -441,7 +441,7 @@ void* ServerFinderThread::Entry()
     }
 
     printf("Connected to master server successfully!\n");
-    sprintf(outtext, "N64PKT");
+    sprintf(outtext, MASTERSERVERPACKET_HEADER);
     this->m_Socket->Write(outtext, strlen(outtext));
     sprintf(outtext, "LIST");
     packetsize = swap_endian32(strlen(outtext));

@@ -1,4 +1,4 @@
-package NetLib;
+package N64;
 
 import java.security.MessageDigest;
 import java.io.File;

@@ -198,7 +198,7 @@ void* ROMDownloadThread::Entry()
 
     // Send the header
     printf("Connected to master server successfully!\n");
-    sprintf(outtext, "N64PKT");
+    sprintf(outtext, "S64PKT");
     this->m_Socket->Write(outtext, strlen(outtext));
 
     // Send the download command
