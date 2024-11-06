@@ -37,13 +37,14 @@ public class ClientConnectionThread implements Runnable {
             N64Server server = this.servers.get(key);
             byte[] serverbytes = server.toByteArray();
             if (serverbytes != null) {
-                S64Packet pkt = new S64Packet("SERVER", serverbytes);
-                pkt.WritePacket(dos);
+                byte[] sendbytes = new byte[serverbytes.length + 1];
+                System.arraycopy(serverbytes, 0, sendbytes, 0, serverbytes.length);
                 if (this.roms.get(server.GetROMHashStr()) != null)
-                    dos.write(new byte[]{1});
+                    sendbytes[serverbytes.length] = 1;
                 else
-                    dos.write(new byte[]{0});
-                dos.flush();
+                    sendbytes[serverbytes.length] = 0;
+                S64Packet pkt = new S64Packet("SERVER", sendbytes);
+                pkt.WritePacket(dos);
             }
         }
         dos.close();

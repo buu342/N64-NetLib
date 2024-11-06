@@ -23,6 +23,7 @@
     <ClInclude Include="clientwindow.h" />
     <ClInclude Include="serverbrowser.h" />
     <ClInclude Include="romdownloader.h" />
+    <ClInclude Include="packets.h" />
     <ClInclude Include="helper.h" />
     <ClInclude Include="sha256.h" />
   </ItemGroup>
@@ -31,6 +32,7 @@
     <ClCompile Include="clientwindow.cpp" />
     <ClCompile Include="serverbrowser.cpp" />
     <ClCompile Include="romdownloader.cpp" />
+    <ClCompile Include="packets.cpp" />
     <ClCompile Include="helper.cpp" />
     <ClCompile Include="sha256.cpp" />
   </ItemGroup>

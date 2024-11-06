@@ -1,6 +1,7 @@
 #include "serverbrowser.h"
 #include "clientwindow.h"
 #include "romdownloader.h"
+#include "packets.h"
 #include "helper.h"
 #include "sha256.h"
 #include <stdint.h>
@@ -8,8 +9,6 @@
 #include <wx/msgdlg.h>
 #include <wx/tokenzr.h>
 #include "Resources/resources.h"
-
-#define MASTERSERVERPACKET_HEADER "S64PKT"
 
 typedef enum {
     TEVENT_ADDSERVER,
@@ -422,6 +421,7 @@ ServerFinderThread::~ServerFinderThread()
 
 void* ServerFinderThread::Entry()
 {
+    S64Packet* pkt;
     int packetsize = -1;
     FoundServer serverdata;
     wxIPV4address addr;
@@ -441,69 +441,21 @@ void* ServerFinderThread::Entry()
     }
 
     printf("Connected to master server successfully!\n");
-    sprintf(outtext, MASTERSERVERPACKET_HEADER);
-    this->m_Socket->Write(outtext, strlen(outtext));
-    sprintf(outtext, "LIST");
-    packetsize = swap_endian32(strlen(outtext));
-    this->m_Socket->Write(&packetsize, sizeof(int));
-    this->m_Socket->Write(outtext, swap_endian32(packetsize));
-    // TODO: Send the packet version
+    pkt = new S64Packet("LIST", 0, NULL);
+    pkt->SendPacket(this->m_Socket);
     printf("Requested server list\n");
     while (!TestDestroy())
     {
         if (this->m_Socket->IsData())
         {
-            int readsize;
-            char* buf;
-            char headerbuf[6];
-
-            // Read the packet header
-            this->m_Socket->Read(headerbuf, 6);
-            if (this->m_Socket->LastError() != wxSOCKET_NOERROR)
-            {
-                printf("Socket threw error %d\n", this->m_Socket->LastError());
-                return NULL;
-            }
-
-            // Validate the packet header
-            if (strncmp(headerbuf, MASTERSERVERPACKET_HEADER, 6) != 0)
-            {
-                printf("Received bad packet header %.6s\n", headerbuf);
-                continue;
-            }
-
-            // Read the packet size
-            this->m_Socket->Read(&readsize, 4);
-            readsize = swap_endian32(readsize);
-            if (this->m_Socket->LastError() != wxSOCKET_NOERROR)
-            {
-                printf("Socket threw error %d\n", this->m_Socket->LastError());
-                return NULL;
-            }
-
-            // Malloc a buffer for the packet data
-            buf = (char*)malloc(readsize);
-            if (buf == NULL)
-            {
-                printf("Unable to allocate buffer of %d bytes for server data\n", readsize);
-                continue;
-            }
-
-            // Now read the incoming data
-            this->m_Socket->Read(buf, readsize);
-            if (this->m_Socket->LastError() != wxSOCKET_NOERROR)
-            {
-                free(buf);
-                printf("Socket threw error %d\n", this->m_Socket->LastError());
-                return NULL;
-            }
+            pkt = S64Packet::ReadPacket(this->m_Socket);
 
             // Parse the packet
-            if (!strncmp(buf, "SERVER", 6))
-                ParsePacket_Server(buf);
-
-            // Cleanup
-            free(buf);
+            if (pkt != NULL && !strncmp(pkt->GetData(), "SERVER", 6))
+            {
+                ParsePacket_Server(pkt->GetData());
+                delete pkt;
+            }
         }
     }
     return NULL;

@@ -73,7 +73,6 @@ public class TicTacToeServer {
             Socket smaster = new Socket(masteraddress, masterport);
             MasterConnectionThread t = new MasterConnectionThread(smaster);
             new Thread(t).start();
-            System.out.println("Success.");
         } catch (Exception e) {
             System.err.println("Unable to connect to master server");
             e.printStackTrace();

@@ -1,4 +1,4 @@
-CODEFILES   = app.cpp serverbrowser.cpp clientwindow.cpp romdownloader.cpp helper.cpp sha256.cpp
+CODEFILES   = app.cpp serverbrowser.cpp clientwindow.cpp romdownloader.cpp packets.cpp helper.cpp sha256.cpp
 LIBFILES    = Include/flashcart.a Include/ftd2xx.lib
 BUILDDIR = build
 CODEOBJECTS = $(CODEFILES:%.cpp=${BUILDDIR}/%.o)

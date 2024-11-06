@@ -23,6 +23,9 @@
     <ClInclude Include="romdownloader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="packets.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="helper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -41,6 +44,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="romdownloader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="packets.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="helper.cpp">

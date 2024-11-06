@@ -15,18 +15,24 @@ public class S64Packet {
     private int size;
     private byte data[];
     
-    private S64Packet(int version, String type, int size, byte data[]) {
+    private S64Packet(int version, String type, byte data[]) {
         this.version = version;
         this.type = type;
-        this.size = size;
         this.data = data;
+        if (data != null)
+            this.size = data.length;
+        else
+            this.size = 0;
     }
     
     public S64Packet(String type, byte data[]) {
         this.version = PACKET_VERSION;
         this.type = type;
-        this.size = data.length;
         this.data = data;
+        if (data != null)
+            this.size = data.length;
+        else
+            this.size = 0;
     }
     
     private static boolean CheckCString(byte[] data, String str) {
@@ -57,8 +63,11 @@ public class S64Packet {
         for (int i=0; i<typesize; i++)
             type += data[i];
         size = dis.readInt();
-        data = dis.readNBytes(size);
-        return new S64Packet(version, type, size, data);
+        if (size > 0)
+            data = dis.readNBytes(size);
+        else
+            data = null;
+        return new S64Packet(version, type, data);
     }
     
     public void WritePacket(DataOutputStream dos) throws IOException {
@@ -67,7 +76,8 @@ public class S64Packet {
         dos.write(new byte[]{(byte) this.type.length()});
         dos.write(this.type.getBytes(StandardCharsets.US_ASCII));
         dos.writeInt(this.size);
-        dos.write(this.data);
+        if (this.size > 0)
+            dos.write(this.data);
         dos.flush();
     }
     

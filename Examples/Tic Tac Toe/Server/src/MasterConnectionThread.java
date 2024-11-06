@@ -1,4 +1,7 @@
 import java.net.Socket;
+
+import NetLib.S64Packet;
+
 import java.io.DataOutputStream;
 
 public class MasterConnectionThread implements Runnable {
@@ -26,14 +29,9 @@ public class MasterConnectionThread implements Runnable {
         // Register to the master server
         try {
             byte[] serverbytes = TicTacToeServer.ToByteArray();
-            byte[] header = {'S', '6', '4', 'P', 'K', 'T'};
-            byte[] packetype = {'R', 'E', 'G', 'I', 'S', 'T', 'E', 'R'};
-            dos.write(header);
-            // TODO: Send the packet version
-            dos.writeInt(serverbytes.length + packetype.length);
-            dos.write(packetype);
-            dos.write(serverbytes);
-            dos.flush();
+            S64Packet pkt = new S64Packet("REGISTER", serverbytes);
+            pkt.WritePacket(dos);
+            System.out.println("Success.");
         } catch (Exception e) {
             System.err.println("Unable to register to master server.");
             e.printStackTrace();
@@ -43,13 +41,8 @@ public class MasterConnectionThread implements Runnable {
         try {
             while (!this.mastersocket.isClosed())
             {
-                byte[] header = {'S', '6', '4', 'P', 'K', 'T'};
-                byte[] packetype = {'P', 'I', 'N', 'G'};
-                dos.write(header);
-                // TODO: Send the packet version
-                dos.writeInt(packetype.length);
-                dos.write(packetype);
-                dos.flush();
+                S64Packet pkt = new S64Packet("PING", null);
+                pkt.WritePacket(dos);
                 Thread.sleep(HEARTBEAT);
             }
             dos.close();
