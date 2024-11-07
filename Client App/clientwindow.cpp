@@ -21,8 +21,8 @@ typedef enum {
     TEVENT_NETPACKET_SERVER_TO_USB,
 } ThreadEventType;
 
-wxMessageQueue<USBNetPacket*> global_msgqueue_usbthread;
-wxMessageQueue<USBNetPacket*> global_msgqueue_serverthread;
+wxMessageQueue<USBPacket*> global_msgqueue_usbthread;
+wxMessageQueue<USBPacket*> global_msgqueue_serverthread;
 
 ClientWindow::ClientWindow( wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style ) : wxFrame( parent, id, title, pos, size, style )
 {
@@ -178,24 +178,18 @@ void ClientWindow::ThreadEvent(wxThreadEvent& event)
             break;
         case TEVENT_NETPACKET_USB_TO_SERVER:
             {
-                USBNetPacket* pkt = event.GetPayload<USBNetPacket*>();
+                USBPacket* pkt = event.GetPayload<USBPacket*>();
                 if (this->m_ServerThread == NULL)
-                {
-                    free(pkt->data);
-                    free(pkt);
-                }
+                    delete pkt;
                 else
                     global_msgqueue_serverthread.Post(pkt);
             }
             break;
         case TEVENT_NETPACKET_SERVER_TO_USB:
             {
-                USBNetPacket* pkt = event.GetPayload<USBNetPacket*>();
+                USBPacket* pkt = event.GetPayload<USBPacket*>();
                 if (this->m_DeviceThread == NULL)
-                {
-                    free(pkt->data);
-                    free(pkt);
-                }
+                    delete pkt;
                 else
                     global_msgqueue_usbthread.Post(pkt);
             }
@@ -382,12 +376,11 @@ void* DeviceThread::Entry()
         }
         else // No incoming USB data, that means we can send data safely
         {
-            USBNetPacket* pkt;
+            USBPacket* pkt;
             if (global_msgqueue_usbthread.ReceiveTimeout(0, pkt) == wxMSGQUEUE_NO_ERROR)
             {
-                device_senddata(DATATYPE_NETPACKET, pkt->data, pkt->size);
-                free(pkt->data);
-                free(pkt);
+                device_senddata((USBDataType)pkt->GetType(), (byte*)pkt->GetData(), (uint32_t)pkt->GetSize());
+                delete pkt;
             }
         }
 
@@ -419,13 +412,10 @@ void DeviceThread::ParseUSB_TextPacket(uint8_t* buff, uint32_t size)
 
 void DeviceThread::ParseUSB_NetLibPacket(uint8_t* buff, uint32_t size)
 {
-    USBNetPacket* pkt = (USBNetPacket*)malloc(sizeof(USBNetPacket));
+    USBPacket* pkt = new USBPacket(DATATYPE_NETPACKET, size, (char*)buff);
     wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
-    pkt->size = size;
-    pkt->data = (uint8_t*)malloc(sizeof(uint8_t)*size);
-    memcpy(pkt->data, buff, size);
     evt.SetInt(TEVENT_NETPACKET_USB_TO_SERVER);
-    evt.SetPayload<USBNetPacket*>(pkt);
+    evt.SetPayload<USBPacket*>(pkt);
     wxQueueEvent(this->m_Window, evt.Clone());
 }
 
@@ -618,21 +608,40 @@ void* ServerConnectionThread::Entry()
     }
     this->WriteConsole("Socket connected!\n");
 
+    // Relay packets 
     while (!TestDestroy() && this->m_Socket->IsConnected())
     {
-        // Check for incoming data from the server
-        if (this->m_Socket->IsData())
+        USBPacket* pkt;
+        if (global_msgqueue_serverthread.ReceiveTimeout(0, pkt) == wxMSGQUEUE_NO_ERROR)
         {
-            // TODO: ALL OF THIS
+            pkt->SendPacket(this->m_Socket);
+            delete pkt;
         }
         else
         {
-            // Check for data that needs to be sent
-            // TODO: ALL OF THIS
+            pkt = USBPacket::ReadPacket(this->m_Socket);
+            if (pkt != NULL)
+                this->TransferUSBPacket(pkt);
+            else if (this->m_Socket->LastCount() == 0)
+                wxMilliSleep(1);
         }
+
     }
     this->NotifyDeath();
     return NULL;
+}
+
+void ServerConnectionThread::SetMainWindow(ClientWindow* win)
+{
+    this->m_Window = win;
+}
+
+void ServerConnectionThread::TransferUSBPacket(USBPacket* pkt)
+{
+    wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
+    evt.SetInt(TEVENT_NETPACKET_SERVER_TO_USB);
+    evt.SetPayload<USBPacket*>(pkt);
+    wxQueueEvent(this->m_Window, evt.Clone());
 }
 
 void ServerConnectionThread::WriteConsole(wxString str)
@@ -649,11 +658,6 @@ void ServerConnectionThread::WriteConsoleError(wxString str)
     evt.SetInt(TEVENT_WRITECONSOLEERROR);
     evt.SetString(str.c_str());
     wxQueueEvent(this->m_Window, evt.Clone());
-}
-
-void ServerConnectionThread::SetMainWindow(ClientWindow* win)
-{
-    this->m_Window = win;
 }
 
 void ServerConnectionThread::NotifyDeath()

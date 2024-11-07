@@ -451,9 +451,12 @@ void* ServerFinderThread::Entry()
             pkt = S64Packet::ReadPacket(this->m_Socket);
 
             // Parse the packet
-            if (pkt != NULL && !strncmp(pkt->GetType(), "SERVER", 6))
+            if (pkt != NULL)
             {
-                ParsePacket_Server(pkt->GetData());
+                if (!strncmp(pkt->GetType(), "SERVER", 6))
+                    ParsePacket_Server(pkt->GetData());
+                else
+                    printf("Unexpected packet type received\n");
                 delete pkt;
                 continue;
             }

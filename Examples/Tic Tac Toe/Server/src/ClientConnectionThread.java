@@ -1,5 +1,5 @@
 import java.net.Socket;
-import NetLib.N64Packet;
+import NetLib.USBPacket;
 import java.io.DataInputStream;
 
 public class ClientConnectionThread implements Runnable {
@@ -30,7 +30,7 @@ public class ClientConnectionThread implements Runnable {
             int attempts = 5;
             DataInputStream dis = new DataInputStream(this.clientsocket.getInputStream());
             while (true) {
-                N64Packet pkt = N64Packet.ReadPacket(dis);
+                USBPacket pkt = USBPacket.ReadPacket(dis);
                 if (pkt == null) {
                     System.err.println("    Received bad packet");
                     attempts--;

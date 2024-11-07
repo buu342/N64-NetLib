@@ -3,6 +3,27 @@
 #include <wx/string.h>
 #include <wx/socket.h>
 
+class USBPacket
+{
+    private:
+        int m_Type;
+        int m_Size;
+        char* m_Data;
+
+    protected:
+
+    public:
+        USBPacket(int type, int size, char* data);
+        ~USBPacket();
+
+        static USBPacket* ReadPacket(wxSocketClient* socket);
+        void SendPacket(wxSocketClient* socket);
+
+        int GetType();
+        int GetSize();
+        char* GetData();
+};
+
 class S64Packet
 {
     private:

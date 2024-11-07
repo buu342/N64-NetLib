@@ -203,7 +203,8 @@ void* ROMDownloadThread::Entry()
     memcpy(out, &filesize, 4);
     memcpy(out+4, this->m_Window->GetROMHash(), 32);
     pkt = new S64Packet("DOWNLOAD", 36, out);
-    pkt->SendPacket(this->m_Socket); 
+    pkt->SendPacket(this->m_Socket);
+    delete pkt;
     printf("Requested ROM download\n");
 
     // Read the file size

@@ -22,6 +22,7 @@ typedef struct IUnknown IUnknown;
 #include <wx/frame.h>
 #include <wx/socket.h>
 #include <stdint.h>
+#include "packets.h"
 
 typedef enum {
     CLSTATUS_STARTED = 0,
@@ -31,11 +32,6 @@ typedef enum {
     CLSTATUS_RUNNING,
     CLSTATUS_STOPPED,
 } ClientDeviceStatus;
-
-typedef struct {
-    uint32_t size;
-    uint8_t* data;
-} USBNetPacket;
 
 class ClientWindow;
 class DeviceThread;
@@ -124,7 +120,7 @@ class ServerConnectionThread : public wxThread
     private:
         wxSocketClient* m_Socket;
         ClientWindow* m_Window;
-        std::vector<USBNetPacket> m_TXPackets;
+        std::vector<USBPacket> m_TXPackets;
 
     protected:
 
@@ -134,6 +130,7 @@ class ServerConnectionThread : public wxThread
 
         virtual void* Entry() wxOVERRIDE;
         void SetMainWindow(ClientWindow* win);
+        void TransferUSBPacket(USBPacket* pkt);
         void WriteConsole(wxString str);
         void WriteConsoleError(wxString str);
         void NotifyDeath();

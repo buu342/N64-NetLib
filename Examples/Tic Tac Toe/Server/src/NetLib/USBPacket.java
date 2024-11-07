@@ -5,23 +5,18 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
-public class N64Packet {
+public class USBPacket {
     
-    private static final String PACKET_HEADER = "N64PKT";
-    private static final int PACKET_VERSION = 1;
+    private static final String PACKET_HEADER = "DMA@";
+    private static final int    PACKET_TYPE_NETLIB = 0x27;
+    private static final String PACKET_TAIL = "CMPH";
     
-    private int version;
+    private int type;
     private int size;
     private byte data[];
     
-    private N64Packet(int version, int size, byte data[]) {
-        this.version = version;
-        this.size = size;
-        this.data = data;
-    }
-    
-    public N64Packet(byte data[]) {
-        this.version = PACKET_VERSION;
+    public USBPacket(int type, byte data[]) {
+        this.type = type;
         this.size = data.length;
         this.data = data;
     }
@@ -36,8 +31,7 @@ public class N64Packet {
         return true;
     }
 
-    static public N64Packet ReadPacket(DataInputStream dis) throws IOException {
-        int version;
+    static public USBPacket ReadPacket(DataInputStream dis) throws IOException {
         int size;
         byte[] data;
         
@@ -48,22 +42,17 @@ public class N64Packet {
         }
         
         // Create the packet
-        version = dis.readShort();
-        size = dis.readInt();
+        size = dis.readInt() & 0x00FFFFFF;
         data = dis.readNBytes(size);
-        return new N64Packet(version, size, data);
+        return new USBPacket(PACKET_TYPE_NETLIB, data);
     }
 
     public void WritePacket(DataOutputStream dos) throws IOException {
         dos.write(PACKET_HEADER.getBytes(StandardCharsets.US_ASCII), 0, PACKET_HEADER.length());
-        dos.writeShort(this.version);
-        dos.writeInt(this.size);
+        dos.writeInt((this.size & 0x00FFFFFF) | (this.type << 24));
         dos.write(this.data);
+        dos.write(PACKET_TAIL.getBytes(StandardCharsets.US_ASCII), 0, PACKET_TAIL.length());
         dos.flush();
-    }
-    
-    public int GetVersion() {
-        return this.version;
     }
     
     public int GetSize() {
