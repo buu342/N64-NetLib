@@ -451,10 +451,15 @@ void* ServerFinderThread::Entry()
             pkt = S64Packet::ReadPacket(this->m_Socket);
 
             // Parse the packet
-            if (pkt != NULL && !strncmp(pkt->GetData(), "SERVER", 6))
+            if (pkt != NULL && !strncmp(pkt->GetType(), "SERVER", 6))
             {
                 ParsePacket_Server(pkt->GetData());
                 delete pkt;
+                continue;
+            }
+            else if (this->m_Socket->LastCount() == 0)
+            {
+                wxMilliSleep(100);
             }
         }
     }
@@ -470,7 +475,7 @@ void ServerFinderThread::ParsePacket_Server(char* buf)
 {
     uint32_t i;
     uint32_t strsize;
-    int buffoffset = 6;
+    int buffoffset = 0;
     uint8_t hash[32];
     FoundServer server;
 

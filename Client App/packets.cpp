@@ -38,6 +38,8 @@ S64Packet* S64Packet::ReadPacket(wxSocketClient* socket)
 
     // Read the packet header
     socket->Read(header, 6);
+    if (socket->LastCount() == 0)
+        return NULL;
     if (socket->LastError() != wxSOCKET_NOERROR)
     {
         printf("Socket threw error %d\n", socket->LastError());

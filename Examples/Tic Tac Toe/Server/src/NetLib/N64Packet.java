@@ -55,7 +55,7 @@ public class N64Packet {
     }
 
     public void WritePacket(DataOutputStream dos) throws IOException {
-        dos.write(PACKET_HEADER.getBytes(StandardCharsets.US_ASCII));
+        dos.write(PACKET_HEADER.getBytes(StandardCharsets.US_ASCII), 0, PACKET_HEADER.length());
         dos.writeShort(this.version);
         dos.writeInt(this.size);
         dos.write(this.data);

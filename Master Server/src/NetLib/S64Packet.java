@@ -53,15 +53,15 @@ public class S64Packet {
         String type = "";
         
         // Get the packet header
-        data = dis.readNBytes(6);
-        if (!CheckCString(data, "S64PKT")) {
+        data = dis.readNBytes(PACKET_HEADER.length());
+        if (!CheckCString(data, PACKET_HEADER)) {
             return null;
         }
         version = dis.readShort();
         typesize = Byte.toUnsignedInt(dis.readByte());
         data = dis.readNBytes(typesize);
         for (int i=0; i<typesize; i++)
-            type += data[i];
+            type += (char)data[i];
         size = dis.readInt();
         if (size > 0)
             data = dis.readNBytes(size);
@@ -71,7 +71,7 @@ public class S64Packet {
     }
     
     public void WritePacket(DataOutputStream dos) throws IOException {
-        dos.write(PACKET_HEADER.getBytes(StandardCharsets.US_ASCII));
+        dos.write(PACKET_HEADER.getBytes(StandardCharsets.US_ASCII), 0, PACKET_HEADER.length());
         dos.writeShort(this.version);
         dos.write(new byte[]{(byte) this.type.length()});
         dos.write(this.type.getBytes(StandardCharsets.US_ASCII));

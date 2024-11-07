@@ -1,5 +1,6 @@
 #include "romdownloader.h"
 #include "helper.h"
+#include "packets.h"
 
 #define BUFFER_SIZE  8192
 
@@ -178,13 +179,13 @@ ROMDownloadThread::~ROMDownloadThread()
 
 void* ROMDownloadThread::Entry()
 {
-    int packetsize = -1;
+    S64Packet* pkt;
     wxIPV4address addr;
-    char outtext[64];
     addr.Hostname(this->m_Window->GetAddress());
     addr.Service(this->m_Window->GetPort());
     int filesize, bytesleft;
     uint8_t* buff;
+    char out[36];
 
     this->m_Socket = new wxSocketClient(wxSOCKET_BLOCK | wxSOCKET_WAITALL);
     this->m_Socket->SetTimeout(10);
@@ -198,21 +199,11 @@ void* ROMDownloadThread::Entry()
 
     // Send the header
     printf("Connected to master server successfully!\n");
-    sprintf(outtext, "S64PKT");
-    this->m_Socket->Write(outtext, strlen(outtext));
-
-    // Send the download command
-    sprintf(outtext, "DOWNLOAD");
-    packetsize = swap_endian32(strlen(outtext) + sizeof(int) + 32);
-    this->m_Socket->Write(&packetsize, sizeof(int));
-    this->m_Socket->Write(outtext, strlen(outtext));
-
-    // TODO: Send the packet version
-
-    // Send the hash size and hash data
-    packetsize = swap_endian32(32);
-    this->m_Socket->Write(&packetsize, sizeof(int));
-    this->m_Socket->Write(this->m_Window->GetROMHash(), 32);
+    filesize = swap_endian32(32);
+    memcpy(out, &filesize, 4);
+    memcpy(out+4, this->m_Window->GetROMHash(), 32);
+    pkt = new S64Packet("DOWNLOAD", 36, out);
+    pkt->SendPacket(this->m_Socket); 
     printf("Requested ROM download\n");
 
     // Read the file size

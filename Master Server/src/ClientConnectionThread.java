@@ -1,10 +1,8 @@
-import java.net.Socket;
-import java.util.Hashtable;
-
 import N64.N64ROM;
 import N64.N64Server;
 import NetLib.S64Packet;
-
+import java.net.Socket;
+import java.util.Hashtable;
 import java.util.Enumeration;
 import java.util.Arrays;
 import java.io.DataOutputStream;
@@ -64,7 +62,6 @@ public class ClientConnectionThread implements Runnable {
         byte[] romhash;
         N64Server server;
         ByteBuffer bb = ByteBuffer.wrap(data);
-        bb.position(8);
         
         // Server name
         size = bb.getInt();
@@ -112,6 +109,7 @@ public class ClientConnectionThread implements Runnable {
         this.servers.put(fullserveraddr, server);
     
         // Keep the server connected and listen to heartbeat packets
+        System.out.println("Done. Keeping connection open for heartbeats.");
         while (!this.clientsocket.isClosed()) {
         	try {
                 Thread.sleep(10000);
@@ -140,7 +138,6 @@ public class ClientConnectionThread implements Runnable {
         System.out.println("Client " + this.clientsocket + " wants to download ROM");
         
         // Get the hash size
-        bb.position(8);
         size = bb.getInt();
         
         // Store the hash
@@ -222,6 +219,9 @@ public class ClientConnectionThread implements Runnable {
                     break;
                 } else if (pkt.GetType().equals("DOWNLOAD")) {
                     this.DownloadROM(pkt.GetData());
+                    break;
+                } else {
+                    System.out.println("Received packet with unknown type '" + pkt.GetType() + "'");
                     break;
                 }
             }
