@@ -181,10 +181,8 @@ void ClientWindow::ThreadEvent(wxThreadEvent& event)
                 NetLibPacket* pkt = event.GetPayload<NetLibPacket*>();
                 if (this->m_ServerThread == NULL)
                     delete pkt;
-                else {
-                printf("from main Size %d, ID %d, %p\n", pkt->GetSize(), pkt->GetID(), pkt);
+                else
                     global_msgqueue_serverthread.Post(pkt);
-                }
             }
             break;
         case TEVENT_NETPACKET_SERVER_TO_USB:
@@ -381,14 +379,12 @@ void* DeviceThread::Entry()
             NetLibPacket* pkt;
             if (global_msgqueue_usbthread.ReceiveTimeout(0, pkt) == wxMSGQUEUE_NO_ERROR)
             {
-                printf("Sending USB data\n");
                 char* pktasbytes = pkt->GetAsBytes();
                 device_senddata(DATATYPE_NETPACKET, (byte*)pkt->GetAsBytes(), (uint32_t)pkt->GetAsBytes_Size());
                 free(pktasbytes);
                 delete pkt;
             }
         }
-
     }
     this->NotifyDeath();
     return NULL;
@@ -418,7 +414,6 @@ void DeviceThread::ParseUSB_TextPacket(uint8_t* buff, uint32_t size)
 void DeviceThread::ParseUSB_NetLibPacket(uint8_t* buff, uint32_t size)
 {
     NetLibPacket* pkt = new NetLibPacket(size, (char*)buff);
-    printf("to main Size %d, ID %d, %p\n", pkt->GetSize(), pkt->GetID(), pkt);
     wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
     evt.SetInt(TEVENT_NETPACKET_USB_TO_SERVER);
     evt.SetPayload<NetLibPacket*>(pkt);
@@ -620,23 +615,15 @@ void* ServerConnectionThread::Entry()
         NetLibPacket* pkt = NULL;
         if (global_msgqueue_serverthread.ReceiveTimeout(0, pkt) == wxMSGQUEUE_NO_ERROR)
         {
-            printf("to server Size %d, ID %d, %p\n", pkt->GetSize(), pkt->GetID(), pkt);
             pkt->SendPacket(this->m_Socket);
-            printf("to server Size %d, ID %d\n", pkt->GetSize(), pkt->GetID());
             delete pkt;
         }
         else
         {
             if (this->m_Socket->IsData())
-            {
-                printf("Data found\n");
                 pkt = NetLibPacket::ReadPacket(this->m_Socket);
-            }
             if (pkt != NULL)
-            {
-                printf("Transferring packet to USB\n");
                 this->TransferPacket(pkt);
-            }
             else if (this->m_Socket->LastCount() == 0)
                 wxMilliSleep(10);
         }

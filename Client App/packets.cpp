@@ -361,7 +361,6 @@ NetLibPacket::NetLibPacket(int version, int id, int recipients, int size, char* 
     this->m_ID = id;
     this->m_Recipients = recipients;
     this->m_Size = size;
-    printf("Size %d, ID %d\n", this->m_Size, this->m_ID);
     if (size > 0)
     {
         this->m_Data = (char*)malloc(size);
@@ -379,8 +378,17 @@ NetLibPacket::NetLibPacket(int size, char* data)
     version = data[3];
     id = (swap_endian32(*((int*)data+4)) & 0xFF000000) >> 24;
     recipients = swap_endian32(*((int*)data+8));
-    printf("Size %d, ID %d\n", size, id);
-    NetLibPacket(version, id, recipients, size - NETLIBPACKET_HEADERSIZE, data+12);
+    this->m_Version = version;
+    this->m_ID = id;
+    this->m_Recipients = recipients;
+    this->m_Size = size - NETLIBPACKET_HEADERSIZE;
+    if (this->m_Size > 0)
+    {
+        this->m_Data = (char*)malloc(this->m_Size);
+        memcpy(this->m_Data, data+12, this->m_Size);
+    }
+    else
+        this->m_Data = NULL;
 }
 
 NetLibPacket::~NetLibPacket()
@@ -463,7 +471,6 @@ NetLibPacket* NetLibPacket::ReadPacket(wxSocketClient* socket)
 
 void NetLibPacket::SendPacket(wxSocketClient* socket)
 {
-    printf("sendpkt Size %d, ID %d, %p\n", this->m_Size, this->m_ID, this);
     char* out = this->GetAsBytes();
     socket->Write(out, this->GetAsBytes_Size());
     free(out);
@@ -496,7 +503,6 @@ char* NetLibPacket::GetData()
 
 char* NetLibPacket::GetAsBytes()
 {
-    printf("asbytes Size %d, ID %d, %p\n", this->m_Size, this->m_ID, this);
     int data_int;
     char* bytes = (char*)malloc(this->m_Size + NETLIBPACKET_HEADERSIZE);
     bytes[0] = NETLIBPACKET_HEADER[0];
@@ -504,9 +510,7 @@ char* NetLibPacket::GetAsBytes()
     bytes[2] = NETLIBPACKET_HEADER[2];
     bytes[3] = this->m_Version;
     data_int = (this->m_ID << 24) | (this->m_Size & 0x00FFFFFFF);
-    printf("%08x\n", data_int);
     data_int = swap_endian32(data_int);
-    printf("%08x\n", data_int);
     memcpy(bytes+4, &data_int, sizeof(int));
     data_int = swap_endian32(this->m_Recipients);
     memcpy(bytes+8, &data_int, sizeof(int));
