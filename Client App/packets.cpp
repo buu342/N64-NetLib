@@ -376,8 +376,10 @@ NetLibPacket::NetLibPacket(int size, char* data)
     int id;
     int recipients;
     version = data[3];
-    id = (swap_endian32(*((int*)data+4)) & 0xFF000000) >> 24;
-    recipients = swap_endian32(*((int*)data+8));
+    memcpy(&id, data+4, sizeof(int));
+    id = (swap_endian32(id) & 0xFF000000) >> 24;
+    memcpy(&recipients, data+8, sizeof(int));
+    recipients = swap_endian32(recipients);
     this->m_Version = version;
     this->m_ID = id;
     this->m_Recipients = recipients;
