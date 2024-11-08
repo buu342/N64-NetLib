@@ -385,6 +385,8 @@ void* DeviceThread::Entry()
                 delete pkt;
             }
         }
+
+        // TODO: Handle segfault when USB is unplugged
     }
     this->NotifyDeath();
     return NULL;

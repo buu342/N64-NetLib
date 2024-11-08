@@ -87,7 +87,7 @@
                         Network -> N64 Functions
     ==============================================================*/
     
-    void netlib_register(NetPacket id, void (*callback)(size_t, ClientNumber));
+    void netlib_register(NetPacket id, void (*callback)(size_t));
     
     void netlib_poll();
     

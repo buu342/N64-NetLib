@@ -57,10 +57,15 @@ public class ClientConnectionThread implements Runnable {
                 if (this.player == null)
                     return;
                 
-                // Respond with player info
+                // Respond with the player's own info
                 pkt = new NetLibPacket(PacketIDs.PACKETID_PLAYERINFO.GetInt(), new byte[]{(byte)this.player.GetNumber()});
                 pkt.AddRecipient(this.player.GetNumber());
                 pkt.WritePacket(dos);
+                
+                // Also send the rest of the connected player's information
+                // TODO: This
+                
+                // Done with the initial handshake, now we can go into the gameplay packet loop
                 break;
             }
         } catch (Exception e) {
@@ -72,7 +77,7 @@ public class ClientConnectionThread implements Runnable {
         try {
             int attempts = 5;
             while (true) {
-                USBPacket pkt = USBPacket.ReadPacket(dis);
+                NetLibPacket pkt = NetLibPacket.ReadPacket(dis);
                 if (pkt == null) {
                     System.err.println("    Received bad packet");
                     attempts--;

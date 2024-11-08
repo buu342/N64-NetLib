@@ -13,7 +13,7 @@ Handles the first level of the game.
 
 bool global_hasrequestedinfo;
 
-void netcallback_clientconnect(size_t size, ClientNumber client);
+void netcallback_playerinfo(size_t size);
 
 
 /*==============================
@@ -23,7 +23,7 @@ void netcallback_clientconnect(size_t size, ClientNumber client);
 
 void stage_init_init(void)
 {
-    netlib_register(PACKETID_CLIENTCONNECT, &netcallback_clientconnect);
+    netlib_register(PACKETID_PLAYERINFO, &netcallback_playerinfo);
     
     // Generate the wait text
     text_setfont(&font_default);
@@ -97,7 +97,16 @@ void stage_init_cleanup(void)
                          Net Callbacks
 **************************************************************/
 
-void netcallback_clientconnect(size_t size, ClientNumber client)
+void netcallback_playerinfo(size_t size)
 {
-
+    u8 plynum;
+    netlib_readbyte(&plynum);
+    
+    // If no client number is set, then we are receiving our own player number
+    if (netlib_getclient() == 0)
+        netlib_setclient(plynum);
+    else
+    {
+    
+    }
 }
