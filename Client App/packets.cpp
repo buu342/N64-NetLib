@@ -259,17 +259,21 @@ void USBPacket::SendPacket(wxSocketClient* socket)
     int data_int;
 
     // Write the header
+    printf("Writing header\n");
     sprintf(out, USB_HEADER);
     socket->Write(out, strlen(USB_HEADER));
 
     // Data size and the data itself
+    printf("Writing data size\n");
     data_int = (this->m_Size & 0xFFFFFF) | (((uint32_t)this->m_Type) << 24);
     data_int = swap_endian32(data_int);
     socket->Write(&data_int, 4);
+    printf("Writing data\n");
     if (this->m_Size > 0)
         socket->Write(this->m_Data, this->m_Size);
 
     // Write the tail
+    printf("Writing CMPH\n");
     sprintf(out, USB_TAIL);
     socket->Write(out, strlen(USB_TAIL));
 }

@@ -3,19 +3,32 @@
 #include "usb.h"
 
 #define NETLIB_VERSION      1
-#define PACKET_HEADERSIZE   6
+#define PACKET_HEADERSIZE   4
 #define DATATYPE_NETPACKET  0x27
 
-static size_t    global_writecursize;
-static byte      global_writebuffer[PACKET_HEADERSIZE + MAX_PACKETSIZE];
+static size_t       global_writecursize;
+static size_t       global_writecursize;
+static byte         global_writebuffer[MAX_PACKETSIZE];
+static ClientNumber global_clnumber;
 
 void (*global_funcptrs[MAX_UNIQUEPACKETS])(size_t, ClientNumber) = {0};
 
 void netlib_initialize()
 {
     usb_initialize();
+    global_clnumber = 0;
     global_writebuffer[0] = (byte)NETLIB_VERSION;
     memset(global_funcptrs, sizeof(global_funcptrs), 1);
+}
+
+void netlib_setclient(ClientNumber num)
+{
+    global_clnumber = num;
+}
+
+ClientNumber netlib_getclient()
+{
+    return global_clnumber;
 }
 
 void netlib_start(NetPacket id)
@@ -120,12 +133,11 @@ void netlib_broadcast()
     int i;
     
     // Flag all players for receiving this packet
-    for (i=2; i<6; i++);
+    for (i=4; i<8; i++);
         global_writebuffer[i] = 0xFF;
         
     // Send the packet over the wire
     usb_write(DATATYPE_NETPACKET, global_writebuffer, global_writecursize);
-    global_writecursize = PACKET_HEADERSIZE;
 }
 
 void netlib_send(ClientNumber client)
@@ -133,14 +145,13 @@ void netlib_send(ClientNumber client)
     int mask = 1 << client;
     
     // Store the mask that flags the client to receive the data
-    global_writebuffer[1] = (mask >> 24) & 0xFF;
-    global_writebuffer[2] = (mask >> 16) & 0xFF;
-    global_writebuffer[3] = (mask >> 8) & 0xFF;
-    global_writebuffer[4] = mask & 0xFF;
+    global_writebuffer[4] = (mask >> 24) & 0xFF;
+    global_writebuffer[5] = (mask >> 16) & 0xFF;
+    global_writebuffer[6] = (mask >> 8) & 0xFF;
+    global_writebuffer[7] = mask & 0xFF;
         
     // Send the packet over the wire
     usb_write(DATATYPE_NETPACKET, global_writebuffer, global_writecursize);
-    global_writecursize = PACKET_HEADERSIZE;
 }
 
 void netlib_sendtoserver()
@@ -148,12 +159,11 @@ void netlib_sendtoserver()
     int i;
     
     // Set the player mask flag to zero, which is equivalent to a server send
-    for (i=2; i<6; i++);
+    for (i=4; i<8; i++);
         global_writebuffer[i] = 0;
         
     // Send the packet over the wire
     usb_write(DATATYPE_NETPACKET, global_writebuffer, global_writecursize);
-    global_writecursize = PACKET_HEADERSIZE;
 }
 
 void netlib_register(NetPacket id, void (*callback)(size_t, ClientNumber))
@@ -163,6 +173,8 @@ void netlib_register(NetPacket id, void (*callback)(size_t, ClientNumber))
 
 void netlib_poll()
 {
+    // TODO: Poll this properly now that I've made changes to the protocol
+    /*
     unsigned int header = usb_poll();
     
     while (USBHEADER_GETTYPE(header) == DATATYPE_NETPACKET)
@@ -195,7 +207,7 @@ void netlib_poll()
             int pos = 0;
             int shift = 32;
             int i;
-            for (i = 6; i != 0; i--)
+            for (i = 3; i != 0; i--)
             {
                 // TODO: Check this logic
                 if (!(clientmask & mask))
@@ -211,12 +223,13 @@ void netlib_poll()
         
         // Call the relevant packet handling function
         if (global_funcptrs[id] != NULL)
-            global_funcptrs[id](USBHEADER_GETSIZE(header) - 6, client);
+            global_funcptrs[id](USBHEADER_GETSIZE(header) - 8, client);
         
         // Poll again
         usb_purge();
         header = usb_poll();
     }
+    */
 }
 
 void netlib_readbyte(uint8_t* output)

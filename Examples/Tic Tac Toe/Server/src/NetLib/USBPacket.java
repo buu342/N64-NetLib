@@ -43,7 +43,7 @@ public class USBPacket {
         
         // Create the packet
         size = dis.readInt() & 0x00FFFFFF;
-        data = dis.readNBytes(size);
+        data = dis.readNBytes(size); // TODO: Figure out why it's stuck here
         return new USBPacket(PACKET_TYPE_NETLIB, data);
     }
 

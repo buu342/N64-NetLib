@@ -53,6 +53,10 @@
     
     void netlib_initialize();
     
+    void netlib_setclient(ClientNumber num);
+    
+    ClientNumber netlib_getclient();
+    
     
     /*==============================================================
                         N64 -> Network Functions

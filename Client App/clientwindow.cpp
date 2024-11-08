@@ -181,8 +181,10 @@ void ClientWindow::ThreadEvent(wxThreadEvent& event)
                 USBPacket* pkt = event.GetPayload<USBPacket*>();
                 if (this->m_ServerThread == NULL)
                     delete pkt;
-                else
+                else {
                     global_msgqueue_serverthread.Post(pkt);
+                    printf("Relayed USB packet from server thread to USB thread\n");
+                }
             }
             break;
         case TEVENT_NETPACKET_SERVER_TO_USB:
@@ -412,6 +414,7 @@ void DeviceThread::ParseUSB_TextPacket(uint8_t* buff, uint32_t size)
 
 void DeviceThread::ParseUSB_NetLibPacket(uint8_t* buff, uint32_t size)
 {
+    printf("Received netlib packet. Relaying to main thread\n");
     USBPacket* pkt = new USBPacket(DATATYPE_NETPACKET, size, (char*)buff);
     wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
     evt.SetInt(TEVENT_NETPACKET_USB_TO_SERVER);
@@ -611,21 +614,26 @@ void* ServerConnectionThread::Entry()
     // Relay packets 
     while (!TestDestroy() && this->m_Socket->IsConnected())
     {
-        USBPacket* pkt;
+
+        USBPacket* pkt = NULL;
         if (global_msgqueue_serverthread.ReceiveTimeout(0, pkt) == wxMSGQUEUE_NO_ERROR)
         {
+            printf("Received packet from main thread. Relaying to server\n");
             pkt->SendPacket(this->m_Socket);
             delete pkt;
+            printf("Done. Wrote %d\n", this->m_Socket->LastWriteCount());
         }
+        /*
         else
         {
-            pkt = USBPacket::ReadPacket(this->m_Socket);
+            if (this->m_Socket->IsData())
+                pkt = USBPacket::ReadPacket(this->m_Socket);
             if (pkt != NULL)
                 this->TransferUSBPacket(pkt);
             else if (this->m_Socket->LastCount() == 0)
-                wxMilliSleep(1);
+                wxMilliSleep(10);
         }
-
+        */
     }
     this->NotifyDeath();
     return NULL;
