@@ -8,14 +8,14 @@ public class NetLibPacket {
     private static final int PACKET_VERSION = 1;
     
     private int version;
-    private int type;
+    private int id;
     private int size;
     private int to;
     private byte data[];
     
-    private NetLibPacket(int version, int type, int to, byte data[]) {
+    private NetLibPacket(int version, int id, int to, byte data[]) {
         this.version = version;
-        this.type = type;
+        this.id = id;
         this.to = to;
         this.data = data;
         if (data != null)
@@ -24,9 +24,9 @@ public class NetLibPacket {
             this.size = 0;
     }
     
-    public NetLibPacket(int type, int to, byte data[]) {
+    public NetLibPacket(int id, int to, byte data[]) {
         this.version = PACKET_VERSION;
-        this.type = type;
+        this.id = id;
         this.to = to;
         this.data = data;
         if (data != null)
@@ -37,22 +37,22 @@ public class NetLibPacket {
     
     static public NetLibPacket ReadPacket(byte pkt[]) throws IOException {
         int version;
-        int type;
+        int id;
         int to;
         byte[] data;
         
         // Get the packet header
         version = pkt[0];
-        type = pkt[1];
+        id = pkt[1];
         to = (pkt[4] << 24) | (pkt[5] << 16) | (pkt[6] << 8) | pkt[7];
         
         // Create the packet
         data = Arrays.copyOfRange(pkt, 8, pkt.length);
-        return new NetLibPacket(version, type, to, data);
+        return new NetLibPacket(version, id, to, data);
     }
     
-    public int GetType() {
-        return this.type;
+    public int GetID() {
+        return this.id;
     }
     
     public int GetVersion() {

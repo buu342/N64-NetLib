@@ -36,14 +36,15 @@ public class USBPacket {
         byte[] data;
         
         // Get the packet header
-        data = dis.readNBytes(6);
+        data = dis.readNBytes(4);
         if (!CheckCString(data, PACKET_HEADER)) {
             return null;
         }
         
         // Create the packet
         size = dis.readInt() & 0x00FFFFFF;
-        data = dis.readNBytes(size); // TODO: Figure out why it's stuck here
+        data = dis.readNBytes(size);
+        dis.readInt(); // CMPH
         return new USBPacket(PACKET_TYPE_NETLIB, data);
     }
 

@@ -120,7 +120,6 @@ class ServerConnectionThread : public wxThread
     private:
         wxSocketClient* m_Socket;
         ClientWindow* m_Window;
-        std::vector<USBPacket> m_TXPackets;
 
     protected:
 
@@ -130,7 +129,7 @@ class ServerConnectionThread : public wxThread
 
         virtual void* Entry() wxOVERRIDE;
         void SetMainWindow(ClientWindow* win);
-        void TransferUSBPacket(USBPacket* pkt);
+        void TransferPacket(NetLibPacket* pkt);
         void WriteConsole(wxString str);
         void WriteConsoleError(wxString str);
         void NotifyDeath();

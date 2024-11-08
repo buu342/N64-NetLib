@@ -2,7 +2,10 @@ import java.net.Socket;
 
 import NetLib.NetLibPacket;
 import NetLib.USBPacket;
+import TicTacToe.PacketIDs;
+
 import java.io.DataInputStream;
+import java.io.DataOutputStream;
 
 public class ClientConnectionThread implements Runnable {
 
@@ -18,16 +21,18 @@ public class ClientConnectionThread implements Runnable {
     
     public void run() {
         DataInputStream dis;
+        DataOutputStream dos;
         
-        // First, we have to receive a playerinfo request packet
+        // First, we have to receive a client connection request packet
         // This tells us that the player has the game booted on the N64,
         // and that they're ready to be assigned player data
+        // as well as to receive information about other connected players
         try {
             int attempts = 5;
             dis = new DataInputStream(this.clientsocket.getInputStream());
+            dos = new DataOutputStream(this.clientsocket.getOutputStream());
             while (true) {
-                NetLibPacket npkt;
-                USBPacket pkt = USBPacket.ReadPacket(dis);
+                NetLibPacket pkt = NetLibPacket.ReadPacket(dis);
                 
                 // Try to read a USB packet
                 if (pkt == null) {
@@ -35,24 +40,33 @@ public class ClientConnectionThread implements Runnable {
                     attempts--;
                     if (attempts == 0) {
                         System.err.println("Too many bad packets from client "+this.clientsocket+". Disconnecting");
-                        break;
+                        return;
                     }
                     continue;
                 }
                 
                 // Now read the client request packet
-                npkt = NetLibPacket.ReadPacket(pkt.GetData());
+                if (pkt.GetID() != PacketIDs.PACKETID_CLIENTCONNECT.GetInt())
+                {
+                    System.err.println("Expected client connect packet, got "+pkt.GetID()+". Disconnecting");
+                    return;
+                }
+                
+                // Try to connect the player to the game
+                this.player = game.ConnectPlayer();
+                if (this.player == null)
+                    return;
+                
+                // Respond with player info
+                pkt = new NetLibPacket(PacketIDs.PACKETID_PLAYERINFO.GetInt(), new byte[]{(byte)this.player.GetNumber()});
+                pkt.AddRecipient(this.player.GetNumber());
+                pkt.WritePacket(dos);
                 break;
             }
         } catch (Exception e) {
             e.printStackTrace();
             return;
         }
-        
-        // Try to connect the player to the game
-        this.player = game.ConnectPlayer();
-        if (this.player == null)
-            return;
         
         // Receive packets in a loop
         try {
@@ -74,6 +88,7 @@ public class ClientConnectionThread implements Runnable {
             }
             System.out.println("Finished with "+this.clientsocket);
             this.clientsocket.close();
+            dos.close();
             dis.close();
         } catch (Exception e) {
             e.printStackTrace();

@@ -3,6 +3,7 @@
 #include <wx/string.h>
 #include <wx/socket.h>
 
+// UNFLoader USB packet
 class USBPacket
 {
     private:
@@ -24,6 +25,7 @@ class USBPacket
         char* GetData();
 };
 
+// Server browser packet
 class S64Packet
 {
     private:
@@ -46,4 +48,33 @@ class S64Packet
         wxString GetType();
         int GetSize();
         char* GetData();
+};
+
+// Netlib packet
+class NetLibPacket
+{
+    private:
+        int m_Version;
+        int m_ID;
+        int m_Recipients;
+        int m_Size;
+        char* m_Data;
+        NetLibPacket(int version, int id, int recipients, int size, char* data);
+
+    protected:
+
+    public:
+        NetLibPacket(int size, char* data);
+        ~NetLibPacket();
+
+        static NetLibPacket* ReadPacket(wxSocketClient* socket);
+        void SendPacket(wxSocketClient* socket);
+
+        int GetVersion();
+        int GetID();
+        int GetSize();
+        int GetRecipients();
+        char* GetData();
+        char* GetAsBytes();
+        int GetAsBytes_Size();
 };

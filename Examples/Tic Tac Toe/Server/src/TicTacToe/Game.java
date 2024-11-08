@@ -76,7 +76,7 @@ public class Game implements Runnable  {
         for (int i=0; i<this.players.length; i++) {
             if (this.players[i] == null) {
                 this.players[i] = ply;
-                ply.SetNumber(i);
+                ply.SetNumber(i+1);
                 foundslot = true;
                 break;
             }
