@@ -20,7 +20,7 @@ public class Game implements Runnable  {
     public Game() {
     	this.messages = new ConcurrentLinkedQueue<NetLibPacket>();
         this.players = new Player[2];
-        System.out.println("Tic Tac Toe created");
+        System.out.println("Tic Tac Toe initialized");
     }
     
     public void run() {
@@ -29,13 +29,45 @@ public class Game implements Runnable  {
             this.state = GameState.LOBBY;
             
             while (true) {
-            	
-                /*
-                // Wait for the room to be full
-                System.out.println("Waiting for players");
-                while (this.PlayerCount() < 2)
-                    Thread.sleep(1000);
+                boolean player1_ready = false;
+                boolean player2_ready = false;
                 
+                // Wait for the room to be full and ready
+                System.out.println("Waiting for players to be ready");
+                //while (!player1_ready && !player2_ready) {
+                while (true) {
+                    NetLibPacket pkt;
+                    
+                    // Ensure we have 2 players
+                    if (this.PlayerCount() < 2) {
+                        player1_ready = false;
+                        player2_ready = false;
+                        Thread.sleep(1000);
+                        continue;
+                    }
+                    
+                    // Check we have messages
+                    pkt = messages.poll();
+                    if (pkt == null)
+                    {
+                        Thread.sleep(10);
+                        continue;
+                    }
+                    
+                    // Check everyone is ready
+                    if (pkt.GetID() == PacketIDs.PACKETID_PLAYERREADY.GetInt())
+                    {
+                        if (pkt.GetData()[0] == 1) {
+                            player1_ready = (pkt.GetData()[1] == 1);
+                            System.out.println("Player 1 " + player1_ready);
+                        } else {
+                            player2_ready = (pkt.GetData()[1] == 1);
+                            System.out.println("Player 2 " + player2_ready);
+                        }
+                    }
+                }
+                
+                /*
                 // If no previous player turn was chosen, then give the first player the first turn
                 if (turn == null)
                     turn = this.players[0];

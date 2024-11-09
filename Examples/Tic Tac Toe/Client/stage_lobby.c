@@ -12,7 +12,6 @@ and ready up
 #include "helper.h"
 #include "text.h"
 
-
 // Controller data
 static NUContData global_contdata;
 static char global_isready;
@@ -52,7 +51,7 @@ void refresh_lobbytext()
     // Player 2 state
     if (netlib_getclient() == 2)
         text_setcolor(255, 255, 0, 255);
-    text_create("Player 2", 32, SCREEN_HT/2 + 16 + 48);
+    text_create("Player 2", 32, SCREEN_HT/2 + 48);
     if (global_players[1].connected)
     {
         if (global_players[1].ready)
@@ -85,18 +84,27 @@ void stage_lobby_init(void)
 
 void stage_lobby_update(void)
 {
-    nuContDataGetEx(&global_contdata, 0);
-    
-    // Toggle ready state
-    if(global_contdata.trigger & A_BUTTON)
+    if (global_players[0].connected && global_players[1].connected)
     {
-        global_isready != global_isready;
-        global_players[netlib_getclient()-1].ready = global_isready;
-        refresh_lobbytext();
-        netlib_start(PACKETID_PLAYERREADY);
-            netlib_writebyte(netlib_getclient());
-            netlib_writebyte(global_isready);
-        netlib_sendtoserver();
+        nuContDataGetEx(&global_contdata, 0);
+        
+        // Toggle ready state
+        if(global_contdata.trigger & A_BUTTON)
+        {
+            global_isready != global_isready;
+            global_players[netlib_getclient()-1].ready = global_isready;
+            netlib_start(PACKETID_PLAYERREADY);
+                netlib_writebyte(netlib_getclient());
+                netlib_writebyte(global_isready);
+            netlib_sendtoserver();
+            refresh_lobbytext();
+        }
+    }
+    else
+    {
+        global_isready = FALSE;
+        global_players[0].ready = FALSE;
+        global_players[1].ready = FALSE;
     }
     
     // Poll for incoming data

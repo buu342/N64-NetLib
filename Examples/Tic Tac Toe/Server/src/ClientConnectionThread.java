@@ -72,6 +72,7 @@ public class ClientConnectionThread implements Runnable {
                 // Try to connect the player to the game
                 this.player = this.game.ConnectPlayer();
                 if (this.player == null) {
+                    System.err.println("Server full");
                 	this.SendServerFullPacket(dos);
                     return;
                 }
@@ -79,10 +80,15 @@ public class ClientConnectionThread implements Runnable {
                 // Respond with the player's own info
                 this.SendPlayerInfoPacket(dos, this.player, this.player);
                 
-                // Also send the rest of the connected player's information
+                // Also send the rest of the connected player's information (and notify other players of us)
                 for (TicTacToe.Player ply : this.game.GetPlayers())
-                	if (ply.GetNumber() != this.player.GetNumber())
+                {
+                	if (ply != null && ply.GetNumber() != this.player.GetNumber())
+                	{
                 		this.SendPlayerInfoPacket(dos, this.player, ply);
+                        this.SendPlayerInfoPacket(dos, ply, this.player);
+                	}
+                }
                 
                 // Done with the initial handshake, now we can go into the gameplay packet loop
                 break;
@@ -157,6 +163,8 @@ public class ClientConnectionThread implements Runnable {
         		}
         	}
         }
+
+        System.out.println("Client disconnected");
         game.DisconnectPlayer(this.player);
     }
 }

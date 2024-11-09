@@ -344,7 +344,7 @@ void* DeviceThread::Entry()
     }
 
     // Now just read from USB in a loop
-    this->WriteConsole("\nUSB polling begun");
+    this->WriteConsole("\nUSB polling begun\n");
     while (!TestDestroy())
     {
         uint8_t* outbuff = NULL;
