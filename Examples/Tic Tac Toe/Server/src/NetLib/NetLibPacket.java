@@ -14,6 +14,7 @@ public class NetLibPacket {
     private int id;
     private int size;
     private int recipients;
+    private int sender;
     private byte data[];
     
     private NetLibPacket(int version, int id, int recipients, byte data[]) {
@@ -36,6 +37,19 @@ public class NetLibPacket {
             this.size = data.length;
         else
             this.size = 0;
+    }
+    
+    public String toString() {
+        String mystr = "NetLib Packet\n";
+        mystr += "    Version: " + this.version + "\n";
+        mystr += "    PID: " + this.id + "\n";
+        mystr += "    Recipients: " + Integer.toBinaryString(this.recipients) + "\n";
+        mystr += "    Data size: " + this.size + "\n";
+        mystr += "    Data: \n";
+        mystr += "        ";
+        for (int i=0; i<this.data.length; i++)
+            mystr += this.data[i] + " ";
+        return mystr;
     }
     
     private static boolean CheckCString(byte[] data, String str) {
@@ -87,6 +101,10 @@ public class NetLibPacket {
         this.recipients |= (1 << (plynum - 1));
     }
     
+    public void SetSender(int plynum) {
+        this.sender = plynum;
+    }
+    
     public int GetID() {
         return this.id;
     }
@@ -105,6 +123,10 @@ public class NetLibPacket {
     
     public byte[] GetData() {
         return this.data;
+    }
+    
+    public int GetSender() {
+        return this.sender;
     }
 
 }

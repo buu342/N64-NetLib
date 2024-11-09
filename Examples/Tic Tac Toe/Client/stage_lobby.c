@@ -91,10 +91,12 @@ void stage_lobby_update(void)
         // Toggle ready state
         if(global_contdata.trigger & A_BUTTON)
         {
-            global_isready != global_isready;
+            if (global_isready)
+                global_isready = FALSE;
+            else
+                global_isready = TRUE;
             global_players[netlib_getclient()-1].ready = global_isready;
             netlib_start(PACKETID_PLAYERREADY);
-                netlib_writebyte(netlib_getclient());
                 netlib_writebyte(global_isready);
             netlib_sendtoserver();
             refresh_lobbytext();

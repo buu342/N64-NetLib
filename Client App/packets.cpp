@@ -320,21 +320,17 @@ void USBPacket::SendPacket(wxSocketClient* socket)
     int data_int;
 
     // Write the header
-    printf("Writing header\n");
     sprintf(out, USB_HEADER);
     socket->Write(out, strlen(USB_HEADER));
 
     // Data size and the data itself
-    printf("Writing data size\n");
     data_int = (this->m_Size & 0x00FFFFFF) | (((uint32_t)this->m_Type) << 24);
     data_int = swap_endian32(data_int);
     socket->Write(&data_int, 4);
-    printf("Writing data\n");
     if (this->m_Size > 0)
         socket->Write(this->m_Data, this->m_Size);
 
     // Write the tail
-    printf("Writing CMPH\n");
     sprintf(out, USB_TAIL);
     socket->Write(out, strlen(USB_TAIL));
 }
@@ -377,13 +373,14 @@ NetLibPacket::NetLibPacket(int size, char* data)
     int recipients;
     version = data[3];
     memcpy(&id, data+4, sizeof(int));
-    id = (swap_endian32(id) & 0xFF000000) >> 24;
+    id = swap_endian32(id);
+    this->m_Size = id & 0x00FFFFFF;
+    id = (id & 0xFF000000) >> 24;
     memcpy(&recipients, data+8, sizeof(int));
     recipients = swap_endian32(recipients);
     this->m_Version = version;
     this->m_ID = id;
     this->m_Recipients = recipients;
-    this->m_Size = size - NETLIBPACKET_HEADERSIZE;
     if (this->m_Size > 0)
     {
         this->m_Data = (char*)malloc(this->m_Size);

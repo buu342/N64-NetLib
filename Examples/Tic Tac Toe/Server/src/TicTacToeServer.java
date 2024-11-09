@@ -70,7 +70,7 @@ public class TicTacToeServer {
         // Try to connect to the master server and register ourselves
         System.out.println("Registering to master server");
         try {
-            Socket smaster = new Socket(masteraddress, masterport);
+            Socket smaster = new Socket(masteraddress, masterport); // TODO: Ask Gonzi about own port number
             MasterConnectionThread t = new MasterConnectionThread(smaster);
             new Thread(t).start();
         } catch (Exception e) {

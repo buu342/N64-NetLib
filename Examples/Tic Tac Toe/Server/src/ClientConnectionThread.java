@@ -30,7 +30,7 @@ public class ClientConnectionThread implements Runnable {
         if (target == ply)
             pkt.WritePacket(dos);
         else
-            target.SendMessage(pkt);
+            target.SendMessage(ply, pkt);
     }
     
     private void SendPlayerDisconnectPacket(DataOutputStream dos, TicTacToe.Player target, TicTacToe.Player ply) throws IOException {
@@ -39,7 +39,7 @@ public class ClientConnectionThread implements Runnable {
         if (target == ply)
             pkt.WritePacket(dos);
         else
-            target.SendMessage(pkt);
+            target.SendMessage(ply, pkt);
     }
     
     public void run() {
@@ -135,10 +135,10 @@ public class ClientConnectionThread implements Runnable {
 	                {
 	                	for (TicTacToe.Player ply : this.game.GetPlayers())
 	                		if (ply != this.player && (pkt.GetRecipients() & ply.GetBitMask()) != 0)
-	                			ply.SendMessage(pkt);
+	                			ply.SendMessage(this.player, pkt);
 	                }
 	                else
-	                	this.game.SendMessage(pkt);
+	                	this.game.SendMessage(this.player, pkt);
 	                donesomething = true;
             	}
                 

@@ -18,7 +18,11 @@ public class Player {
         this.bitmask = 1 << (number-1);
     }
     
-    public void SendMessage(NetLibPacket pkt) {
+    public void SendMessage(Player sender, NetLibPacket pkt) {
+        if (sender == null)
+            pkt.SetSender(0);
+        else
+            pkt.SetSender(sender.GetNumber());
     	this.messages.add(pkt);
     }
     

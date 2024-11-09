@@ -58,12 +58,16 @@ public class Game implements Runnable  {
                     // Check everyone is ready
                     if (pkt.GetID() == PacketIDs.PACKETID_PLAYERREADY.GetInt())
                     {
-                        if (pkt.GetData()[0] == 1) {
-                            player1_ready = (pkt.GetData()[1] == 1);
-                            System.out.println("Player 1 " + player1_ready);
+                        if (pkt.GetSender() == 1) {
+                            player1_ready = (pkt.GetData()[0] == 1);
+                            pkt = new NetLibPacket(PacketIDs.PACKETID_PLAYERREADY.GetInt(), new byte[]{(byte)this.players[0].GetNumber(), pkt.GetData()[0]});
+                            this.players[1].SendMessage(null, pkt);
+                            System.out.println("Player 1 ready: " + player1_ready);
                         } else {
-                            player2_ready = (pkt.GetData()[1] == 1);
-                            System.out.println("Player 2 " + player2_ready);
+                            player2_ready = (pkt.GetData()[0] == 1);
+                            pkt = new NetLibPacket(PacketIDs.PACKETID_PLAYERREADY.GetInt(), new byte[]{(byte)this.players[1].GetNumber(), pkt.GetData()[0]});
+                            this.players[0].SendMessage(null, pkt);
+                            System.out.println("Player 2 ready: " + player2_ready);
                         }
                     }
                 }
@@ -129,7 +133,8 @@ public class Game implements Runnable  {
         return null;
     }
     
-    public void SendMessage(NetLibPacket pkt) {
+    public void SendMessage(Player sender, NetLibPacket pkt) {
+        pkt.SetSender(sender.GetNumber());
     	this.messages.add(pkt);
     }
     
