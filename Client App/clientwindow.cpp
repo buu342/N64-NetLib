@@ -345,7 +345,7 @@ void* DeviceThread::Entry()
 
     // Now just read from USB in a loop
     this->WriteConsole("\nUSB polling begun\n");
-    while (!TestDestroy())
+    while (!TestDestroy() && device_isopen())
     {
         uint8_t* outbuff = NULL;
         uint32_t dataheader = 0;
@@ -388,6 +388,7 @@ void* DeviceThread::Entry()
 
         // TODO: Handle segfault when USB is unplugged
     }
+    this->WriteConsoleError("USB Disconnected.\n");
     this->NotifyDeath();
     return NULL;
 }
@@ -458,6 +459,8 @@ void DeviceThread::ParseUSB_HeartbeatPacket(uint8_t* buff, uint32_t size)
 
 void DeviceThread::ClearConsole()
 {
+    if (this->m_Window == NULL)
+        return;
     wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
     evt.SetInt(TEVENT_CLEARCONSOLE);
     wxQueueEvent(this->m_Window, evt.Clone());
@@ -465,6 +468,8 @@ void DeviceThread::ClearConsole()
 
 void DeviceThread::WriteConsole(wxString str)
 {
+    if (this->m_Window == NULL)
+        return;
     wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
     evt.SetInt(TEVENT_WRITECONSOLE);
     evt.SetString(str.c_str());
@@ -473,6 +478,8 @@ void DeviceThread::WriteConsole(wxString str)
 
 void DeviceThread::WriteConsoleError(wxString str)
 {
+    if (this->m_Window == NULL)
+        return;
     wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
     evt.SetInt(TEVENT_WRITECONSOLEERROR);
     evt.SetString(str.c_str());
@@ -481,6 +488,8 @@ void DeviceThread::WriteConsoleError(wxString str)
 
 void DeviceThread::SetClientDeviceStatus(ClientDeviceStatus status)
 {
+    if (this->m_Window == NULL)
+        return;
     wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
     evt.SetInt(TEVENT_SETSTATUS);
     evt.SetExtraLong(status);
@@ -489,6 +498,8 @@ void DeviceThread::SetClientDeviceStatus(ClientDeviceStatus status)
 
 void DeviceThread::SetUploadProgress(int progress)
 {
+    if (this->m_Window == NULL)
+        return;
     wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
     evt.SetInt(TEVENT_UPLOADPROGRESS);
     evt.SetExtraLong(progress);
@@ -560,6 +571,8 @@ void* UploadThread::Entry()
 
 void UploadThread::WriteConsole(wxString str)
 {
+    if (this->m_Window == NULL)
+        return;
     wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
     evt.SetInt(TEVENT_WRITECONSOLE);
     evt.SetString(str.c_str());
@@ -568,6 +581,8 @@ void UploadThread::WriteConsole(wxString str)
 
 void UploadThread::WriteConsoleError(wxString str)
 {
+    if (this->m_Window == NULL)
+        return;
     wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
     evt.SetInt(TEVENT_WRITECONSOLEERROR);
     evt.SetString(str.c_str());
@@ -629,8 +644,8 @@ void* ServerConnectionThread::Entry()
             else if (this->m_Socket->LastCount() == 0)
                 wxMilliSleep(10);
         }
-        // TODO: Kill this thread when the client window is killed
     }
+    this->WriteConsoleError("Server Disconnected.\n");
     this->NotifyDeath();
     return NULL;
 }
@@ -642,6 +657,8 @@ void ServerConnectionThread::SetMainWindow(ClientWindow* win)
 
 void ServerConnectionThread::TransferPacket(NetLibPacket* pkt)
 {
+    if (this->m_Window == NULL)
+        return;
     wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
     evt.SetInt(TEVENT_NETPACKET_SERVER_TO_USB);
     evt.SetPayload<NetLibPacket*>(pkt);
@@ -650,6 +667,8 @@ void ServerConnectionThread::TransferPacket(NetLibPacket* pkt)
 
 void ServerConnectionThread::WriteConsole(wxString str)
 {
+    if (this->m_Window == NULL)
+        return;
     wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
     evt.SetInt(TEVENT_WRITECONSOLE);
     evt.SetString(str.c_str());
@@ -658,6 +677,8 @@ void ServerConnectionThread::WriteConsole(wxString str)
 
 void ServerConnectionThread::WriteConsoleError(wxString str)
 {
+    if (this->m_Window == NULL)
+        return;
     wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
     evt.SetInt(TEVENT_WRITECONSOLEERROR);
     evt.SetString(str.c_str());
