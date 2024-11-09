@@ -27,6 +27,7 @@ public class Game implements Runnable  {
         try {
             Player turn = null;
             this.state = GameState.LOBBY;
+            Thread.currentThread().setName("Game");
             
             while (true) {
                 boolean player1_ready = false;

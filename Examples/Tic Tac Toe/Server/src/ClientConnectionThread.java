@@ -27,13 +27,19 @@ public class ClientConnectionThread implements Runnable {
     private void SendPlayerInfoPacket(DataOutputStream dos, TicTacToe.Player target, TicTacToe.Player ply) throws IOException {
     	NetLibPacket pkt = new NetLibPacket(PacketIDs.PACKETID_PLAYERINFO.GetInt(), new byte[]{(byte)ply.GetNumber()});
         pkt.AddRecipient(target.GetNumber());
-        pkt.WritePacket(dos);
+        if (target == ply)
+            pkt.WritePacket(dos);
+        else
+            target.SendMessage(pkt);
     }
     
     private void SendPlayerDisconnectPacket(DataOutputStream dos, TicTacToe.Player target, TicTacToe.Player ply) throws IOException {
     	NetLibPacket pkt = new NetLibPacket(PacketIDs.PACKETID_PLAYERDISCONNECT.GetInt(), new byte[]{(byte)ply.GetNumber()});
         pkt.AddRecipient(target.GetNumber());
-        pkt.WritePacket(dos);
+        if (target == ply)
+            pkt.WritePacket(dos);
+        else
+            target.SendMessage(pkt);
     }
     
     public void run() {
@@ -76,6 +82,7 @@ public class ClientConnectionThread implements Runnable {
                 	this.SendServerFullPacket(dos);
                     return;
                 }
+                Thread.currentThread().setName("Client " + this.player.GetNumber());
                 
                 // Respond with the player's own info
                 this.SendPlayerInfoPacket(dos, this.player, this.player);
@@ -85,16 +92,18 @@ public class ClientConnectionThread implements Runnable {
                 {
                 	if (ply != null && ply.GetNumber() != this.player.GetNumber())
                 	{
-                		this.SendPlayerInfoPacket(dos, this.player, ply);
-                        this.SendPlayerInfoPacket(dos, ply, this.player);
+                	    this.SendPlayerInfoPacket(dos, this.player, ply);
+                		this.SendPlayerInfoPacket(dos, ply, this.player);
                 	}
                 }
                 
                 // Done with the initial handshake, now we can go into the gameplay packet loop
+                System.out.println("Player " + this.player.GetNumber() + " has joined the game");
                 break;
             }
         } catch (Exception e) {
             e.printStackTrace();
+            System.err.println("Client disconnected");
             return;
         }
         
@@ -144,6 +153,7 @@ public class ClientConnectionThread implements Runnable {
             	
             	// Sleep a bit if no packets were sent or received
             	if (!donesomething) {
+            	    // TODO: Heartbeat the client
             		Thread.sleep(50);
             	}
             }
