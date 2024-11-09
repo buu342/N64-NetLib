@@ -70,7 +70,7 @@ public class Game implements Runnable  {
         }
     }
     
-    public Player ConnectPlayer() {
+    public synchronized Player ConnectPlayer() {
         boolean foundslot = false;
         Player ply = new Player();
         for (int i=0; i<this.players.length; i++) {
@@ -94,7 +94,11 @@ public class Game implements Runnable  {
         return count;
     }
     
-    public void DisconnectPlayer(Player ply) {
+    public Player[] GetPlayers() {
+    	return this.players;
+    }
+    
+    public synchronized void DisconnectPlayer(Player ply) {
         for (int i=0; i<this.players.length; i++) {
             if (this.players[i] == ply) {
                 this.players[i] = null;

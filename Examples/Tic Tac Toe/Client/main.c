@@ -8,6 +8,7 @@ Program entrypoint.
 #include <malloc.h>
 #include "config.h"
 #include "debug.h"
+#include "helper.h"
 #include "stages.h"
 #include "netlib.h"
 #include "text.h"
@@ -30,8 +31,8 @@ StageNum global_curstage = STAGE_INIT;
 StageNum global_nextstage = STAGE_NONE;
 StageDef global_stagetable[STAGE_COUNT];
 
-// Controller data
-NUContData contdata[1];
+// Player globals
+Player global_players[2];
 
 // Half a megabyte of heap memory
 char heapmem[1024*512];
@@ -68,6 +69,7 @@ void mainproc(void)
     
     // Initialize the net library
     netlib_initialize();
+    netcallback_initall();
 
     // Initialize the font system
     text_initialize();
@@ -112,7 +114,7 @@ static void callback_vsync(int tasksleft)
 {
     // Update the stage, then draw it when the RCP is ready
     global_stagetable[global_curstage].funcptr_update();
-    if (tasksleft < 1)
+    if (tasksleft < 1 && global_nextstage == STAGE_NONE)
         global_stagetable[global_curstage].funcptr_draw();
 }
 
@@ -131,20 +133,6 @@ static void callback_prenmi()
 
 
 /*==============================
-    stages_changeto
-    Changes the stage
-    @param The stage number
-==============================*/
-
-void stages_changeto(StageNum num)
-{
-    if (num == STAGE_NONE)
-        return;
-    global_curstage = num;
-}
-
-
-/*==============================
     stagetable_init
     Initialize the stage table
 ==============================*/
@@ -155,4 +143,35 @@ static void stagetable_init()
     global_stagetable[STAGE_INIT].funcptr_update = &stage_init_update;
     global_stagetable[STAGE_INIT].funcptr_draw = &stage_init_draw;
     global_stagetable[STAGE_INIT].funcptr_cleanup = &stage_init_cleanup;
+    
+    global_stagetable[STAGE_LOBBY].funcptr_init = &stage_lobby_init;
+    global_stagetable[STAGE_LOBBY].funcptr_update = &stage_lobby_update;
+    global_stagetable[STAGE_LOBBY].funcptr_draw = &stage_lobby_draw;
+    global_stagetable[STAGE_LOBBY].funcptr_cleanup = &stage_lobby_cleanup;
+}
+
+
+/*==============================
+    stages_changeto
+    Changes the stage
+    @param The stage number
+==============================*/
+
+void stages_changeto(StageNum num)
+{
+    if (num == STAGE_NONE)
+        return;
+    global_nextstage = num;
+}
+
+
+/*==============================
+    stages_getcurrent
+    Gets  the current stage
+    @returns The stage number
+==============================*/
+
+StageNum stages_getcurrent()
+{
+    return global_curstage;
 }

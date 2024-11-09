@@ -7,13 +7,13 @@ Handles the first level of the game.
 #include <nusys.h>
 #include "config.h"
 #include "netlib.h"
-#include "packetids.h"
+#include "packets.h"
 #include "helper.h"
+#include "stages.h"
 #include "text.h"
 
 bool global_hasrequestedinfo;
-
-void netcallback_playerinfo(size_t size);
+bool global_disconnected;
 
 
 /*==============================
@@ -22,9 +22,7 @@ void netcallback_playerinfo(size_t size);
 ==============================*/
 
 void stage_init_init(void)
-{
-    netlib_register(PACKETID_PLAYERINFO, &netcallback_playerinfo);
-    
+{    
     // Generate the wait text
     text_setfont(&font_default);
     text_setalign(ALIGN_CENTER);
@@ -36,6 +34,7 @@ void stage_init_init(void)
     
     // Get player info from the server
     global_hasrequestedinfo = FALSE;
+    global_disconnected = FALSE;
 }
 
 
@@ -46,21 +45,31 @@ void stage_init_init(void)
 
 void stage_init_update(void)
 {
-    // Tell the server we're connecting
-    if (!usb_timedout() && !global_hasrequestedinfo)
+    if (!global_disconnected)
     {
-        global_hasrequestedinfo = TRUE;
-        netlib_start(PACKETID_CLIENTCONNECT);
-        netlib_sendtoserver();
+        // Tell the server we're connecting
+        if (!usb_timedout() && !global_hasrequestedinfo)
+        {
+            global_hasrequestedinfo = TRUE;
+            netlib_start(PACKETID_CLIENTCONNECT);
+            netlib_sendtoserver();
+        }
+        
+        // Poll for incoming data
+        netlib_poll();
+
+        // If we have an assigned player number, we are ready to connect to the lobby
+        if (netlib_getclient() != 0)
+        {
+            stages_changeto(STAGE_LOBBY);
+            return;
+        }
     }
-    
-    // Poll for incoming data
-    netlib_poll();
 }
 
 
 /*==============================
-    stage00_draw
+    stage_init_draw
     Draw the stage
 ==============================*/
 
@@ -93,20 +102,19 @@ void stage_init_cleanup(void)
 }
 
 
-/**************************************************************
-                         Net Callbacks
-**************************************************************/
+/*==============================
+    stage_init_serverfull
+    Tells the player that the server is full
+==============================*/
 
-void netcallback_playerinfo(size_t size)
+void stage_init_serverfull()
 {
-    u8 plynum;
-    netlib_readbyte(&plynum);
-    
-    // If no client number is set, then we are receiving our own player number
-    if (netlib_getclient() == 0)
-        netlib_setclient(plynum);
-    else
-    {
-    
-    }
+    global_disconnected = TRUE;
+    text_cleanup();
+    text_setfont(&font_default);
+    text_setalign(ALIGN_CENTER);
+    text_setcolor(255, 255, 255, 255);
+    text_create("Disconnected", SCREEN_WD/2, SCREEN_HT/2 - 64);
+    text_setfont(&font_small);
+    text_create("Server full", SCREEN_WD/2, SCREEN_HT/2 + 16);
 }

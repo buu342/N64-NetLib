@@ -1,11 +1,11 @@
 import java.net.Socket;
 
 import NetLib.NetLibPacket;
-import NetLib.USBPacket;
 import TicTacToe.PacketIDs;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.IOException;
 
 public class ClientConnectionThread implements Runnable {
 
@@ -17,6 +17,23 @@ public class ClientConnectionThread implements Runnable {
         this.clientsocket = socket;
         this.game = game;
         this.player = null;
+    }
+    
+    private void SendServerFullPacket(DataOutputStream dos) throws IOException {
+    	NetLibPacket pkt = new NetLibPacket(PacketIDs.PACKETID_SERVERFULL.GetInt(), null);
+        pkt.WritePacket(dos);
+    }
+    
+    private void SendPlayerInfoPacket(DataOutputStream dos, TicTacToe.Player target, TicTacToe.Player ply) throws IOException {
+    	NetLibPacket pkt = new NetLibPacket(PacketIDs.PACKETID_PLAYERINFO.GetInt(), new byte[]{(byte)ply.GetNumber()});
+        pkt.AddRecipient(target.GetNumber());
+        pkt.WritePacket(dos);
+    }
+    
+    private void SendPlayerDisconnectPacket(DataOutputStream dos, TicTacToe.Player target, TicTacToe.Player ply) throws IOException {
+    	NetLibPacket pkt = new NetLibPacket(PacketIDs.PACKETID_PLAYERDISCONNECT.GetInt(), new byte[]{(byte)ply.GetNumber()});
+        pkt.AddRecipient(target.GetNumber());
+        pkt.WritePacket(dos);
     }
     
     public void run() {
@@ -39,7 +56,7 @@ public class ClientConnectionThread implements Runnable {
                     System.err.println("    Received bad packet");
                     attempts--;
                     if (attempts == 0) {
-                        System.err.println("Too many bad packets from client "+this.clientsocket+". Disconnecting");
+                        System.err.println("Too many bad packets from client " + this.clientsocket + ". Disconnecting");
                         return;
                     }
                     continue;
@@ -48,22 +65,24 @@ public class ClientConnectionThread implements Runnable {
                 // Now read the client request packet
                 if (pkt.GetID() != PacketIDs.PACKETID_CLIENTCONNECT.GetInt())
                 {
-                    System.err.println("Expected client connect packet, got "+pkt.GetID()+". Disconnecting");
+                    System.err.println("Expected client connect packet, got " + pkt.GetID() + ". Disconnecting");
                     return;
                 }
                 
                 // Try to connect the player to the game
-                this.player = game.ConnectPlayer();
-                if (this.player == null)
+                this.player = this.game.ConnectPlayer();
+                if (this.player == null) {
+                	this.SendServerFullPacket(dos);
                     return;
+                }
                 
                 // Respond with the player's own info
-                pkt = new NetLibPacket(PacketIDs.PACKETID_PLAYERINFO.GetInt(), new byte[]{(byte)this.player.GetNumber()});
-                pkt.AddRecipient(this.player.GetNumber());
-                pkt.WritePacket(dos);
+                this.SendPlayerInfoPacket(dos, this.player, this.player);
                 
                 // Also send the rest of the connected player's information
-                // TODO: This
+                for (TicTacToe.Player ply : this.game.GetPlayers())
+                	if (ply.GetNumber() != this.player.GetNumber())
+                		this.SendPlayerInfoPacket(dos, this.player, ply);
                 
                 // Done with the initial handshake, now we can go into the gameplay packet loop
                 break;
@@ -82,7 +101,7 @@ public class ClientConnectionThread implements Runnable {
                     System.err.println("    Received bad packet");
                     attempts--;
                     if (attempts == 0) {
-                        System.err.println("Too many bad packets from client "+this.clientsocket+". Disconnecting");
+                        System.err.println("Too many bad packets from client " + this.clientsocket + ". Disconnecting");
                         break;
                     }
                     continue;
@@ -91,12 +110,25 @@ public class ClientConnectionThread implements Runnable {
                 
                 // Check packets here
             }
-            System.out.println("Finished with "+this.clientsocket);
+            System.out.println("Finished with " + this.clientsocket);
             this.clientsocket.close();
             dos.close();
             dis.close();
         } catch (Exception e) {
             e.printStackTrace();
+        }
+        
+        // Notify other players of the disconnect
+        for (TicTacToe.Player ply : this.game.GetPlayers())
+        {
+        	if (ply.GetNumber() != this.player.GetNumber())
+        	{
+        		try {
+        			this.SendPlayerDisconnectPacket(dos, this.player, ply);
+        		} catch (Exception e) {
+                    e.printStackTrace();
+        		}
+        	}
         }
         game.DisconnectPlayer(this.player);
     }

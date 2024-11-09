@@ -1,6 +1,14 @@
 #ifndef TICTACTOE_HELPER_H
 #define TICTACTOE_HELPER_H
 
+    typedef struct {
+        u8 connected;
+        u8 ready;
+    } Player;
+    
+    extern Player global_players[];
+    
+
     /*********************************
                 Functions
     *********************************/
