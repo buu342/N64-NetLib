@@ -92,28 +92,55 @@ public class ClientConnectionThread implements Runnable {
             return;
         }
         
-        // Receive packets in a loop
+        // Send/Receive packets in a loop
         try {
             int attempts = 5;
-            while (true) {
-                NetLibPacket pkt = NetLibPacket.ReadPacket(dis);
-                if (pkt == null) {
-                    System.err.println("    Received bad packet");
-                    attempts--;
-                    if (attempts == 0) {
-                        System.err.println("Too many bad packets from client " + this.clientsocket + ". Disconnecting");
-                        break;
-                    }
-                    continue;
-                }
-                attempts = 5;
+            while (true)
+            {
+            	NetLibPacket pkt;
+            	boolean donesomething = false;
+            	
+            	// Check for incoming data from the N64
+            	while (dis.available() > 0)
+            	{
+	                pkt = NetLibPacket.ReadPacket(dis);
+	                if (pkt == null) {
+	                    System.err.println("    Received bad packet");
+	                    attempts--;
+	                    if (attempts == 0) {
+	                        System.err.println("Too many bad packets from client " + this.clientsocket + ". Disconnecting");
+	                        break;
+	                    }
+	                    continue;
+	                }
+	                attempts = 5;
+	                
+	                // Relay packets to other clients or the server
+	                if (pkt.GetRecipients() != 0)
+	                {
+	                	for (TicTacToe.Player ply : this.game.GetPlayers())
+	                		if ((pkt.GetRecipients() & ply.GetBitMask()) != 0)
+	                			ply.SendMessage(pkt);
+	                }
+	                else
+	                	this.game.SendMessage(pkt);
+	                donesomething = true;
+            	}
                 
-                // Check packets here
+                // Send outgoing data to the N64
+            	pkt = this.player.GetMessages().poll();
+            	while (pkt != null)
+                {
+            		pkt.WritePacket(dos);
+                	pkt = this.player.GetMessages().poll();
+                	donesomething = true;
+                }
+            	
+            	// Sleep a bit if no packets were sent or received
+            	if (!donesomething) {
+            		Thread.sleep(50);
+            	}
             }
-            System.out.println("Finished with " + this.clientsocket);
-            this.clientsocket.close();
-            dos.close();
-            dis.close();
         } catch (Exception e) {
             e.printStackTrace();
         }

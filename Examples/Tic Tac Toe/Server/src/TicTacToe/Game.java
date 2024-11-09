@@ -1,17 +1,24 @@
 package TicTacToe;
 
+import NetLib.NetLibPacket;
+
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
+
 public class Game implements Runnable  {
     enum GameState {
-        WAITING,
+        LOBBY,
         PLAYING,
         ENDED,
     }
     
-    private GameState state = GameState.WAITING;
+    private GameState state = GameState.LOBBY;
     private Player players[];
     private BoardLarge board;
+    private Queue<NetLibPacket> messages;
     
     public Game() {
+    	this.messages = new ConcurrentLinkedQueue<NetLibPacket>();
         this.players = new Player[2];
         System.out.println("Tic Tac Toe created");
     }
@@ -19,9 +26,11 @@ public class Game implements Runnable  {
     public void run() {
         try {
             Player turn = null;
+            this.state = GameState.LOBBY;
+            
             while (true) {
-                this.state = GameState.WAITING;
-                
+            	
+                /*
                 // Wait for the room to be full
                 System.out.println("Waiting for players");
                 while (this.PlayerCount() < 2)
@@ -64,6 +73,7 @@ public class Game implements Runnable  {
                     System.out.println("Tie game!");
                 this.state = GameState.ENDED;
                 Thread.sleep(5000);
+                */
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -84,6 +94,10 @@ public class Game implements Runnable  {
         if (foundslot)
             return ply;
         return null;
+    }
+    
+    public void SendMessage(NetLibPacket pkt) {
+    	this.messages.add(pkt);
     }
     
     public int PlayerCount() {
