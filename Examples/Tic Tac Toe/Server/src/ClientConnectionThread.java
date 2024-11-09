@@ -119,7 +119,7 @@ public class ClientConnectionThread implements Runnable {
 	                if (pkt.GetRecipients() != 0)
 	                {
 	                	for (TicTacToe.Player ply : this.game.GetPlayers())
-	                		if ((pkt.GetRecipients() & ply.GetBitMask()) != 0)
+	                		if (ply != this.player && (pkt.GetRecipients() & ply.GetBitMask()) != 0)
 	                			ply.SendMessage(pkt);
 	                }
 	                else
