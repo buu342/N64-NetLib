@@ -78,16 +78,19 @@ ClientWindow::ClientWindow( wxWindow* parent, wxWindowID id, const wxString& tit
         this->m_DeviceThread = NULL;
     }
 
-    this->m_ServerThread = new ServerConnectionThread(this);
-    if (this->m_ServerThread->Create() != wxTHREAD_NO_ERROR)
+    if (this->m_ServerAddress != "")
     {
-        delete this->m_ServerThread;
-        this->m_ServerThread = NULL;
-    }
-    else if (this->m_ServerThread->Run() != wxTHREAD_NO_ERROR)
-    {
-        delete this->m_ServerThread;
-        this->m_ServerThread = NULL;
+        this->m_ServerThread = new ServerConnectionThread(this);
+        if (this->m_ServerThread->Create() != wxTHREAD_NO_ERROR)
+        {
+            delete this->m_ServerThread;
+            this->m_ServerThread = NULL;
+        }
+        else if (this->m_ServerThread->Run() != wxTHREAD_NO_ERROR)
+        {
+            delete this->m_ServerThread;
+            this->m_ServerThread = NULL;
+        }
     }
 }
 

@@ -8,6 +8,7 @@
 #include <wx/dir.h>
 #include <wx/msgdlg.h>
 #include <wx/tokenzr.h>
+#include <wx/app.h>
 #include "Resources/resources.h"
 
 typedef enum {
@@ -239,11 +240,11 @@ void ServerBrowser::CreateClient(wxString rom, wxString address)
     cw->SetROM(rom);
     cw->SetAddress(tokenizer.GetNextToken());
     tokenizer.GetNextToken().ToInt(&port);
+    this->Lower();
     cw->SetPort(port);
-    cw->SetFocus();
     cw->Raise();
     cw->Show();
-    this->Lower();
+    cw->SetFocus();
 }
 
 void ServerBrowser::ConnectMaster()
