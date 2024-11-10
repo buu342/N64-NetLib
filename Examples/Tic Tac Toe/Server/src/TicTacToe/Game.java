@@ -1,42 +1,36 @@
 package TicTacToe;
 
 import NetLib.NetLibPacket;
-
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class Game implements Runnable  {
-    enum GameState {
-        LOBBY,
-        PLAYING,
-        ENDED,
-    }
     
-    private GameState state = GameState.LOBBY;
+    private GameState state = GameState.GAMESTATE_LOBBY;
     private Player players[];
     private BoardLarge board;
+    private Player turn;
     private Queue<NetLibPacket> messages;
     
     public Game() {
     	this.messages = new ConcurrentLinkedQueue<NetLibPacket>();
         this.players = new Player[2];
+        this.turn = null;
         System.out.println("Tic Tac Toe initialized");
     }
     
     public void run() {
         try {
-            Player turn = null;
-            this.state = GameState.LOBBY;
             Thread.currentThread().setName("Game");
             
             while (true) {
                 boolean player1_ready = false;
                 boolean player2_ready = false;
+                this.ChangeGameState(GameState.GAMESTATE_LOBBY);
                 
                 // Wait for the room to be full and ready
                 System.out.println("Waiting for players to be ready");
-                //while (!player1_ready && !player2_ready) {
-                while (true) {
+                while (!player1_ready && !player2_ready) {
                     NetLibPacket pkt;
                     
                     // Ensure we have 2 players
@@ -60,57 +54,87 @@ public class Game implements Runnable  {
                     {
                         if (pkt.GetSender() == 1) {
                             player1_ready = (pkt.GetData()[0] == 1);
-                            pkt = new NetLibPacket(PacketIDs.PACKETID_PLAYERREADY.GetInt(), new byte[]{(byte)this.players[0].GetNumber(), pkt.GetData()[0]});
-                            this.players[1].SendMessage(null, pkt);
-                            System.out.println("Player 1 ready: " + player1_ready);
+                            this.NotifyReady(this.players[1], this.players[0], player1_ready);
                         } else {
                             player2_ready = (pkt.GetData()[0] == 1);
-                            pkt = new NetLibPacket(PacketIDs.PACKETID_PLAYERREADY.GetInt(), new byte[]{(byte)this.players[1].GetNumber(), pkt.GetData()[0]});
-                            this.players[0].SendMessage(null, pkt);
-                            System.out.println("Player 2 ready: " + player2_ready);
+                            this.NotifyReady(this.players[0], this.players[1], player2_ready);
                         }
                     }
                 }
                 
-                /*
-                // If no previous player turn was chosen, then give the first player the first turn
-                if (turn == null)
-                    turn = this.players[0];
+                // Ready to start
+                System.out.println("Everyone ready, game starting");
+                Thread.sleep(1000);
                 
                 // Initialize the game
                 board = new BoardLarge();
                 
                 // Game loop
                 System.out.println("New game started");
-                this.state = GameState.PLAYING;
-                while (this.state != GameState.ENDED)
+                this.ChangeGameState(GameState.GAMESTATE_PLAYING);
+                                
+                // If no previous player turn was chosen, then give the first player the first turn
+                if (this.turn == null)
+                    this.ChangePlayerTurn(this.players[0]);
+                
+                while (this.state == GameState.GAMESTATE_PLAYING)
                 {
+                    int boardx, boardy, movex, movey;
+                    
                     // Receive packets from the player who's turn it is to play
+                    NetLibPacket pkt = messages.poll();
+                    if (pkt == null)
+                    {
+                        Thread.sleep(10);
+                        continue;
+                    }
+                    
+                    // Dequeue packets until we find a move from the player we want
+                    while (pkt != null && pkt.GetID() == PacketIDs.PACKETID_PLAYERMOVE.GetInt() && pkt.GetSender() == turn.GetNumber() && pkt.GetSize() < 4)
+                        pkt = messages.poll();
+                    
+                    // Make the move
+                    boardx = pkt.GetData()[0];
+                    boardy = pkt.GetData()[1];
+                    movex = pkt.GetData()[2];
+                    movey = pkt.GetData()[3];
+                    if (!this.board.MakeMove(turn, boardx, boardy, movex, movey))
+                        continue; // If the move wasn't valid, restart the loop and try again
+                    
+                    // Valid move, notify other players of the move
+                    this.NotifyMove(turn, 1 + boardx + boardy*3, movex, movey);
+                    
+                    // Change player turn
+                    if (this.turn == this.players[0])
+                        this.ChangePlayerTurn(players[1]);
+                    else
+                        this.ChangePlayerTurn(players[0]);
                     
                     // Check for winners
                     board.CheckWinner();
                     if (board.GetWinner() != null)
-                        this.state = GameState.ENDED;
+                        break;
                     
-                    // Change player turn
-                    if (turn == this.players[0])
-                        turn = this.players[1];
-                    else
-                        turn = this.players[0];
+                    // Print the next player's turn
                     System.out.println("Player " + turn.GetNumber() + "'s turn");
                 }
                 
                 // Game ended. Show the winner for 5 seconds
                 System.out.println("Game Ended.");
-                if (board.GetWinner() != null)
+                if (board.GetWinner() != null) {
+                    if (board.GetWinner() == this.players[0])
+                        this.ChangeGameState(GameState.GAMESTATE_ENDED_WINNER_1);
+                    else
+                        this.ChangeGameState(GameState.GAMESTATE_ENDED_WINNER_2);
                     System.out.println("Player " + board.GetWinner().GetNumber() + " wins!");
-                else if (this.PlayerCount() < 2)
+                } else if (this.PlayerCount() < 2) {
+                    this.ChangeGameState(GameState.GAMESTATE_ENDED_DISCONNECT);
                     System.out.println("Player disconnected!");
-                else
+                } else {
+                    this.ChangeGameState(GameState.GAMESTATE_ENDED_TIE);
                     System.out.println("Tie game!");
-                this.state = GameState.ENDED;
+                }
                 Thread.sleep(5000);
-                */
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -154,10 +178,53 @@ public class Game implements Runnable  {
         for (int i=0; i<this.players.length; i++) {
             if (this.players[i] == ply) {
                 this.players[i] = null;
-                if (this.state == GameState.PLAYING)
-                    this.state = GameState.ENDED;
+                if (this.state == GameState.GAMESTATE_PLAYING)
+                    this.state = GameState.GAMESTATE_ENDED_DISCONNECT;
                 return;
             }
         }
+    }
+    
+    private void NotifyReady(Player target, Player who, boolean ready) {
+        NetLibPacket pkt = new NetLibPacket(PacketIDs.PACKETID_PLAYERREADY.GetInt(), new byte[]{
+            (byte)who.GetNumber(), 
+            (byte) (ready ? 1 : 0)
+        });
+        target.SendMessage(null, pkt);
+        System.out.println("Player " + who.GetNumber() + " ready: " + ready);
+    }
+    
+    private void ChangeGameState(GameState state) {
+        this.state = state;
+        NetLibPacket pkt = new NetLibPacket(PacketIDs.PACKETID_GAMESTATECHANGE.GetInt(), new byte[]{
+            (byte)state.GetInt()
+        });
+        for (Player ply : this.players)
+            if (ply != null)
+                ply.SendMessage(null, pkt);
+    }
+    
+    private void NotifyMove(Player who, int boardnum, int movex, int movey) {
+        NetLibPacket pkt = new NetLibPacket(PacketIDs.PACKETID_PLAYERMOVE.GetInt(), new byte[]{
+            (byte)who.GetNumber(),
+            (byte)boardnum,
+            (byte)movex,
+            (byte)movey,
+        });
+        for (Player ply : this.players)
+            if (ply != null && ply != who)
+                ply.SendMessage(null, pkt);
+        this.turn = who;
+    }
+    
+    private void ChangePlayerTurn(Player who) {
+        NetLibPacket pkt = new NetLibPacket(PacketIDs.PACKETID_PLAYERTURN.GetInt(), new byte[]{
+            (byte)who.GetNumber(),
+            (byte)this.board.GetForcedBoardNumber(),
+        });
+        for (Player ply : this.players)
+            if (ply != null)
+                ply.SendMessage(null, pkt);
+        this.turn = who;
     }
 }
