@@ -60,10 +60,11 @@ class ClientWindow : public wxFrame
         void ThreadEvent(wxThreadEvent& event);
 
     public:
-        ClientWindow( wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxEmptyString, const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 640,480 ), long style = wxDEFAULT_FRAME_STYLE|wxTAB_TRAVERSAL|wxFRAME_FLOAT_ON_PARENT );
+        ClientWindow( wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxEmptyString, const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 640,480 ), long style = wxDEFAULT_FRAME_STYLE|wxTAB_TRAVERSAL );
         ~ClientWindow();
 
         void ConnectServer();
+        void BeginWorking();
         void SetClientDeviceStatus(ClientDeviceStatus status);
         void SetROM(wxString rom);
         void SetAddress(wxString addr);

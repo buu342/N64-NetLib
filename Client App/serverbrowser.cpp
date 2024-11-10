@@ -242,9 +242,9 @@ void ServerBrowser::CreateClient(wxString rom, wxString address)
     tokenizer.GetNextToken().ToInt(&port);
     this->Lower();
     cw->SetPort(port);
+    cw->BeginWorking();
     cw->Raise();
     cw->Show();
-    cw->SetFocus();
 }
 
 void ServerBrowser::ConnectMaster()
@@ -389,17 +389,11 @@ void ManualConnectWindow::m_FilePicker_ROM_OnFileChanged(wxFileDirPickerEvent& e
 void ManualConnectWindow::m_Button_Connect_OnButtonClick(wxCommandEvent& event)
 {
     (void)event;
-    int port;
-    wxStringTokenizer tokenizer(this->m_TextCtrl_Server->GetValue(), ":");
-    ClientWindow* cw = new ClientWindow(this->GetParent());
-    cw->SetROM(this->m_FilePicker_ROM->GetPath());
-    cw->SetAddress(tokenizer.GetNextToken());
-    tokenizer.GetNextToken().ToInt(&port);
-    cw->SetPort(port);
-    cw->SetFocus();
-    cw->Raise();
-    cw->Show();
-    this->Destroy();
+    wxString path = this->m_FilePicker_ROM->GetPath();
+    wxString address = this->m_TextCtrl_Server->GetValue();
+    ServerBrowser* parent = (ServerBrowser*)this->GetParent();
+    this->Destroy(); // Must be done first or the parent window will steal attention from the client
+    parent->CreateClient(path, address);
 }
 
 

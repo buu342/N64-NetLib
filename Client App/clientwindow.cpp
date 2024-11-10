@@ -63,35 +63,8 @@ ClientWindow::ClientWindow( wxWindow* parent, wxWindowID id, const wxString& tit
     this->Layout();
     //m_StatusBar_ClientStatus = this->CreateStatusBar( 1, wxSTB_SIZEGRIP, wxID_ANY );
 
-    this->Centre( wxBOTH );
+    this->Centre(wxBOTH);
     this->Connect(wxID_ANY, wxEVT_THREAD, wxThreadEventHandler(ClientWindow::ThreadEvent));
-
-    this->m_DeviceThread = new DeviceThread(this);
-    if (this->m_DeviceThread->Create() != wxTHREAD_NO_ERROR)
-    {
-        delete this->m_DeviceThread;
-        this->m_DeviceThread = NULL;
-    }
-    else if (this->m_DeviceThread->Run() != wxTHREAD_NO_ERROR)
-    {
-        delete this->m_DeviceThread;
-        this->m_DeviceThread = NULL;
-    }
-
-    if (this->m_ServerAddress != "")
-    {
-        this->m_ServerThread = new ServerConnectionThread(this);
-        if (this->m_ServerThread->Create() != wxTHREAD_NO_ERROR)
-        {
-            delete this->m_ServerThread;
-            this->m_ServerThread = NULL;
-        }
-        else if (this->m_ServerThread->Run() != wxTHREAD_NO_ERROR)
-        {
-            delete this->m_ServerThread;
-            this->m_ServerThread = NULL;
-        }
-    }
 }
 
 ClientWindow::~ClientWindow()
@@ -113,6 +86,36 @@ ClientWindow::~ClientWindow()
         }
     }
     this->Disconnect(wxID_ANY, wxEVT_THREAD, wxThreadEventHandler(ClientWindow::ThreadEvent));
+}
+
+void ClientWindow::BeginWorking()
+{
+    this->m_DeviceThread = new DeviceThread(this);
+    if (this->m_DeviceThread->Create() != wxTHREAD_NO_ERROR)
+    {
+        delete this->m_DeviceThread;
+        this->m_DeviceThread = NULL;
+    }
+    else if (this->m_DeviceThread->Run() != wxTHREAD_NO_ERROR)
+    {
+        delete this->m_DeviceThread;
+        this->m_DeviceThread = NULL;
+    }
+
+    if (this->GetAddress() != "")
+    {
+        this->m_ServerThread = new ServerConnectionThread(this);
+        if (this->m_ServerThread->Create() != wxTHREAD_NO_ERROR)
+        {
+            delete this->m_ServerThread;
+            this->m_ServerThread = NULL;
+        }
+        else if (this->m_ServerThread->Run() != wxTHREAD_NO_ERROR)
+        {
+            delete this->m_ServerThread;
+            this->m_ServerThread = NULL;
+        }
+    }
 }
 
 void ClientWindow::SetClientDeviceStatus(ClientDeviceStatus status)
@@ -252,6 +255,7 @@ DeviceThread::~DeviceThread()
 
 void* DeviceThread::Entry()
 {
+    printf("Hello USB\n");
     FILE* fp;
     float oldprogress = 0;
     DeviceError deverr = device_find();
@@ -611,6 +615,7 @@ ServerConnectionThread::~ServerConnectionThread()
 
 void* ServerConnectionThread::Entry()
 {
+    printf("Hello Server\n");
     wxIPV4address addr;
     addr.Hostname(this->m_Window->GetAddress());
     addr.Service(this->m_Window->GetPort());
