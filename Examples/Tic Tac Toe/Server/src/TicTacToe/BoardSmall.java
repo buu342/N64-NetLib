@@ -1,22 +1,26 @@
 package TicTacToe;
 
 public class BoardSmall {
+    private int movecount;
     private Player winner;
     private Player moves[][];
     
     public BoardSmall() {
         this.winner = null;
         this.moves = new Player[3][3];
+        this.movecount = 0;
     }
     
     public boolean MakeMove(Player ply, int xpos, int ypos) {
         if (this.moves[xpos][ypos] != null)
             return false;
         this.moves[xpos][ypos] = ply;
+        this.movecount++;
+        this.CheckWinner();
         return true;
     }
     
-    public void CheckWinner() {
+    private void CheckWinner() {
         boolean haswinner;
         
         // Check rows
@@ -92,7 +96,33 @@ public class BoardSmall {
         }
     }
     
+    public boolean BoardFinished() {
+        if (this.winner != null)
+            return true;
+        return (this.movecount == 9);
+    }
+    
     public Player GetWinner() {
         return this.winner;
+    }
+    
+    public Player GetMove(int x, int y) {
+        return this.moves[x][y];
+    }
+    
+    public String toString() {
+        String mystr = "";
+        for (int y=0; y<3; y++) {
+            for (int x=0; x<3; x++) {
+                if (this.moves[x][y] == null)
+                    mystr += " ";
+                else if (this.moves[x][y].GetNumber() == 1)
+                    mystr += "x";
+                else if (this.moves[x][y].GetNumber() == 2)
+                    mystr += "o";
+            }
+            mystr += "\n";
+        }
+        return mystr;
     }
 }

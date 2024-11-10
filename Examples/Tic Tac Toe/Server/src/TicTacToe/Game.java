@@ -30,7 +30,7 @@ public class Game implements Runnable  {
                 
                 // Wait for the room to be full and ready
                 System.out.println("Waiting for players to be ready");
-                while (!player1_ready && !player2_ready) {
+                while (!player1_ready || !player2_ready) {
                     NetLibPacket pkt;
                     
                     // Ensure we have 2 players
@@ -43,15 +43,13 @@ public class Game implements Runnable  {
                     
                     // Check we have messages
                     pkt = messages.poll();
-                    if (pkt == null)
-                    {
+                    if (pkt == null) {
                         Thread.sleep(10);
                         continue;
                     }
                     
                     // Check everyone is ready
-                    if (pkt.GetID() == PacketIDs.PACKETID_PLAYERREADY.GetInt())
-                    {
+                    if (pkt.GetID() == PacketIDs.PACKETID_PLAYERREADY.GetInt()) {
                         if (pkt.GetSender() == 1) {
                             player1_ready = (pkt.GetData()[0] == 1);
                             this.NotifyReady(this.players[1], this.players[0], player1_ready);
@@ -67,7 +65,7 @@ public class Game implements Runnable  {
                 Thread.sleep(1000);
                 
                 // Initialize the game
-                board = new BoardLarge();
+                this.board = new BoardLarge();
                 
                 // Game loop
                 System.out.println("New game started");
@@ -76,22 +74,22 @@ public class Game implements Runnable  {
                 // If no previous player turn was chosen, then give the first player the first turn
                 if (this.turn == null)
                     this.ChangePlayerTurn(this.players[0]);
+                System.out.println(this.board);
+                System.out.println("Player " + turn.GetNumber() + "'s turn");
                 
-                while (this.state == GameState.GAMESTATE_PLAYING)
-                {
+                while (this.state == GameState.GAMESTATE_PLAYING) {
                     int boardx, boardy, movex, movey;
                     
                     // Receive packets from the player who's turn it is to play
                     NetLibPacket pkt = messages.poll();
-                    if (pkt == null)
-                    {
+                    if (pkt == null) {
                         Thread.sleep(10);
                         continue;
                     }
                     
-                    // Dequeue packets until we find a move from the player we want
-                    while (pkt != null && pkt.GetID() == PacketIDs.PACKETID_PLAYERMOVE.GetInt() && pkt.GetSender() == turn.GetNumber() && pkt.GetSize() < 4)
-                        pkt = messages.poll();
+                    // Validate the packet
+                    if (pkt == null || pkt.GetID() != PacketIDs.PACKETID_PLAYERMOVE.GetInt() || pkt.GetSender() != turn.GetNumber() || pkt.GetSize() < 4)
+                        continue;
                     
                     // Make the move
                     boardx = pkt.GetData()[0];
@@ -111,18 +109,20 @@ public class Game implements Runnable  {
                         this.ChangePlayerTurn(players[0]);
                     
                     // Check for winners
-                    board.CheckWinner();
-                    if (board.GetWinner() != null)
+                    if (this.board.GetWinner() != null || this.board.BoardFinished())
                         break;
                     
                     // Print the next player's turn
+                    System.out.println(this.board);
                     System.out.println("Player " + turn.GetNumber() + "'s turn");
+                    if (this.board.GetForcedBoardNumber() != 0)
+                        System.out.println("Forced to play on board " + this.board.GetForcedBoardNumber());
                 }
                 
                 // Game ended. Show the winner for 5 seconds
                 System.out.println("Game Ended.");
-                if (board.GetWinner() != null) {
-                    if (board.GetWinner() == this.players[0])
+                if (this.board.GetWinner() != null) {
+                    if (this.board.GetWinner() == this.players[0])
                         this.ChangeGameState(GameState.GAMESTATE_ENDED_WINNER_1);
                     else
                         this.ChangeGameState(GameState.GAMESTATE_ENDED_WINNER_2);

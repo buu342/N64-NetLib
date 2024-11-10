@@ -25,8 +25,7 @@ public class ClientConnectionThread implements Runnable {
         this.clientsocket = socket;
     }
     
-    private void ListServers() throws IOException
-    {
+    private void ListServers() throws IOException {
         DataOutputStream dos = new DataOutputStream(this.clientsocket.getOutputStream());
         Enumeration<String> keys = this.servers.keys();
         System.out.println("Client " + this.clientsocket + " requested list of servers");
@@ -198,6 +197,7 @@ public class ClientConnectionThread implements Runnable {
         try {
             int attempts = 5;
             DataInputStream dis = new DataInputStream(this.clientsocket.getInputStream());
+            System.out.println(this.clientsocket);
             while (true)
             {
                 S64Packet pkt = S64Packet.ReadPacket(dis);
