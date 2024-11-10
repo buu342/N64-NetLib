@@ -93,7 +93,8 @@ public class NetLibPacket {
         dos.write(new byte[]{(byte)this.version});
         dos.writeInt((this.size & 0x00FFFFFF) | (this.id << 24));
         dos.writeInt(this.recipients);
-        dos.write(this.data);
+        if (this.size > 0)
+            dos.write(this.data);
         dos.flush();
     }
     

@@ -57,6 +57,10 @@
     
     ClientNumber netlib_getclient();
     
+    void netlib_callback_disconnect(void (*callback)());
+    
+    void netlib_callback_reconnect(void (*callback)());
+    
     
     /*==============================================================
                         N64 -> Network Functions

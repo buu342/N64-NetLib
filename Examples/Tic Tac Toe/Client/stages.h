@@ -4,10 +4,11 @@
     #define STAGE_COUNT  3
 
     typedef enum {
-        STAGE_NONE  = -1,
-        STAGE_INIT  = 0,
-        STAGE_LOBBY = 1,
-        STAGE_GAME  = 2,
+        STAGE_NONE          = -1,
+        STAGE_INIT          = 0,
+        STAGE_LOBBY         = 1,
+        STAGE_GAME          = 2,
+        STAGE_DISCONNECTED  = 3,
     } StageNum;
 
     typedef struct {
@@ -32,12 +33,18 @@
     void stage_init_cleanup();
     void stage_init_serverfull();
     
-    // Stage functions
+    // Lobby functions
     void stage_lobby_init();
     void stage_lobby_update();
     void stage_lobby_draw();
     void stage_lobby_cleanup();
     void stage_lobby_playerchange();
+    
+    // Disconnected functions
+    void stage_disconnected_init();
+    void stage_disconnected_update();
+    void stage_disconnected_draw();
+    void stage_disconnected_cleanup();
     
 #endif
     

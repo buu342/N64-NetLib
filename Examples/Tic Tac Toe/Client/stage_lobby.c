@@ -16,6 +16,7 @@ and ready up
 static NUContData global_contdata;
 static char global_isready;
 
+
 /*==============================
     refresh_lobbytext
     Refreshes the text on the screen with the lobby ststus
@@ -108,9 +109,6 @@ void stage_lobby_update(void)
         global_players[0].ready = FALSE;
         global_players[1].ready = FALSE;
     }
-    
-    // Poll for incoming data
-    netlib_poll();
 }
 
 
@@ -150,10 +148,12 @@ void stage_lobby_cleanup(void)
 
 /*==============================
     stage_lobby_playerchange
-    Refreshes the screen text when a player status change ocurred
+    Refreshes the screen text when a player status change occurred
 ==============================*/
 
 void stage_lobby_playerchange()
 {
+    global_isready = FALSE;
+    global_players[netlib_getclient()-1].ready;
     refresh_lobbytext();
 }

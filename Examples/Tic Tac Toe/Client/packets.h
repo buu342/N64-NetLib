@@ -6,7 +6,8 @@
         PACKETID_PLAYERINFO = 1,
         PACKETID_PLAYERDISCONNECT = 2,
         PACKETID_SERVERFULL = 3,
-        PACKETID_PLAYERREADY = 4,
+        PACKETID_HEARTBEAT = 4,
+        PACKETID_PLAYERREADY = 5,
     } NetPacketIDs;
 
     void netcallback_initall();

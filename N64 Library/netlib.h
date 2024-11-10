@@ -53,6 +53,14 @@
     
     void netlib_initialize();
     
+    void netlib_setclient(ClientNumber num);
+    
+    ClientNumber netlib_getclient();
+    
+    void netlib_callback_disconnect(void (*callback)());
+    
+    void netlib_callback_reconnect(void (*callback)());
+    
     
     /*==============================================================
                         N64 -> Network Functions
@@ -83,7 +91,7 @@
                         Network -> N64 Functions
     ==============================================================*/
     
-    void netlib_register(NetPacket id, void (*callback)(size_t, ClientNumber));
+    void netlib_register(NetPacket id, void (*callback)(size_t));
     
     void netlib_poll();
     

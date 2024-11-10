@@ -279,6 +279,7 @@ void* DeviceThread::Entry()
         case CART_SC64: this->WriteConsole(wxT("SummerCart64")); break;
         case CART_NONE: 
             this->WriteConsole(wxT("Unknown"));
+            this->WriteConsoleError("USB Disconnected.\n");
             this->NotifyDeath();
             return NULL;
     }
@@ -385,8 +386,6 @@ void* DeviceThread::Entry()
                 delete pkt;
             }
         }
-
-        // TODO: Handle segfault when USB is unplugged
     }
     this->WriteConsoleError("USB Disconnected.\n");
     this->NotifyDeath();

@@ -9,8 +9,12 @@
 static size_t       global_writecursize;
 static byte         global_writebuffer[MAX_PACKETSIZE];
 static ClientNumber global_clnumber;
-
-void (*global_funcptrs[MAX_UNIQUEPACKETS])(size_t) = {0};
+static vu8          global_polling;
+static vu8          global_sendafterpoll;
+static vu8          global_disconnected;
+static void         (*global_funcptr_disconnect)();
+static void         (*global_funcptr_reconnect)();
+static void         (*global_funcptrs[MAX_UNIQUEPACKETS])(size_t) = {0};
 
 void netlib_initialize()
 {
@@ -21,6 +25,11 @@ void netlib_initialize()
     global_writebuffer[2] = 'T';
     global_writebuffer[3] = (byte)NETLIB_VERSION;
     memset(global_funcptrs, sizeof(global_funcptrs), 1);
+    global_polling = FALSE;
+    global_sendafterpoll = FALSE;
+    global_disconnected = FALSE;
+    global_funcptr_disconnect = NULL;
+    global_funcptr_reconnect = NULL;
 }
 
 void netlib_setclient(ClientNumber num)
@@ -31,6 +40,16 @@ void netlib_setclient(ClientNumber num)
 ClientNumber netlib_getclient()
 {
     return global_clnumber;
+}
+    
+void netlib_callback_disconnect(void (*callback)())
+{
+    global_funcptr_disconnect = callback;
+}
+
+void netlib_callback_reconnect(void (*callback)())
+{
+    global_funcptr_reconnect = callback;
 }
 
 void netlib_start(NetPacket id)
@@ -142,7 +161,10 @@ void netlib_broadcast()
     memcpy(&global_writebuffer[8], &mask, 4);
         
     // Send the packet over the wire
-    usb_write(DATATYPE_NETPACKET, global_writebuffer, PACKET_HEADERSIZE + global_writecursize);
+    if (!global_polling)
+        usb_write(DATATYPE_NETPACKET, global_writebuffer, global_writecursize);
+    else
+        global_sendafterpoll = TRUE;
 }
 
 void netlib_send(ClientNumber client)
@@ -157,7 +179,10 @@ void netlib_send(ClientNumber client)
     memcpy(&global_writebuffer[8], &mask, 4);
         
     // Send the packet over the wire
-    usb_write(DATATYPE_NETPACKET, global_writebuffer, global_writecursize);
+    if (!global_polling)
+        usb_write(DATATYPE_NETPACKET, global_writebuffer, global_writecursize);
+    else
+        global_sendafterpoll = TRUE;
 }
 
 void netlib_sendtoserver()
@@ -172,7 +197,10 @@ void netlib_sendtoserver()
     memcpy(&global_writebuffer[8], &mask, 4);
     
     // Send the packet over the wire
-    usb_write(DATATYPE_NETPACKET, global_writebuffer, global_writecursize);
+    if (!global_polling)
+        usb_write(DATATYPE_NETPACKET, global_writebuffer, global_writecursize);
+    else
+        global_sendafterpoll = TRUE;
 }
 
 void netlib_register(NetPacket id, void (*callback)(size_t))
@@ -182,8 +210,28 @@ void netlib_register(NetPacket id, void (*callback)(size_t))
 
 void netlib_poll()
 {
-    unsigned int header = usb_poll();
+    unsigned int header;
     
+    // Perform the poll
+    global_polling = TRUE;
+    header = usb_poll();
+    
+    // Check the USB did not time out from being disconnected
+    // If it did (or reconnected, then execute the callback functions
+    if (!global_disconnected && usb_timedout())
+    {
+        global_disconnected = TRUE;
+        if (global_funcptr_disconnect != NULL)
+            global_funcptr_disconnect();
+    }
+    else if (global_disconnected && !usb_timedout())
+    {
+        global_disconnected = FALSE;
+        if (global_funcptr_reconnect != NULL)
+            global_funcptr_reconnect();
+    }
+    
+    // Read all net packets
     while (USBHEADER_GETTYPE(header) == DATATYPE_NETPACKET)
     {
         uint8_t version;
@@ -227,6 +275,14 @@ void netlib_poll()
         usb_purge();
         header = usb_poll();
     }
+    
+    // If we queued up a message during polling, send it now (if it's safe to do so)
+    if (global_sendafterpoll && header == 0)
+    {
+        usb_write(DATATYPE_NETPACKET, global_writebuffer, global_writecursize);
+        global_sendafterpoll = FALSE;
+    }
+    global_polling = FALSE;
 }
 
 void netlib_readbyte(uint8_t* output)

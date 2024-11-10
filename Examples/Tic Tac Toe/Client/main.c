@@ -21,6 +21,8 @@ Program entrypoint.
 static void callback_prenmi();
 static void callback_vsync(int tasksleft);
 static void stagetable_init();
+static void callback_disconnect();
+static void callback_reconnect();
 
 
 /*********************************
@@ -69,6 +71,8 @@ void mainproc(void)
     
     // Initialize the net library
     netlib_initialize();
+    netlib_callback_reconnect(&callback_disconnect);
+    netlib_callback_disconnect(&callback_reconnect);
     netcallback_initall();
 
     // Initialize the font system
@@ -112,8 +116,13 @@ void mainproc(void)
 
 static void callback_vsync(int tasksleft)
 {
-    // Update the stage, then draw it when the RCP is ready
+    // Poll the net library
+    netlib_poll();
+    
+    // Update the stage
     global_stagetable[global_curstage].funcptr_update();
+    
+    // Draw it
     if (tasksleft < 1 && global_nextstage == STAGE_NONE)
         global_stagetable[global_curstage].funcptr_draw();
 }
@@ -148,6 +157,11 @@ static void stagetable_init()
     global_stagetable[STAGE_LOBBY].funcptr_update = &stage_lobby_update;
     global_stagetable[STAGE_LOBBY].funcptr_draw = &stage_lobby_draw;
     global_stagetable[STAGE_LOBBY].funcptr_cleanup = &stage_lobby_cleanup;
+    
+    global_stagetable[STAGE_DISCONNECTED].funcptr_init = &stage_disconnected_init;
+    global_stagetable[STAGE_DISCONNECTED].funcptr_update = &stage_disconnected_update;
+    global_stagetable[STAGE_DISCONNECTED].funcptr_draw = &stage_disconnected_draw;
+    global_stagetable[STAGE_DISCONNECTED].funcptr_cleanup = &stage_disconnected_cleanup;    
 }
 
 
@@ -174,4 +188,14 @@ void stages_changeto(StageNum num)
 StageNum stages_getcurrent()
 {
     return global_curstage;
+}
+
+static void callback_disconnect()
+{
+    stages_changeto(STAGE_DISCONNECTED);
+}
+
+static void callback_reconnect()
+{
+    stages_changeto(STAGE_INIT);
 }
