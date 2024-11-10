@@ -255,7 +255,6 @@ DeviceThread::~DeviceThread()
 
 void* DeviceThread::Entry()
 {
-    printf("Hello USB\n");
     FILE* fp;
     float oldprogress = 0;
     DeviceError deverr = device_find();
@@ -313,6 +312,10 @@ void* DeviceThread::Entry()
     {
         this->WriteConsole("\nLoading '" + wxString(rompath) + "' via USB");
         this->SetClientDeviceStatus(CLSTATUS_UPLOADING);
+
+        // TODO: File handling should be done in the progress thread, not here
+        // That might fix the crashing when the USB fails
+
         fp = fopen(device_getrom(), "r");
         if (fp == NULL)
         {
@@ -368,10 +371,10 @@ void* DeviceThread::Entry()
             USBDataType command = (USBDataType)((dataheader >> 24) & 0xFF);
 
             // Decide what to do with the data based off the command type
-            switch (command)
+            switch ((int)command)
             {
                 case DATATYPE_TEXT: this->ParseUSB_TextPacket(outbuff, size); break;
-                case DATATYPE_NETPACKET: this->ParseUSB_NetLibPacket(outbuff, size); break;
+                case DATATYPE_NETPACKET: this->ParseUSB_NetLibPacket(outbuff); break;
                 case DATATYPE_HEARTBEAT: this->ParseUSB_HeartbeatPacket(outbuff, size); break;
                 default:
                     this->WriteConsoleError(wxString::Format("\nError: Received unknown datatype '%02X' from the flashcart.", command));
@@ -420,9 +423,9 @@ void DeviceThread::ParseUSB_TextPacket(uint8_t* buff, uint32_t size)
     free(text);
 }
 
-void DeviceThread::ParseUSB_NetLibPacket(uint8_t* buff, uint32_t size)
+void DeviceThread::ParseUSB_NetLibPacket(uint8_t* buff)
 {
-    NetLibPacket* pkt = new NetLibPacket(size, (char*)buff);
+    NetLibPacket* pkt = NetLibPacket::FromBytes((char*)buff);
     wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
     evt.SetInt(TEVENT_NETPACKET_USB_TO_SERVER);
     evt.SetPayload<NetLibPacket*>(pkt);
@@ -615,7 +618,6 @@ ServerConnectionThread::~ServerConnectionThread()
 
 void* ServerConnectionThread::Entry()
 {
-    printf("Hello Server\n");
     wxIPV4address addr;
     addr.Hostname(this->m_Window->GetAddress());
     addr.Service(this->m_Window->GetPort());

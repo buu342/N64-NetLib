@@ -87,7 +87,7 @@ class DeviceThread : public wxThread
 
         virtual void* Entry() wxOVERRIDE;
         void ParseUSB_TextPacket(uint8_t* buff, uint32_t size);
-        void ParseUSB_NetLibPacket(uint8_t* buff, uint32_t size);
+        void ParseUSB_NetLibPacket(uint8_t* buff);
         void ParseUSB_HeartbeatPacket(uint8_t* buff, uint32_t size);
         void ClearConsole();
         void WriteConsole(wxString str);

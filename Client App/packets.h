@@ -64,9 +64,9 @@ class NetLibPacket
     protected:
 
     public:
-        NetLibPacket(int size, char* data);
         ~NetLibPacket();
 
+        static NetLibPacket* FromBytes(char* data);
         static NetLibPacket* ReadPacket(wxSocketClient* socket);
         void SendPacket(wxSocketClient* socket);
 

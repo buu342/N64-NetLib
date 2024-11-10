@@ -417,10 +417,8 @@ ServerFinderThread::~ServerFinderThread()
 void* ServerFinderThread::Entry()
 {
     S64Packet* pkt;
-    int packetsize = -1;
     FoundServer serverdata;
     wxIPV4address addr;
-    char outtext[64];
     addr.Hostname(this->m_Window->GetAddress());
     addr.Service(this->m_Window->GetPort());
 

@@ -2,6 +2,7 @@
 #include "packets.h"
 #include "helper.h"
 
+
 #define S64PACKET_HEADER "S64PKT"
 #define S64PACKET_VERSION 1
 
@@ -11,46 +12,6 @@
 #define NETLIBPACKET_HEADER "PKT"
 #define NETLIBPACKET_HEADERSIZE 12
 #define NETLIBPACKET_VERSION 1
-
-/*
-Packet::Packet(int size, char* data)
-{
-    this->m_Size = size;
-    if (size > 0)
-    {
-        this->m_Data = (char*)malloc(size);
-        memcpy(this->m_Data, data, size);
-    }
-    else
-        this->m_Data = NULL;
-}
-
-Packet::~Packet()
-{
-    if (this->m_Size > 0)
-        free(this->m_Data);
-}
-
-void Packet::SendPacket(wxSocketClient* socket)
-{
-    if (this->m_Size <= 0)
-    {
-        printf("Error: Attempted to write packet of size %d\n", this->m_Size);
-        return;
-    }
-    socket->Write(this->m_Data, this->m_Size);
-}
-
-int Packet::GetSize()
-{
-    return this->m_Size;
-}
-
-char* Packet::GetData()
-{
-    return this->m_Data;
-}
-*/
 
 
 S64Packet::S64Packet(int version, wxString type, int size, char* data)
@@ -366,30 +327,6 @@ NetLibPacket::NetLibPacket(int version, int id, int recipients, int size, char* 
         this->m_Data = NULL;
 }
 
-NetLibPacket::NetLibPacket(int size, char* data)
-{
-    int version;
-    int id;
-    int recipients;
-    version = data[3];
-    memcpy(&id, data+4, sizeof(int));
-    id = swap_endian32(id);
-    this->m_Size = id & 0x00FFFFFF;
-    id = (id & 0xFF000000) >> 24;
-    memcpy(&recipients, data+8, sizeof(int));
-    recipients = swap_endian32(recipients);
-    this->m_Version = version;
-    this->m_ID = id;
-    this->m_Recipients = recipients;
-    if (this->m_Size > 0)
-    {
-        this->m_Data = (char*)malloc(this->m_Size);
-        memcpy(this->m_Data, data+12, this->m_Size);
-    }
-    else
-        this->m_Data = NULL;
-}
-
 NetLibPacket::~NetLibPacket()
 {
     if (this->m_Size > 0)
@@ -466,6 +403,21 @@ NetLibPacket* NetLibPacket::ReadPacket(wxSocketClient* socket)
     pkt = new NetLibPacket(version, id, recipients, size, data);
     free(data);
     return pkt;
+}
+
+NetLibPacket* NetLibPacket::FromBytes(char* data)
+{
+    int version;
+    int id;
+    int recipients;
+    version = data[3];
+    memcpy(&id, data+4, sizeof(int));
+    id = swap_endian32(id);
+    this->m_Size = id & 0x00FFFFFF;
+    id = (id & 0xFF000000) >> 24;
+    memcpy(&recipients, data+8, sizeof(int));
+    recipients = swap_endian32(recipients);
+    return new NetLibPacket(version, id, recipients, this->m_Size, data+12);
 }
 
 void NetLibPacket::SendPacket(wxSocketClient* socket)
