@@ -32,11 +32,11 @@ static void refresh_lobbytext()
     text_setfont(&font_default);
     text_setalign(ALIGN_CENTER);
     text_setcolor(255, 255, 255, 255);
-    text_create("Player Lobby", SCREEN_WD/2, SCREEN_HT/2 - 64);
+    text_create("Player Lobby", SCREEN_WD/2, SCREEN_HT/2 - 88);
     
     // Game starting notification
     if (global_gamestarting)
-        text_create("Game starting...", SCREEN_WD/2, SCREEN_HT/2-24);
+        text_create("Game starting...", SCREEN_WD/2, SCREEN_HT/2-40);
     
     // Player state text
     text_setfont(&font_small);
@@ -71,6 +71,13 @@ static void refresh_lobbytext()
     else
         text_create("Not connected", 128, SCREEN_HT/2 + 48);
     text_setcolor(255, 255, 255, 255);
+    
+    // Press A to toggle ready
+    if (global_players[0].connected && global_players[0].connected && !global_gamestarting)
+    {
+        text_setalign(ALIGN_CENTER);
+        text_create("Press A to toggle ready", SCREEN_WD/2, SCREEN_HT/2 + 88);
+    }
 }
 
 

@@ -19,8 +19,9 @@ The main game
 #include "assets/spr_tie_large.h"
 
 static void board_render();
-static void cursor_toboard(u8 board);
+static void refresh_gametext();
 static void controller_movement();
+static void cursor_toboard(u8 board);
 
 // Controller data
 static NUContData global_contdata;
@@ -35,44 +36,6 @@ static u8 global_selectionx;
 static u8 global_selectiony;
 static s8 global_opponentx;
 static s8 global_opponenty;
-
-
-/*==============================
-    refresh_lobbytext
-    Refreshes the text on the screen with the game status
-==============================*/
-
-static void refresh_gametext()
-{
-    text_cleanup();
-    text_setalign(ALIGN_CENTER);
-    text_setcolor(255, 255, 255, 255);
-    
-    // Large text
-    text_setfont(&font_default);
-    if (global_gamestate == GAMESTATE_PLAYING && global_playerturn > 0)
-    {
-        if (global_playerturn == netlib_getclient())
-            text_create("Your turn", SCREEN_WD/2, SCREEN_HT/2 + 64);
-        else
-            text_create("Opponent's turn", SCREEN_WD/2, SCREEN_HT/2 + 64);
-    }
-    else if (global_gamestate > GAMESTATE_PLAYING)
-        text_create("Game Over", SCREEN_WD/2, SCREEN_HT/2 + 64);
-        
-    // Small text
-    text_setfont(&font_small);
-    if (global_gamestate == GAMESTATE_PLAYING && global_forcedboard != 0)
-        text_create("Forced to play in highlighted board", SCREEN_WD/2, SCREEN_HT/2 + 64 + 24);
-    else if (global_gamestate == GAMESTATE_ENDED_DISCONNECT)
-        text_create("Player disconnected", SCREEN_WD/2, SCREEN_HT/2 + 64 + 24);
-    else if (global_gamestate == GAMESTATE_ENDED_TIE)
-        text_create("Tie game", SCREEN_WD/2, SCREEN_HT/2 + 64 + 24);
-    else if ((netlib_getclient() == 1 && global_gamestate == GAMESTATE_ENDED_WINNER_1) || (netlib_getclient() == 2 && global_gamestate == GAMESTATE_ENDED_WINNER_2))
-        text_create("You win!", SCREEN_WD/2, SCREEN_HT/2 + 64 + 24);
-    else if (global_gamestate == GAMESTATE_ENDED_WINNER_1 || global_gamestate == GAMESTATE_ENDED_WINNER_2)
-        text_create("Opponent wins!", SCREEN_WD/2, SCREEN_HT/2 + 64 + 24);
-}
 
 
 /*==============================
@@ -225,6 +188,10 @@ static void cursor_toboard(u8 board)
     }
 }
 
+/*==============================
+    clamp
+    TODO
+==============================*/
 
 static s8 clamp(s8 val, s8 min, s8 max)
 {
@@ -472,6 +439,44 @@ static void board_render()
             }
         }
     }
+}
+
+
+/*==============================
+    refresh_lobbytext
+    Refreshes the text on the screen with the game status
+==============================*/
+
+static void refresh_gametext()
+{
+    text_cleanup();
+    text_setalign(ALIGN_CENTER);
+    text_setcolor(255, 255, 255, 255);
+    
+    // Large text
+    text_setfont(&font_default);
+    if (global_gamestate == GAMESTATE_PLAYING && global_playerturn > 0)
+    {
+        if (global_playerturn == netlib_getclient())
+            text_create("Your turn", SCREEN_WD/2, SCREEN_HT/2 + 64);
+        else
+            text_create("Opponent's turn", SCREEN_WD/2, SCREEN_HT/2 + 64);
+    }
+    else if (global_gamestate > GAMESTATE_PLAYING)
+        text_create("Game Over", SCREEN_WD/2, SCREEN_HT/2 + 64);
+        
+    // Small text
+    text_setfont(&font_small);
+    if (global_gamestate == GAMESTATE_PLAYING && global_forcedboard != 0)
+        text_create("Forced to play in highlighted board", SCREEN_WD/2, SCREEN_HT/2 + 64 + 24);
+    else if (global_gamestate == GAMESTATE_ENDED_DISCONNECT)
+        text_create("Player disconnected", SCREEN_WD/2, SCREEN_HT/2 + 64 + 24);
+    else if (global_gamestate == GAMESTATE_ENDED_TIE)
+        text_create("Tie game", SCREEN_WD/2, SCREEN_HT/2 + 64 + 24);
+    else if ((netlib_getclient() == 1 && global_gamestate == GAMESTATE_ENDED_WINNER_1) || (netlib_getclient() == 2 && global_gamestate == GAMESTATE_ENDED_WINNER_2))
+        text_create("You win!", SCREEN_WD/2, SCREEN_HT/2 + 64 + 24);
+    else if (global_gamestate == GAMESTATE_ENDED_WINNER_1 || global_gamestate == GAMESTATE_ENDED_WINNER_2)
+        text_create("Opponent wins!", SCREEN_WD/2, SCREEN_HT/2 + 64 + 24);
 }
 
 

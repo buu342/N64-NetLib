@@ -217,7 +217,7 @@ void netlib_poll()
     header = usb_poll();
     
     // Check the USB did not time out from being disconnected
-    // If it did (or reconnected, then execute the callback functions
+    // If it did (or reconnected), then execute the callback functions
     if (!global_disconnected && usb_timedout())
     {
         global_disconnected = TRUE;

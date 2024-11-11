@@ -1,7 +1,7 @@
 #ifndef TICTACTOE_STAGES_H
 #define TICTACTOE_STAGES_H
 
-    #define STAGE_COUNT  3
+    #define STAGE_COUNT  4
 
     typedef enum {
         STAGE_NONE          = -1,
