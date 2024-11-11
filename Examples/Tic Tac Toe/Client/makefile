@@ -6,6 +6,7 @@ ROMNAME     = tictactoe
 CODECFILES  = main.c graphic.c helper.c datastructs.c text.c netlib.c usb.c packets.c \
               stage_init.c \
               stage_lobby.c \
+              stage_game.c \
               stage_disconnected.c 
 CODEHFILES  =
 

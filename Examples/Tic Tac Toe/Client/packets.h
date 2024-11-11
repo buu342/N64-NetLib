@@ -21,7 +21,7 @@
         GAMESTATE_ENDED_WINNER_2 = 4,
         GAMESTATE_ENDED_TIE = 5,
         GAMESTATE_ENDED_DISCONNECT = 6,
-    } NetPacketIDs;
+    } GameState;
 
     void netcallback_initall();
 

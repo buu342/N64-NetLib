@@ -29,7 +29,8 @@ static void callback_reconnect();
              Globals
 *********************************/
 
-StageNum global_curstage = STAGE_INIT;
+//StageNum global_curstage = STAGE_INIT;
+StageNum global_curstage = STAGE_GAME;
 StageNum global_nextstage = STAGE_NONE;
 StageDef global_stagetable[STAGE_COUNT];
 
@@ -161,7 +162,12 @@ static void stagetable_init()
     global_stagetable[STAGE_DISCONNECTED].funcptr_init = &stage_disconnected_init;
     global_stagetable[STAGE_DISCONNECTED].funcptr_update = &stage_disconnected_update;
     global_stagetable[STAGE_DISCONNECTED].funcptr_draw = &stage_disconnected_draw;
-    global_stagetable[STAGE_DISCONNECTED].funcptr_cleanup = &stage_disconnected_cleanup;    
+    global_stagetable[STAGE_DISCONNECTED].funcptr_cleanup = &stage_disconnected_cleanup;
+    
+    global_stagetable[STAGE_GAME].funcptr_init = &stage_game_init;
+    global_stagetable[STAGE_GAME].funcptr_update = &stage_game_update;
+    global_stagetable[STAGE_GAME].funcptr_draw = &stage_game_draw;
+    global_stagetable[STAGE_GAME].funcptr_cleanup = &stage_game_cleanup;
 }
 
 

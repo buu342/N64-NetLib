@@ -46,5 +46,11 @@
     void stage_disconnected_draw();
     void stage_disconnected_cleanup();
     
+    // Disconnected functions
+    void stage_game_init();
+    void stage_game_update();
+    void stage_game_draw();
+    void stage_game_cleanup();
+    
 #endif
     
