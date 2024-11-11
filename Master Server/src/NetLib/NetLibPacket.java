@@ -9,6 +9,7 @@ public class NetLibPacket {
     
     private static final int    PACKET_VERSION = 1;
     private static final String PACKET_HEADER = "PKT";
+    private static final int    PACKET_MAXSIZE = 4096;
     
     private int version;
     private int id;
@@ -26,6 +27,8 @@ public class NetLibPacket {
             this.size = data.length;
         else
             this.size = 0;
+        if (this.size > PACKET_MAXSIZE)
+            System.err.println("Packet size exceeds N64 library's capacity!");
     }
     
     public NetLibPacket(int id, byte data[]) {
@@ -37,6 +40,8 @@ public class NetLibPacket {
             this.size = data.length;
         else
             this.size = 0;
+        if (this.size > PACKET_MAXSIZE)
+            System.err.println("Packet size exceeds N64 library's capacity!");
     }
     
     public String toString() {
@@ -44,6 +49,8 @@ public class NetLibPacket {
         mystr += "    Version: " + this.version + "\n";
         mystr += "    PID: " + this.id + "\n";
         mystr += "    Recipients: " + Integer.toBinaryString(this.recipients) + "\n";
+        if (this.sender != 0)
+            mystr += "    Sender: " + this.sender + "\n";
         mystr += "    Data size: " + this.size + "\n";
         mystr += "    Data: \n";
         mystr += "        ";

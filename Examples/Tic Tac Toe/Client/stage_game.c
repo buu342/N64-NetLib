@@ -68,8 +68,8 @@ void stage_game_update(void)
 {
     static couldplaybefore = FALSE;
     
-    if (global_playerturn == netlib_getclient())
-    {        
+    if (global_gamestate == GAMESTATE_PLAYING && global_playerturn == netlib_getclient())
+    {       
         // Move the cursor to a decent place when the player is allowed to play
         if (!couldplaybefore)
         {
@@ -339,8 +339,8 @@ static void board_render()
         gDPFillRectangle(glistp++, x, y, x + w, y + h);
     }
     
-    // Show your cursor location
-    if (global_playerturn == netlib_getclient() || (global_opponentx != -1 && global_opponenty != -1))
+    // Show the cursor location
+    if (global_gamestate == GAMESTATE_PLAYING && global_playerturn == netlib_getclient() || (global_opponentx != -1 && global_opponenty != -1))
     {
         const int cursorx = (global_playerturn == netlib_getclient()) ? global_selectionx : global_opponentx;
         const int cursory = (global_playerturn == netlib_getclient()) ? global_selectiony : global_opponenty;
@@ -499,9 +499,18 @@ void stage_game_cleanup(void)
 void stage_game_statechange()
 {
     netlib_readbyte(&global_gamestate);
-    refresh_gametext();
     if (global_gamestate == GAMESTATE_LOBBY)
+    {
         stages_changeto(STAGE_LOBBY);
+    }
+    else if (global_gamestate >= GAMESTATE_ENDED_WINNER_1 || global_gamestate <= GAMESTATE_ENDED_DISCONNECT)
+    {
+        global_playerturn = 0;
+        global_forcedboard = 0;
+        global_opponentx = -1;
+        global_opponenty = -1;
+    }
+    refresh_gametext();
 }
 
 
