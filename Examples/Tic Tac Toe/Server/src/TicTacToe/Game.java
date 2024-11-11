@@ -174,6 +174,7 @@ public class Game implements Runnable  {
     public void SendMessage(Player sender, NetLibPacket pkt) {
         pkt.SetSender(sender.GetNumber());
     	this.messages.add(pkt);
+    	System.out.println(pkt);
     }
     
     public int PlayerCount() {

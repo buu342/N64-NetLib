@@ -32,7 +32,7 @@ class Packet:
         mystr = "NetLib Packet\n"
         mystr += "    Version: " + str(self.version) + "\n"
         mystr += "    PID: " + str(self.pid) + "\n"
-        mystr += "    Recipients: " + str(self.recipients) + "\n"
+        mystr += "    Recipients: " + "{:032b}".format(self.recipients) + "\n"
         mystr += "    Data: \n"
         mystr += "    " + self.data.hex()
         return mystr

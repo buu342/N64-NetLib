@@ -44,6 +44,8 @@ public class NetLibPacket {
         mystr += "    Version: " + this.version + "\n";
         mystr += "    PID: " + this.id + "\n";
         mystr += "    Recipients: " + Integer.toBinaryString(this.recipients) + "\n";
+        if (this.sender != 0)
+            mystr += "    Sender: " + this.sender + "\n";
         mystr += "    Data size: " + this.size + "\n";
         mystr += "    Data: \n";
         mystr += "        ";

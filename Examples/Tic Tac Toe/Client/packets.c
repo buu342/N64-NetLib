@@ -11,6 +11,7 @@ void netcallback_playerready(size_t size);
 void netcallback_gamestate(size_t size);
 void netcallback_playerturn(size_t size);
 void netcallback_playermove(size_t size);
+void netcallback_playercursor(size_t size);
 void netcallback_boardcompleted(size_t size);
 
 void netcallback_initall()
@@ -23,6 +24,7 @@ void netcallback_initall()
     netlib_register(PACKETID_GAMESTATECHANGE, &netcallback_gamestate);
     netlib_register(PACKETID_PLAYERTURN, &netcallback_playerturn);
     netlib_register(PACKETID_PLAYERMOVE, &netcallback_playermove);
+    netlib_register(PACKETID_PLAYERCURSOR, &netcallback_playercursor);
     netlib_register(PACKETID_BOARDCOMPLETED, &netcallback_boardcompleted);
 }
 
@@ -88,6 +90,11 @@ void netcallback_playerturn(size_t size)
 void netcallback_playermove(size_t size)
 {
     stage_game_makemove();
+}
+
+void netcallback_playercursor(size_t size)
+{
+    stage_game_playercursor();
 }
 
 void netcallback_boardcompleted(size_t size)

@@ -11,7 +11,8 @@
         PACKETID_GAMESTATECHANGE = 6,
         PACKETID_PLAYERTURN = 7,
         PACKETID_PLAYERMOVE = 8,
-        PACKETID_BOARDCOMPLETED = 9,
+        PACKETID_PLAYERCURSOR = 9,
+        PACKETID_BOARDCOMPLETED = 10,
     } NetPacketIDs;
     
     typedef enum {

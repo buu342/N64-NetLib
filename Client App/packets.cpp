@@ -418,12 +418,30 @@ NetLibPacket* NetLibPacket::FromBytes(char* data)
     id = (id & 0xFF000000) >> 24;
     memcpy(&recipients, data+8, sizeof(int));
     recipients = swap_endian32(recipients);
+    if (id != 4)
+    {
+        printf("Got packet from USB: ");
+        for (int i=0; i<size; i++)
+            printf("%02x ", data[i]);
+        printf("\n");
+    }
     return new NetLibPacket(version, id, recipients, size, data+12);
 }
 
 void NetLibPacket::SendPacket(wxSocketClient* socket)
 {
     char* out = this->GetAsBytes();
+    if (this->m_ID != 4)
+    {
+        printf("Sending packet to server: ");
+        for (int i=0; i<this->m_Size; i++)
+            printf("%02x ", this->m_Data[i]);
+        printf("\n");
+        printf("Written as: ");
+        for (int i=0; i<this->m_Size; i++)
+            printf("%02x ", out[i+12]);
+        printf("\n");
+    }
     socket->Write(out, this->GetAsBytes_Size());
     free(out);
 }

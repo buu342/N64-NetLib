@@ -58,6 +58,7 @@
     void stage_game_statechange();
     void stage_game_playerturn();
     void stage_game_makemove();
+    void stage_game_playercursor();
     void stage_game_boardcompleted();
     
 #endif
