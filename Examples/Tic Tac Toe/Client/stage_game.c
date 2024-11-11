@@ -31,7 +31,44 @@ static u8 global_gamestate_small[9][3][3];
 static u8 global_forcedboard;
 static u8 global_selectionx;
 static u8 global_selectiony;
-static u8 global_selectionalpha;
+
+
+/*==============================
+    refresh_lobbytext
+    Refreshes the text on the screen with the game status
+==============================*/
+
+static void refresh_gametext()
+{
+    text_cleanup();
+    text_setalign(ALIGN_CENTER);
+    text_setcolor(255, 255, 255, 255);
+    
+    // Large text
+    text_setfont(&font_default);
+    if (global_gamestate == GAMESTATE_PLAYING && global_playerturn > 0)
+    {
+        if (global_playerturn == netlib_getclient())
+            text_create("Your turn", SCREEN_WD/2, SCREEN_HT/2 + 64);
+        else
+            text_create("Opponent's turn", SCREEN_WD/2, SCREEN_HT/2 + 64);
+    }
+    else if (global_gamestate > GAMESTATE_PLAYING)
+        text_create("Game Over", SCREEN_WD/2, SCREEN_HT/2 + 64);
+        
+    // Small text
+    text_setfont(&font_small);
+    if (global_gamestate == GAMESTATE_PLAYING && global_forcedboard != 0)
+        text_create("Forced to play in highlighted board", SCREEN_WD/2, SCREEN_HT/2 + 64 + 24);
+    else if (global_gamestate == GAMESTATE_ENDED_DISCONNECT)
+        text_create("Player disconnected", SCREEN_WD/2, SCREEN_HT/2 + 64 + 24);
+    else if (global_gamestate == GAMESTATE_ENDED_TIE)
+        text_create("Tie game", SCREEN_WD/2, SCREEN_HT/2 + 64 + 24);
+    else if ((netlib_getclient() == 1 && global_gamestate == GAMESTATE_ENDED_WINNER_1) || (netlib_getclient() == 2 && global_gamestate == GAMESTATE_ENDED_WINNER_2))
+        text_create("You win!", SCREEN_WD/2, SCREEN_HT/2 + 64 + 24);
+    else if (global_gamestate == GAMESTATE_ENDED_WINNER_1 || global_gamestate == GAMESTATE_ENDED_WINNER_2)
+        text_create("Opponent wins!", SCREEN_WD/2, SCREEN_HT/2 + 64 + 24);
+}
 
 
 /*==============================
@@ -41,16 +78,14 @@ static u8 global_selectionalpha;
 
 void stage_game_init(void)
 {
-    global_playerturn = 1;
+    global_playerturn = 0;
     global_forcedboard = 0;
-    global_selectionalpha = 64;
-    global_gamestate = GAMESTATE_READY;
+    global_gamestate = GAMESTATE_PLAYING;
     global_selectionx = 4;
     global_selectiony = 4;
     memset(global_gamestate_large, 0, sizeof(u8)*3*3);
     memset(global_gamestate_small, 0, sizeof(u8)*3*3*9);
-    
-    netlib_setclient(1);
+    refresh_gametext();
 }
 
 
@@ -94,11 +129,23 @@ void stage_game_update(void)
         }
         if (global_contdata.trigger & A_BUTTON)
         {
-            int ix = global_selectionx%3;
-            int iy = global_selectiony%3;
-            int ib = global_selectionx/3 + (global_selectiony/3)*3;
+            u8 ibx = global_selectionx/3;
+            u8 iby = global_selectiony/3;
+            u8 ix = global_selectionx%3;
+            u8 iy = global_selectiony%3;
+            u8 ib = ibx + iby*3;
             if (global_gamestate_small[ib][ix][iy] == 0)
+            {
                 global_gamestate_small[ib][ix][iy] = netlib_getclient();
+                netlib_start(PACKETID_PLAYERMOVE);
+                    netlib_writebyte(ibx);
+                    netlib_writebyte(iby);
+                    netlib_writebyte(ix);
+                    netlib_writebyte(iy);
+                netlib_sendtoserver();
+                global_playerturn = 0;
+                refresh_gametext();
+            }
         }
     }
 }
@@ -165,15 +212,16 @@ static void board_render()
         const int w = 12, h = 12;
         const int x = board_topx + 4 + (w + padding_small)*global_selectionx + padding_large*(global_selectionx/3);
         const int y = board_topy + 4 + (h + padding_small)*global_selectiony + padding_large*(global_selectiony/3);
+        static int selection_alpha = 64;
         static int selection_state = 1;
         
         // Handle cursor blinking
-        if ((selection_state == 1 && global_selectionalpha == 128) || (selection_state == -1 && global_selectionalpha == 64))
+        if ((selection_state == 1 && selection_alpha == 128) || (selection_state == -1 && selection_alpha == 64))
             selection_state = -selection_state;
-        global_selectionalpha += selection_state*2;
+        selection_alpha += selection_state*2;
         
         // Render the cursor
-        gDPSetFillColor(glistp++, GPACK_RGBA5551(global_selectionalpha, global_selectionalpha, 0, 1)<<16 | GPACK_RGBA5551(global_selectionalpha, global_selectionalpha, 0, 1));
+        gDPSetFillColor(glistp++, GPACK_RGBA5551(selection_alpha, selection_alpha, 0, 1)<<16 | GPACK_RGBA5551(selection_alpha, selection_alpha, 0, 1));
         gDPFillRectangle(glistp++, x, y, x + w, y + h);
     }
     
@@ -269,33 +317,59 @@ void stage_game_cleanup(void)
 
 
 /*==============================
-    stage_game_setturn
+    stage_game_statechange
+    Sets the game state
+==============================*/
+
+void stage_game_statechange()
+{
+    netlib_readbyte(&global_gamestate);
+    refresh_gametext();
+}
+
+
+/*==============================
+    stage_game_playerturn
     Sets who's turn it is
 ==============================*/
 
-void stage_game_setturn()
+void stage_game_playerturn()
 {
-
+    netlib_readbyte(&global_playerturn);
+    netlib_readbyte(&global_forcedboard);
+    refresh_gametext();
 }
 
 
 /*==============================
     stage_game_makemove
-    Handles a player move
+    Handles the opposing player's move
 ==============================*/
 
 void stage_game_makemove()
 {
-
+    u8 ply; 
+    u8 board; 
+    u8 posx;
+    u8 posy;
+    netlib_readbyte(&ply);
+    netlib_readbyte(&board);
+    netlib_readbyte(&posx);
+    netlib_readbyte(&posy);
+    global_gamestate_small[board-1][posx][posy] = ply;
 }
 
 
 /*==============================
-    stage_game_state
-    Sets the game state
+    stage_game_boardcompleted
+    Handles a board being completed
 ==============================*/
 
-void stage_game_state()
+void stage_game_boardcompleted()
 {
-
+    u8 board;
+    u8 state;
+    netlib_readbyte(&board);
+    netlib_readbyte(&state);
+    global_gamestate_large[(board-1)%3][(board-1)/3] = state;
 }

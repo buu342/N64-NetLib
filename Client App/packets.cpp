@@ -409,15 +409,16 @@ NetLibPacket* NetLibPacket::FromBytes(char* data)
 {
     int version;
     int id;
+    int size;
     int recipients;
     version = data[3];
     memcpy(&id, data+4, sizeof(int));
     id = swap_endian32(id);
-    this->m_Size = id & 0x00FFFFFF;
+    size = id & 0x00FFFFFF;
     id = (id & 0xFF000000) >> 24;
     memcpy(&recipients, data+8, sizeof(int));
     recipients = swap_endian32(recipients);
-    return new NetLibPacket(version, id, recipients, this->m_Size, data+12);
+    return new NetLibPacket(version, id, recipients, size, data+12);
 }
 
 void NetLibPacket::SendPacket(wxSocketClient* socket)

@@ -7,6 +7,7 @@ and ready up
 
 #include <nusys.h>
 #include "config.h"
+#include "stages.h"
 #include "netlib.h"
 #include "packets.h"
 #include "helper.h"
@@ -14,15 +15,16 @@ and ready up
 
 // Controller data
 static NUContData global_contdata;
-static char global_isready;
+static u8 global_isready;
+static u8 global_gamestarting;
 
 
 /*==============================
     refresh_lobbytext
-    Refreshes the text on the screen with the lobby ststus
+    Refreshes the text on the screen with the lobby status
 ==============================*/
 
-void refresh_lobbytext()
+static void refresh_lobbytext()
 {
     text_cleanup();
 
@@ -31,6 +33,12 @@ void refresh_lobbytext()
     text_setalign(ALIGN_CENTER);
     text_setcolor(255, 255, 255, 255);
     text_create("Player Lobby", SCREEN_WD/2, SCREEN_HT/2 - 64);
+    
+    // Game starting notification
+    if (global_gamestarting)
+        text_create("Game starting...", SCREEN_WD/2, SCREEN_HT/2-24);
+    
+    // Player state text
     text_setfont(&font_small);
     text_setalign(ALIGN_LEFT);
     
@@ -62,7 +70,7 @@ void refresh_lobbytext()
     }
     else
         text_create("Not connected", 128, SCREEN_HT/2 + 48);
-    text_setcolor(255, 255, 255, 255);    
+    text_setcolor(255, 255, 255, 255);
 }
 
 
@@ -75,6 +83,7 @@ void stage_lobby_init(void)
 {
     refresh_lobbytext();
     global_isready = FALSE;
+    global_gamestarting = FALSE;
 }
 
 
@@ -85,7 +94,7 @@ void stage_lobby_init(void)
 
 void stage_lobby_update(void)
 {
-    if (global_players[0].connected && global_players[1].connected)
+    if (global_players[0].connected && global_players[1].connected && !global_gamestarting)
     {
         nuContDataGetEx(&global_contdata, 0);
         
@@ -156,4 +165,23 @@ void stage_lobby_playerchange()
     global_isready = FALSE;
     global_players[netlib_getclient()-1].ready;
     refresh_lobbytext();
+}
+
+
+/*==============================
+    stage_lobby_statechange
+    Refreshes the screen text when a player status change occurred
+==============================*/
+
+void stage_lobby_statechange()
+{
+    u8 state;
+    netlib_readbyte(&state);
+    if (state == GAMESTATE_READY)
+    {
+        global_gamestarting = TRUE;
+        refresh_lobbytext();
+    }
+    if (state == GAMESTATE_PLAYING)
+        stages_changeto(STAGE_GAME);
 }

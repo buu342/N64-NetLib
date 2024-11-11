@@ -62,6 +62,7 @@ public class Game implements Runnable  {
                 
                 // Ready to start
                 System.out.println("Everyone ready, game starting");
+                this.ChangeGameState(GameState.GAMESTATE_READY);
                 Thread.sleep(1000);
                 
                 // Initialize the game
@@ -73,9 +74,11 @@ public class Game implements Runnable  {
                                 
                 // If no previous player turn was chosen, then give the first player the first turn
                 if (this.turn == null)
-                    this.ChangePlayerTurn(this.players[0]);
+                    this.turn = this.players[0];
+                this.ChangePlayerTurn(this.turn);
                 System.out.println(this.board);
                 System.out.println("Player " + turn.GetNumber() + "'s turn");
+                System.out.println("");
                 
                 while (this.state == GameState.GAMESTATE_PLAYING) {
                     int boardx, boardy, movex, movey;
@@ -102,11 +105,21 @@ public class Game implements Runnable  {
                     // Valid move, notify other players of the move
                     this.NotifyMove(turn, 1 + boardx + boardy*3, movex, movey);
                     
+                    // Notify if the board was completed
+                    if (this.board.GetBoard(boardx, boardy).BoardFinished())
+                    {
+                        BoardSmall bs = this.board.GetBoard(boardx, boardy);
+                        if (bs.GetWinner() == null)
+                            this.NotifyBoardComplete(1 + boardx + boardy*3, 3); // 3 means tie
+                        else
+                            this.NotifyBoardComplete(1 + boardx + boardy*3, bs.GetWinner().GetNumber()); // Otherwise send the player number
+                    }
+                    
                     // Change player turn
                     if (this.turn == this.players[0])
-                        this.ChangePlayerTurn(players[1]);
+                        this.ChangePlayerTurn(this.players[1]);
                     else
-                        this.ChangePlayerTurn(players[0]);
+                        this.ChangePlayerTurn(this.players[0]);
                     
                     // Check for winners
                     if (this.board.GetWinner() != null || this.board.BoardFinished())
@@ -117,6 +130,7 @@ public class Game implements Runnable  {
                     System.out.println("Player " + turn.GetNumber() + "'s turn");
                     if (this.board.GetForcedBoardNumber() != 0)
                         System.out.println("Forced to play on board " + this.board.GetForcedBoardNumber());
+                    System.out.println("");
                 }
                 
                 // Game ended. Show the winner for 5 seconds
@@ -214,7 +228,6 @@ public class Game implements Runnable  {
         for (Player ply : this.players)
             if (ply != null && ply != who)
                 ply.SendMessage(null, pkt);
-        this.turn = who;
     }
     
     private void ChangePlayerTurn(Player who) {
@@ -226,5 +239,15 @@ public class Game implements Runnable  {
             if (ply != null)
                 ply.SendMessage(null, pkt);
         this.turn = who;
+    }
+    
+    private void NotifyBoardComplete(int boardnum, int state) {
+        NetLibPacket pkt = new NetLibPacket(PacketIDs.PACKETID_BOARDCOMPLETED.GetInt(), new byte[]{
+            (byte)boardnum,
+            (byte)state,
+        });
+        for (Player ply : this.players)
+            if (ply != null)
+                ply.SendMessage(null, pkt);
     }
 }

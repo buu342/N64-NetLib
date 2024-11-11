@@ -52,5 +52,13 @@
     void stage_game_draw();
     void stage_game_cleanup();
     
+    // Netlib callback functions
+    void stage_init_serverfull();
+    void stage_lobby_playerchange();
+    void stage_game_statechange();
+    void stage_game_playerturn();
+    void stage_game_makemove();
+    void stage_game_boardcompleted();
+    
 #endif
     

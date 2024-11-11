@@ -154,12 +154,12 @@ public class BoardLarge {
                        mystr += "x";
                    else
                        mystr += "o";
+                } else if (this.boards[x/3][y/3].GetWinner() == null) {
+                    mystr += "T";
                 } else if (this.boards[x/3][y/3].GetWinner().GetNumber() == 1) {
                     mystr += "X";
                 } else if (this.boards[x/3][y/3].GetWinner().GetNumber() == 2) {
-                    mystr += "O";
-                } else {
-                    mystr += "T";
+                    mystr += "O";   
                 }
                 if (x == 2 || x == 5)
                     mystr += "|";
@@ -173,7 +173,8 @@ public class BoardLarge {
                         mystr += "-";
                 }
             }
-            mystr += "\n";
+            if (y != 8)
+                mystr += "\n";
         }
         return mystr;
     }

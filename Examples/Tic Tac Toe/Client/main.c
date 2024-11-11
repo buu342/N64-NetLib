@@ -29,8 +29,7 @@ static void callback_reconnect();
              Globals
 *********************************/
 
-//StageNum global_curstage = STAGE_INIT;
-StageNum global_curstage = STAGE_GAME;
+StageNum global_curstage = STAGE_INIT;
 StageNum global_nextstage = STAGE_NONE;
 StageDef global_stagetable[STAGE_COUNT];
 
@@ -66,6 +65,9 @@ void mainproc(void)
     
     // Initialize the controller
     nuContInit();
+    
+    // Initialize the debug library
+    //debug_initialize();
     
     // Initialize the stage table
     stagetable_init();

@@ -8,6 +8,10 @@ void netcallback_disconnect(size_t size);
 void netcallback_serverfull(size_t size);
 void netcallback_heartbeat(size_t size);
 void netcallback_playerready(size_t size);
+void netcallback_gamestate(size_t size);
+void netcallback_playerturn(size_t size);
+void netcallback_playermove(size_t size);
+void netcallback_boardcompleted(size_t size);
 
 void netcallback_initall()
 {
@@ -16,6 +20,10 @@ void netcallback_initall()
     netlib_register(PACKETID_SERVERFULL, &netcallback_serverfull);
     netlib_register(PACKETID_HEARTBEAT, &netcallback_heartbeat);
     netlib_register(PACKETID_PLAYERREADY, &netcallback_playerready);
+    netlib_register(PACKETID_GAMESTATECHANGE, &netcallback_gamestate);
+    netlib_register(PACKETID_PLAYERTURN, &netcallback_playerturn);
+    netlib_register(PACKETID_PLAYERMOVE, &netcallback_playermove);
+    netlib_register(PACKETID_BOARDCOMPLETED, &netcallback_boardcompleted);
 }
 
 void netcallback_playerinfo(size_t size)
@@ -62,4 +70,27 @@ void netcallback_playerready(size_t size)
     global_players[plynum-1].ready = ready;
     if (stages_getcurrent() == STAGE_LOBBY)
         stage_lobby_playerchange();
+}
+
+void netcallback_gamestate(size_t size)
+{
+    if (stages_getcurrent() == STAGE_LOBBY)
+        stage_lobby_statechange();
+    else if (stages_getcurrent() == STAGE_GAME)
+        stage_game_statechange();
+}
+
+void netcallback_playerturn(size_t size)
+{
+    stage_game_playerturn();
+}
+
+void netcallback_playermove(size_t size)
+{
+    stage_game_makemove();
+}
+
+void netcallback_boardcompleted(size_t size)
+{
+    stage_game_boardcompleted();
 }
