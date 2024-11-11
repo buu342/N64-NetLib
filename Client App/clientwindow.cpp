@@ -634,6 +634,7 @@ void* ServerConnectionThread::Entry()
         return NULL;
     }
     this->WriteConsole("Socket connected!\n");
+    // TODO: Figure out why console writing isn't working here
 
     // Relay packets 
     while (!TestDestroy() && this->m_Socket->IsConnected())

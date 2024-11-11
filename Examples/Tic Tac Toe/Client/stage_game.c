@@ -7,6 +7,7 @@ The main game
 #include <nusys.h>
 #include "config.h"
 #include "netlib.h"
+#include "stages.h"
 #include "packets.h"
 #include "helper.h"
 #include "text.h"
@@ -137,7 +138,6 @@ void stage_game_update(void)
                     netlib_writebyte(isx);
                     netlib_writebyte(isy);
                 netlib_sendtoserver();
-                debug_printf("%d %d -> %02x %02x %02x %02x\n", global_selectionx, global_selectiony, cbx, cby, isx, isy);
                 global_playerturn = 0;
                 refresh_gametext();
             }
@@ -474,9 +474,9 @@ static void refresh_gametext()
     else if (global_gamestate == GAMESTATE_ENDED_TIE)
         text_create("Tie game", SCREEN_WD/2, SCREEN_HT/2 + 64 + 24);
     else if ((netlib_getclient() == 1 && global_gamestate == GAMESTATE_ENDED_WINNER_1) || (netlib_getclient() == 2 && global_gamestate == GAMESTATE_ENDED_WINNER_2))
-        text_create("You win!", SCREEN_WD/2, SCREEN_HT/2 + 64 + 24);
+        text_create("You win", SCREEN_WD/2, SCREEN_HT/2 + 64 + 24);
     else if (global_gamestate == GAMESTATE_ENDED_WINNER_1 || global_gamestate == GAMESTATE_ENDED_WINNER_2)
-        text_create("Opponent wins!", SCREEN_WD/2, SCREEN_HT/2 + 64 + 24);
+        text_create("Opponent wins", SCREEN_WD/2, SCREEN_HT/2 + 64 + 24);
 }
 
 
@@ -500,6 +500,8 @@ void stage_game_statechange()
 {
     netlib_readbyte(&global_gamestate);
     refresh_gametext();
+    if (global_gamestate == GAMESTATE_LOBBY)
+        stages_changeto(STAGE_LOBBY);
 }
 
 

@@ -88,9 +88,9 @@ static void refresh_lobbytext()
 
 void stage_lobby_init(void)
 {
-    refresh_lobbytext();
     global_isready = FALSE;
     global_gamestarting = FALSE;
+    refresh_lobbytext();
 }
 
 

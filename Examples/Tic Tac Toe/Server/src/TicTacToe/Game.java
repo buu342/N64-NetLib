@@ -134,6 +134,7 @@ public class Game implements Runnable  {
                 }
                 
                 // Game ended. Show the winner for 5 seconds
+                System.out.println(this.board);
                 System.out.println("Game Ended.");
                 if (this.board.GetWinner() != null) {
                     if (this.board.GetWinner() == this.players[0])

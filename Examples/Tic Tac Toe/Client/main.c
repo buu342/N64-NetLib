@@ -67,7 +67,7 @@ void mainproc(void)
     nuContInit();
     
     // Initialize the debug library
-    //debug_initialize();
+    debug_initialize();
     
     // Initialize the stage table
     stagetable_init();
