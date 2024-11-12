@@ -121,7 +121,7 @@ void ROMDownloadWindow::SetAddress(wxString address)
     this->m_MasterAddress = address;
 }
 
-void ROMDownloadWindow::SetPort(int port)
+void ROMDownloadWindow::SetPortNumber(int port)
 {
     this->m_MasterPort = port;
 }

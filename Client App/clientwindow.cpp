@@ -214,7 +214,7 @@ void ClientWindow::SetAddress(wxString addr)
     this->m_ServerAddress = addr;
 }
 
-void ClientWindow::SetPort(int port)
+void ClientWindow::SetPortNumber(int port)
 {
     this->m_ServerPort = port;
 }
@@ -255,17 +255,9 @@ DeviceThread::~DeviceThread()
 
 void* DeviceThread::Entry()
 {
-    FILE* fp;
     float oldprogress = 0;
     DeviceError deverr = device_find();
-    wxString rompath_str = this->m_Window->GetROM();
-    const char* rompath = rompath_str.c_str();
-
-    // Set the ROM
-    if (rompath_str != "" && wxFileExists(rompath_str))
-        device_setrom((char*)rompath);
-    else
-        device_setrom(NULL);
+    wxString rompath = this->m_Window->GetROM();
 
     // Check which flashcart we found
     this->ClearConsole();
@@ -308,27 +300,13 @@ void* DeviceThread::Entry()
     }
 
     // Load the ROM
-    if (device_getrom() != NULL)
+    if (rompath != "" && wxFileExists(rompath))
     {
-        this->WriteConsole("\nLoading '" + wxString(rompath) + "' via USB");
+        this->WriteConsole("\nLoading '" + rompath + "' via USB");
         this->SetClientDeviceStatus(CLSTATUS_UPLOADING);
 
-        // TODO: File handling should be done in the progress thread, not here
-        // That might fix the crashing when the USB fails
-
-        fp = fopen(device_getrom(), "r");
-        if (fp == NULL)
-        {
-            this->WriteConsoleError(wxT("\nFailed to open ROM file."));
-            this->NotifyDeath();
-            return NULL;
-        }
-
-        // Set the CIC for the ROM to be bootable
-        device_explicitcic();
-
         // Upload the ROM
-        this->UploadROM(fp);
+        this->UploadROM(rompath);
         while (oldprogress < 100.0f)
         {
             float curprog = device_getuploadprogress();
@@ -343,7 +321,6 @@ void* DeviceThread::Entry()
         // TODO: Handle TestDestroy() properly
 
         // Finished uploading
-        fclose(fp);
         this->WriteConsole("\nFinished uploading.");
         if (device_getcart() != CART_EVERDRIVE)
             this->WriteConsole("\nYou may now boot the console.");
@@ -520,9 +497,9 @@ void DeviceThread::SetMainWindow(ClientWindow* win)
     this->m_Window = win;
 }
 
-void DeviceThread::UploadROM(FILE* fp)
+void DeviceThread::UploadROM(wxString path)
 {
-    UploadThread* dev = new UploadThread(this->m_Window, fp);
+    UploadThread* dev = new UploadThread(this->m_Window, path);
     if (dev->Create() != wxTHREAD_NO_ERROR)
     {
         delete dev;
@@ -547,10 +524,10 @@ void DeviceThread::NotifyDeath()
 
 =============================================================*/
 
-UploadThread::UploadThread(ClientWindow* win, FILE* fp)
+UploadThread::UploadThread(ClientWindow* win, wxString path)
 {
     this->m_Window = win;
-    this->m_File = fp;
+    this->m_FilePath = path;
 }
 
 UploadThread::~UploadThread()
@@ -560,21 +537,40 @@ UploadThread::~UploadThread()
 
 void* UploadThread::Entry()
 {
+    FILE* fp;
     int filesize;
     DeviceError deverr;
+    char* romstr = (char*)malloc(this->m_FilePath.Length() + 1);
+    strcpy(romstr, this->m_FilePath.mb_str());
+
+    // Open the file
+    device_setrom(romstr);
+    fp = fopen(romstr, "rb");
+    if (fp == NULL)
+    {
+        free(romstr);
+        return NULL;
+    }
+
+    // Set the CIC for the ROM to be bootable
+    device_explicitcic();
 
     // Get the file size
-    fseek(this->m_File, 0L, SEEK_END);
-    filesize = ftell(this->m_File);
-    rewind(this->m_File);
+    fseek(fp, 0L, SEEK_END);
+    filesize = ftell(fp);
+    rewind(fp);
 
     // Upload the ROM
-    deverr = device_sendrom(this->m_File, filesize);
+    deverr = device_sendrom(fp, filesize);
     if (deverr != DEVICEERR_OK)
     {
         this->WriteConsoleError(wxString::Format(wxT("\nError sending ROM. Returned error %d."), deverr));
+        fclose(fp);
+        free(romstr);
         return NULL;
     }
+    fclose(fp);
+    free(romstr);
     return NULL;
 }
 

@@ -46,7 +46,7 @@ class ROMDownloadWindow : public wxDialog
         void SetROMPath(wxString path);
         void SetROMHash(wxString hash);
         void SetAddress(wxString address);
-        void SetPort(int port);
+        void SetPortNumber(int port);
         wxString GetROMPath();
         wxString GetAddress();
         uint8_t* GetROMHash();

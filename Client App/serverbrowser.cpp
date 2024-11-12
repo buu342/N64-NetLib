@@ -187,7 +187,7 @@ void ServerBrowser::m_DataViewListCtrl_Servers_OnDataViewListCtrlItemActivated(w
                 rdw->SetROMPath(rompath);
                 rdw->SetROMHash(romhash);
                 rdw->SetAddress(this->m_MasterAddress);
-                rdw->SetPort(this->m_MasterPort);
+                rdw->SetPortNumber(this->m_MasterPort);
                 rdw->BeginConnection();
                 if (rdw->ShowModal() == 0)
                 {
@@ -241,7 +241,7 @@ void ServerBrowser::CreateClient(wxString rom, wxString address)
     cw->SetAddress(tokenizer.GetNextToken());
     tokenizer.GetNextToken().ToInt(&port);
     this->Lower();
-    cw->SetPort(port);
+    cw->SetPortNumber(port);
     cw->BeginWorking();
     cw->Raise();
     cw->Show();

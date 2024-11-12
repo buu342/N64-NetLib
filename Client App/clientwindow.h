@@ -68,7 +68,7 @@ class ClientWindow : public wxFrame
         void SetClientDeviceStatus(ClientDeviceStatus status);
         void SetROM(wxString rom);
         void SetAddress(wxString addr);
-        void SetPort(int port);
+        void SetPortNumber(int port);
         wxString GetROM();
         wxString GetAddress();
         int GetPort();
@@ -95,7 +95,7 @@ class DeviceThread : public wxThread
         void SetClientDeviceStatus(ClientDeviceStatus status);
         void SetUploadProgress(int progress);
         void SetMainWindow(ClientWindow* win);
-        void UploadROM(FILE* fp);
+        void UploadROM(wxString path);
         void NotifyDeath();
 };
 
@@ -103,12 +103,12 @@ class UploadThread : public wxThread
 {
     private:
         ClientWindow* m_Window;
-        FILE* m_File;
+        wxString m_FilePath;
 
     protected:
 
     public:
-        UploadThread(ClientWindow* win, FILE* fp);
+        UploadThread(ClientWindow* win, wxString path);
         ~UploadThread();
 
         virtual void* Entry() wxOVERRIDE;
