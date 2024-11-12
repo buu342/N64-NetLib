@@ -12,8 +12,8 @@ Handles the first level of the game.
 #include "stages.h"
 #include "text.h"
 
-bool global_hasrequestedinfo;
-bool global_disconnected;
+volatile bool global_hasrequestedinfo;
+volatile bool global_disconnected;
 
 
 /*==============================

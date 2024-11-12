@@ -6,15 +6,27 @@
 #define PACKET_HEADERSIZE   12
 #define DATATYPE_NETPACKET  0x27
 
-static size_t       global_writecursize;
-static byte         global_writebuffer[MAX_PACKETSIZE];
-static ClientNumber global_clnumber;
-static vu8          global_polling;
-static vu8          global_sendafterpoll;
-static vu8          global_disconnected;
-static void         (*global_funcptr_disconnect)();
-static void         (*global_funcptr_reconnect)();
-static void         (*global_funcptrs[MAX_UNIQUEPACKETS])(size_t) = {0};
+static volatile size_t global_writecursize;
+static volatile byte   global_writebuffer[MAX_PACKETSIZE];
+static volatile ClientNumber global_clnumber;
+static vu8  global_polling;
+static vu8  global_sendafterpoll;
+static vu8  global_disconnected;
+static void (*global_funcptr_disconnect)();
+static void (*global_funcptr_reconnect)();
+static void (*global_funcptrs[MAX_UNIQUEPACKETS])(size_t) = {0};
+
+static volatile void* memcpy_v(volatile void* dest, const volatile void* src, size_t n)
+{
+    const volatile unsigned char* src_c = src;
+    volatile unsigned char* dest_c      = dest;
+    while (n > 0)
+    {
+        n--;
+        dest_c[n] = src_c[n];
+    }
+    return dest;
+}
 
 void netlib_initialize()
 {
@@ -115,7 +127,7 @@ void netlib_writefloat(float data)
     #endif
     
     // N64 is also big endian, so data already respects Network Byte Order :D
-    memcpy(&global_writebuffer[global_writecursize], &data, sizeof(float));
+    memcpy_v(&global_writebuffer[global_writecursize], &data, sizeof(float));
     global_writecursize += sizeof(float);
 }
 
@@ -130,7 +142,7 @@ void netlib_writedouble(double data)
     #endif
     
     // N64 is also big endian, so data already respects Network Byte Order :D
-    memcpy(&global_writebuffer[global_writecursize], &data, sizeof(double));
+    memcpy_v(&global_writebuffer[global_writecursize], &data, sizeof(double));
     global_writecursize += sizeof(double);
 }
 
@@ -145,7 +157,7 @@ void netlib_writebytes(byte* data, size_t size)
     #endif
     
     // Write the data to the global buffer
-    memcpy(&global_writebuffer[global_writecursize], data, size);
+    memcpy_v(&global_writebuffer[global_writecursize], data, size);
     global_writecursize += size;
 }
 
@@ -157,12 +169,12 @@ void netlib_broadcast()
     
     // Set the header and client mask
     head = (((int)global_writebuffer[4]) << 24) | datasize & 0x00FFFFFF;
-    memcpy(&global_writebuffer[4], &head, 4);
-    memcpy(&global_writebuffer[8], &mask, 4);
+    memcpy_v(&global_writebuffer[4], &head, 4);
+    memcpy_v(&global_writebuffer[8], &mask, 4);
         
     // Send the packet over the wire
     if (!global_polling)
-        usb_write(DATATYPE_NETPACKET, global_writebuffer, global_writecursize);
+        usb_write(DATATYPE_NETPACKET, (void*)global_writebuffer, global_writecursize);
     else
         global_sendafterpoll = TRUE;
 }
@@ -175,12 +187,12 @@ void netlib_send(ClientNumber client)
     
     // Set the header and client mask
     head = (((int)global_writebuffer[4]) << 24) | datasize & 0x00FFFFFF;
-    memcpy(&global_writebuffer[4], &head, 4);
-    memcpy(&global_writebuffer[8], &mask, 4);
+    memcpy_v(&global_writebuffer[4], &head, 4);
+    memcpy_v(&global_writebuffer[8], &mask, 4);
         
     // Send the packet over the wire
     if (!global_polling)
-        usb_write(DATATYPE_NETPACKET, global_writebuffer, global_writecursize);
+        usb_write(DATATYPE_NETPACKET, (void*)global_writebuffer, global_writecursize);
     else
         global_sendafterpoll = TRUE;
 }
@@ -193,12 +205,12 @@ void netlib_sendtoserver()
     
     // Set the header
     head = (((int)global_writebuffer[4]) << 24) | datasize & 0x00FFFFFF;
-    memcpy(&global_writebuffer[4], &head, 4);
-    memcpy(&global_writebuffer[8], &mask, 4);
+    memcpy_v(&global_writebuffer[4], &head, 4);
+    memcpy_v(&global_writebuffer[8], &mask, 4);
     
     // Send the packet over the wire
     if (!global_polling)
-        usb_write(DATATYPE_NETPACKET, global_writebuffer, global_writecursize);
+        usb_write(DATATYPE_NETPACKET, (void*)global_writebuffer, global_writecursize);
     else
         global_sendafterpoll = TRUE;
 }
@@ -279,7 +291,7 @@ void netlib_poll()
     // If we queued up a message during polling, send it now (if it's safe to do so)
     if (global_sendafterpoll && header == 0)
     {
-        usb_write(DATATYPE_NETPACKET, global_writebuffer, global_writecursize);
+        usb_write(DATATYPE_NETPACKET, (void*)global_writebuffer, global_writecursize);
         global_sendafterpoll = FALSE;
     }
     global_polling = FALSE;

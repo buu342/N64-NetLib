@@ -166,14 +166,6 @@
         #define debug_sizecommand() 0
         #define debug_printcommands()
         #define debug_64drivebutton(a, b)
-        #define usb_initialize() 0
-        #define usb_getcart() 0
-        #define usb_write(a, b, c)
-        #define usb_poll() 0
-        #define usb_read(a, b)
-        #define usb_skip(a)
-        #define usb_rewind(a)
-        #define usb_purge()
         
     #endif
     

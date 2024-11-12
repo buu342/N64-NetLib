@@ -29,8 +29,8 @@ static void callback_reconnect();
              Globals
 *********************************/
 
-StageNum global_curstage = STAGE_INIT;
-StageNum global_nextstage = STAGE_NONE;
+volatile StageNum global_curstage = STAGE_INIT;
+volatile StageNum global_nextstage = STAGE_NONE;
 StageDef global_stagetable[STAGE_COUNT];
 
 // Player globals

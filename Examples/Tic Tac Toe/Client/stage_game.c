@@ -28,15 +28,15 @@ static void cursor_toboard(u8 board);
 static NUContData global_contdata;
 
 // Game data
-static u8 global_playerturn;
-static u8 global_gamestate;
-static u8 global_gridstate_large[3][3];
-static u8 global_gridstate_small[9][3][3];
-static u8 global_forcedboard;
-static u8 global_selectionx;
-static u8 global_selectiony;
-static s8 global_opponentx;
-static s8 global_opponenty;
+static vu8 global_playerturn;
+static vu8 global_gamestate;
+static vu8 global_gridstate_large[3][3];
+static vu8 global_gridstate_small[9][3][3];
+static vu8 global_forcedboard;
+static vu8 global_selectionx;
+static vu8 global_selectiony;
+static vs8 global_opponentx;
+static vs8 global_opponenty;
 
 
 /*==============================
@@ -321,7 +321,7 @@ static void board_render()
     gDPSetCycleType(glistp++, G_CYC_FILL);
     
     // Show the forced area
-    if (global_forcedboard > 0)
+    if (global_forcedboard > 0 && global_playerturn != 0)
     {
         const int w = 40, h = 40;
         const int padding_small = 2;
@@ -498,7 +498,7 @@ void stage_game_cleanup(void)
 
 void stage_game_statechange()
 {
-    netlib_readbyte(&global_gamestate);
+    netlib_readbyte((u8*)&global_gamestate);
     if (global_gamestate == GAMESTATE_LOBBY)
     {
         stages_changeto(STAGE_LOBBY);
@@ -521,8 +521,8 @@ void stage_game_statechange()
 
 void stage_game_playerturn()
 {
-    netlib_readbyte(&global_playerturn);
-    netlib_readbyte(&global_forcedboard);
+    netlib_readbyte((u8*)&global_playerturn);
+    netlib_readbyte((u8*)&global_forcedboard);
     refresh_gametext();
 }
 
@@ -534,10 +534,8 @@ void stage_game_playerturn()
 
 void stage_game_playercursor()
 {
-    u8 posx;
-    u8 posy;
-    netlib_readbyte(&global_opponentx);
-    netlib_readbyte(&global_opponenty);
+    netlib_readbyte((s8*)&global_opponentx);
+    netlib_readbyte((s8*)&global_opponenty);
 }
 
 
@@ -559,6 +557,7 @@ void stage_game_makemove()
     global_gridstate_small[board-1][posx][posy] = ply;
     global_opponentx = -1;
     global_opponenty = -1;
+    global_playerturn = 0;
 }
 
 

@@ -15,8 +15,8 @@ and ready up
 
 // Controller data
 static NUContData global_contdata;
-static u8 global_isready;
-static u8 global_gamestarting;
+static vu8 global_isready;
+static vu8 global_gamestarting;
 
 
 /*==============================
