@@ -3,7 +3,8 @@ import N64.N64Server;
 import NetLib.S64Packet;
 import java.net.Socket;
 import java.util.Hashtable;
-import java.util.Enumeration;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.Arrays;
 import java.io.DataOutputStream;
 import java.io.DataInputStream;
@@ -25,30 +26,74 @@ public class ClientConnectionThread implements Runnable {
         this.clientsocket = socket;
     }
     
-    private void ListServers() throws IOException {
+    private void ListServers() throws IOException, InterruptedException {
         DataOutputStream dos = new DataOutputStream(this.clientsocket.getOutputStream());
-        Enumeration<String> keys = this.servers.keys();
-        System.out.println("Client " + this.clientsocket + " requested list of servers");
-        while (keys.hasMoreElements()) {
-            String key = keys.nextElement();
-            N64Server server = this.servers.get(key);
-            byte[] serverbytes = server.toByteArray();
-            if (serverbytes != null) {
-                byte[] sendbytes = new byte[serverbytes.length + 1];
-                System.arraycopy(serverbytes, 0, sendbytes, 0, serverbytes.length);
-                if (this.roms.get(server.GetROMHashStr()) != null)
-                    sendbytes[serverbytes.length] = 1;
-                else
-                    sendbytes[serverbytes.length] = 0;
-                S64Packet pkt = new S64Packet("SERVER", sendbytes);
-                pkt.WritePacket(dos);
+        int replycount = this.servers.size();
+        Queue<Pair<N64Server, S64Packet>> replies = new ConcurrentLinkedQueue<Pair<N64Server, S64Packet>>();
+        System.out.println("Client " + this.clientsocket + " requested list of servers.");
+        System.out.println("    Sending " + replycount + " servers");
+        for (var entry : this.servers.entrySet()) {
+            new Thread() {
+                N64Server s = entry.getValue();
+                Queue<Pair<N64Server, S64Packet>> q = replies;
+                public void run() {
+                    try {
+                        Socket sock = new Socket(s.GetAddress(), s.GetPort());
+                        DataInputStream dis = new DataInputStream(sock.getInputStream());
+                        DataOutputStream dos = new DataOutputStream(sock.getOutputStream());
+                        S64Packet pkt = new S64Packet("PING", null);
+                        pkt.WritePacket(dos);
+                        pkt = S64Packet.ReadPacket(dis);
+                        if (pkt == null)
+                            q.add(new Pair<>(s, new S64Packet("PING", null)));
+                        else
+                            q.add(new Pair<>(s, pkt));
+                        dis.close();
+                        dos.close();
+                        sock.close();
+                    } catch (Exception e) {
+                        q.add(new Pair<>(s, new S64Packet("PING", null)));
+                    }
+                }
+            }.start();
+        }
+        
+        while (replycount > 0) {
+            Pair <N64Server, S64Packet> reply = replies.poll();
+            if (reply == null) {
+                Thread.sleep(10);
+                continue;
+            }
+            N64Server server = reply.getKey();
+            S64Packet pkt = reply.getValue();
+            
+            if (pkt.GetType().equals("PING")) {
+                if (pkt.GetSize() > 0) {
+                    byte[] serverbytes = server.toByteArray();
+                    byte[] sendbytes = new byte[serverbytes.length + 1 + 1];
+                    System.arraycopy(serverbytes, 0, sendbytes, 0, serverbytes.length);
+                    if (this.roms.get(server.GetROMHashStr()) != null)
+                        sendbytes[serverbytes.length] = 1;
+                    else
+                        sendbytes[serverbytes.length] = 0;
+                    for (int i=0; i<1; i++)
+                        sendbytes[serverbytes.length + 1 + i] = pkt.GetData()[i];
+                    pkt = new S64Packet("SERVER", sendbytes);
+                    pkt.WritePacket(dos);
+                } else {
+                    String fulladdr = server.GetAddress() + ":" + server.GetPort();
+                    if (this.servers.get(fulladdr) == server) {
+                        System.out.println("    " + server.GetName() + " at " + fulladdr + " seems to no longer be available.");
+                        this.servers.remove(fulladdr);
+                    }
+                }
+                replycount--;
             }
         }
         dos.close();
     }
     
-    private void RegisterServer(byte[] data)
-    {
+    private void RegisterServer(byte[] data) {
         System.out.println("Client " + this.clientsocket + " requested server register");
         int size;
         int maxcount = 0;
@@ -90,37 +135,11 @@ public class ClientConnectionThread implements Runnable {
             MasterServer.ValidateROM(romname);
         
         fullserveraddr = serveraddress + ":" + publicport;
-
-        // If a server already exists in this address, and for some reason the socket is still open, force close it
-        server = this.servers.get(fullserveraddr);
-        if (server != null) {
-        	try {
-        		server.GetSocket().close();
-        	} catch (Exception e) {
-                System.err.println("Unable to close already existing server socket.");
-                e.printStackTrace();
-        	}
-        }
         
         // Store this server in our list
         // If the server already exists, this will update it instead
-        server = new N64Server(servername, maxcount, serveraddress, publicport, romname, romhash, this.clientsocket);
+        server = new N64Server(servername, maxcount, serveraddress, publicport, romname, romhash);
         this.servers.put(fullserveraddr, server);
-    
-        // Keep the server connected and listen to heartbeat packets
-        System.out.println("Done. Keeping connection open for heartbeats.");
-        while (!this.clientsocket.isClosed()) {
-        	try {
-                Thread.sleep(10000);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-                break;
-            }
-        }
-        
-        // Remove the server from the list, if it hasn't been overwritten (updated) by another server instance
-        if (this.servers.get(fullserveraddr) == server)
-        	this.servers.remove(fullserveraddr);
     }
     
     private void DownloadROM(byte[] data) throws Exception, IOException {
@@ -198,8 +217,7 @@ public class ClientConnectionThread implements Runnable {
             int attempts = 5;
             DataInputStream dis = new DataInputStream(this.clientsocket.getInputStream());
             System.out.println(this.clientsocket);
-            while (true)
-            {
+            while (true) {
                 S64Packet pkt = S64Packet.ReadPacket(dis);
                 if (pkt == null) {
                     System.err.println("    Received bad packet");

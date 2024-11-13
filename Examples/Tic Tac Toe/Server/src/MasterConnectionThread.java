@@ -5,8 +5,6 @@ import NetLib.S64Packet;
 import java.io.DataOutputStream;
 
 public class MasterConnectionThread implements Runnable {
-    
-    private static final int HEARTBEAT = 5000;
 
     Socket mastersocket;
     
@@ -35,21 +33,6 @@ public class MasterConnectionThread implements Runnable {
         } catch (Exception e) {
             System.err.println("Unable to register to master server.");
             e.printStackTrace();
-        }
-        
-        // Do a periodic heartbeat
-        try {
-            while (!this.mastersocket.isClosed())
-            {
-                S64Packet pkt = new S64Packet("PING", null);
-                pkt.WritePacket(dos);
-                Thread.sleep(HEARTBEAT);
-            }
-            dos.close();
-        } catch (Exception e) {
-            System.err.println("Failed to send master server a heartbeat.");
-            e.printStackTrace();
-        }
-        
+        }        
     }
 }

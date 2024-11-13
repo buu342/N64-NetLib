@@ -69,7 +69,13 @@ public class NetLibPacket {
         return true;
     }
     
-    static public NetLibPacket ReadPacket(DataInputStream dis) throws IOException {
+    public static boolean IsNetLibPacketHeader(byte[] data) {
+        if (CheckCString(data, PACKET_HEADER))
+            return true;
+        return false;
+    }
+    
+    static public NetLibPacket ReadPacket(DataInputStream dis, boolean skipheader) throws IOException {
         int version;
         int id;
         int to;
@@ -77,9 +83,11 @@ public class NetLibPacket {
         byte[] data;
         
         // Get the packet header
-        data = dis.readNBytes(3);
-        if (!CheckCString(data, PACKET_HEADER)) {
-            return null;
+        if (!skipheader) {
+            data = dis.readNBytes(3);
+            if (!CheckCString(data, PACKET_HEADER)) {
+                return null;
+            }
         }
         version = dis.readNBytes(1)[0];
         
@@ -93,6 +101,14 @@ public class NetLibPacket {
         // Create the packet
         data = dis.readNBytes(size);
         return new NetLibPacket(version, id, to, data);
+    }
+    
+    static public NetLibPacket ReadPacket(DataInputStream dis) throws IOException {
+        byte[] data = dis.readNBytes(3);
+        if (!CheckCString(data, PACKET_HEADER)) {
+            return null;
+        }
+        return NetLibPacket.ReadPacket(dis, true);
     }
     
     public void WritePacket(DataOutputStream dos) throws IOException {

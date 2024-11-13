@@ -1,5 +1,6 @@
 import java.net.Socket;
 import NetLib.NetLibPacket;
+import NetLib.S64Packet;
 import TicTacToe.PacketIDs;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -51,6 +52,18 @@ public class ClientConnectionThread implements Runnable {
             target.SendMessage(who, pkt);
     }
     
+    private void HandleMasterPing(DataInputStream dis, DataOutputStream dos) throws IOException {
+        S64Packet pkt;
+        dis.readNBytes(3); // skip the rest of the header
+        pkt = S64Packet.ReadPacket(dis, true);
+        System.out.println("Received ping from master server");
+        if (pkt.GetType().equals("PING")) {
+            pkt = new S64Packet("PING", new byte[]{(byte)this.game.PlayerCount()});
+            pkt.WritePacket(dos);
+        }
+        System.out.println("Finished ponging master server");
+    }
+    
     public void run() {
         DataInputStream dis;
         DataOutputStream dos;
@@ -65,7 +78,17 @@ public class ClientConnectionThread implements Runnable {
             dis = new DataInputStream(this.clientsocket.getInputStream());
             dos = new DataOutputStream(this.clientsocket.getOutputStream());
             while (true) {
-                NetLibPacket pkt = NetLibPacket.ReadPacket(dis);
+                byte[] data = dis.readNBytes(3);
+                
+                // Handle Master Server pings first
+                if (!NetLibPacket.IsNetLibPacketHeader(data)) {
+                    HandleMasterPing(dis, dos);
+                    dis.close();
+                    dos.close();
+                    this.clientsocket.close();
+                    return;
+                }
+                NetLibPacket pkt = NetLibPacket.ReadPacket(dis, true);
                 
                 // Try to read a USB packet
                 if (pkt == null) {
@@ -73,6 +96,9 @@ public class ClientConnectionThread implements Runnable {
                     attempts--;
                     if (attempts == 0) {
                         System.err.println("Too many bad packets from client " + this.clientsocket + ". Disconnecting");
+                        dis.close();
+                        dos.close();
+                        this.clientsocket.close();
                         return;
                     }
                     continue;
@@ -81,6 +107,9 @@ public class ClientConnectionThread implements Runnable {
                 // Now read the client request packet
                 if (pkt.GetID() != PacketIDs.PACKETID_CLIENTCONNECT.GetInt()) {
                     System.err.println("Expected client connect packet, got " + pkt.GetID() + ". Disconnecting");
+                    dis.close();
+                    dos.close();
+                    this.clientsocket.close();
                     return;
                 }
                 

@@ -3,7 +3,6 @@ import java.net.Socket;
 import java.io.File;
 import java.io.IOException;
 import java.util.Hashtable;
-
 import N64.N64ROM;
 import N64.N64Server;
 
@@ -58,8 +57,7 @@ public class MasterServer {
         ss.close();
     }
     
-    private static void ReadROMs()
-    {
+    private static void ReadROMs() {
         File[] files;
         File folder = new File(romdir);
         
@@ -84,8 +82,7 @@ public class MasterServer {
         System.out.println("Done parsing ROMs folder. "+romtable.size()+" ROMs found.");
     }
     
-    public static void ValidateROM(String name)
-    {
+    public static void ValidateROM(String name) {
         File file = new File(romdir + name);
         if (file.exists())
         {

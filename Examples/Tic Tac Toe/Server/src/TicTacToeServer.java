@@ -54,10 +54,18 @@ public class TicTacToeServer {
         }
         
         // Try to UPnP the port
+        Runtime.getRuntime().addShutdownHook(
+            new Thread("App Shutdown Hook") {
+                public void run() { 
+                    UPnP.closePortTCP(port);
+                    System.out.println("UPnP port closed");
+                }
+            }
+        );
         System.out.println("Attempting UPnP port forwarding...");
         if (UPnP.isUPnPAvailable()){
             if (UPnP.isMappedTCP(port)) {
-                System.out.println("UPnP not enabled: port is already mapped");
+                System.out.println("UPnP port is already mapped");
             } else if (UPnP.openPortTCP(port)) {
                 System.out.println("UPnP enabled");
             } else {
@@ -66,7 +74,7 @@ public class TicTacToeServer {
         } else {
             System.out.println("UPnP is not available");
         }
-            
+        
         // Try to connect to the master server and register ourselves
         System.out.println("Registering to master server");
         try {

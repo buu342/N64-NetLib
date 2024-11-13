@@ -44,8 +44,14 @@ public class S64Packet {
         }
         return true;
     }
+    
+    static public boolean IsS64PacketHeader(byte[] data) {
+        if (CheckCString(data, PACKET_HEADER))
+            return true;
+        return false;
+    }
 
-    static public S64Packet ReadPacket(DataInputStream dis) throws IOException {
+    static public S64Packet ReadPacket(DataInputStream dis, boolean skipheader) throws IOException {
         int version;
         int typesize;
         int size;
@@ -53,9 +59,11 @@ public class S64Packet {
         String type = "";
         
         // Get the packet header
-        data = dis.readNBytes(PACKET_HEADER.length());
-        if (!CheckCString(data, PACKET_HEADER)) {
-            return null;
+        if (!skipheader) {
+            data = dis.readNBytes(PACKET_HEADER.length());
+            if (!CheckCString(data, PACKET_HEADER)) {
+                return null;
+            }
         }
         version = dis.readShort();
         typesize = Byte.toUnsignedInt(dis.readByte());
@@ -68,6 +76,14 @@ public class S64Packet {
         else
             data = null;
         return new S64Packet(version, type, data);
+    }
+
+    static public S64Packet ReadPacket(DataInputStream dis) throws IOException {
+        byte[] data = dis.readNBytes(PACKET_HEADER.length());
+        if (!CheckCString(data, PACKET_HEADER)) {
+            return null;
+        }
+        return S64Packet.ReadPacket(dis, true);
     }
     
     public void WritePacket(DataOutputStream dos) throws IOException {

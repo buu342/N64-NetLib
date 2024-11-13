@@ -2,7 +2,6 @@ package N64;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
-import java.net.Socket;
 
 public class N64Server {    
     private String name;
@@ -12,9 +11,8 @@ public class N64Server {
     private byte[] ROMHash;
     private String ROMHashStr;
     private int maxplayers;
-    private Socket socket;
     
-    public N64Server(String name, int maxplayers, String address, int publicport, String ROM, byte[] ROMHash, Socket socket) {
+    public N64Server(String name, int maxplayers, String address, int publicport, String ROM, byte[] ROMHash) {
         this.name = name;
         this.maxplayers = maxplayers;
         this.address = address;
@@ -22,15 +20,22 @@ public class N64Server {
         this.ROM = ROM;
         this.ROMHash = ROMHash;
         this.ROMHashStr = N64ROM.BytesToHash(ROMHash);
-        this.socket = socket;
+    }
+    
+    public String GetName() {
+        return this.name;
+    }
+    
+    public String GetAddress() {
+        return this.address;
+    }
+    
+    public int GetPort() {
+        return this.publicport;
     }
     
     public String GetROMHashStr() {
         return this.ROMHashStr;
-    }
-    
-    public Socket GetSocket() {
-    	return this.socket;
     }
     
     public byte[] toByteArray() {
