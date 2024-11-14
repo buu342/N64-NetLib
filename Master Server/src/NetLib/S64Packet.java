@@ -7,8 +7,9 @@ import java.nio.charset.StandardCharsets;
 
 public class S64Packet {
     
-    private static final String PACKET_HEADER = "S64PKT";
+    private static final String PACKET_HEADER = "S64";
     private static final int PACKET_VERSION = 1;
+    public static final int PACKET_MAXSIZE = 4096;
 
     private int version;
     private String type;

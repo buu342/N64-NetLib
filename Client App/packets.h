@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdint.h>
 #include <wx/string.h>
 #include <wx/socket.h>
 
@@ -29,9 +30,12 @@ class USBPacket
 class S64Packet
 {
     private:
-        int m_Version;
+        uint8_t m_Version;
         wxString m_Type;
-        int m_Size;
+        uint32_t m_Size;
+        uint16_t m_SequenceNum;
+        uint16_t m_Ack;
+        uint16_t m_AckBitField;
         char* m_Data;
         S64Packet(int version, wxString type, int size, char* data);
 
@@ -41,8 +45,8 @@ class S64Packet
         S64Packet(wxString type, int size, char* data);
         ~S64Packet();
 
-        static S64Packet* ReadPacket(wxSocketClient* socket);
-        void SendPacket(wxSocketClient* socket);
+        static S64Packet* ReadPacket(wxDatagramSocket* socket);
+        void SendPacket(wxDatagramSocket* socket, wxIPV4address address);
 
         int GetVersion();
         wxString GetType();
@@ -54,10 +58,13 @@ class S64Packet
 class NetLibPacket
 {
     private:
-        int m_Version;
-        int m_ID;
-        int m_Recipients;
-        int m_Size;
+        uint8_t m_Version;
+        uint32_t m_Recipients;
+        uint8_t  m_ID;
+        uint8_t  m_Flags;
+        uint16_t m_Size;
+        uint16_t m_SequenceNum;
+        uint16_t m_Ack;
         char* m_Data;
         NetLibPacket(int version, int id, int recipients, int size, char* data);
 

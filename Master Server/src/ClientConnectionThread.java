@@ -1,31 +1,40 @@
 import N64.N64ROM;
 import N64.N64Server;
-import NetLib.S64Packet;
-import java.net.Socket;
 import java.util.Hashtable;
-import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.Arrays;
-import java.io.DataOutputStream;
-import java.io.DataInputStream;
-import java.io.IOException;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.BufferedInputStream;
-import java.nio.ByteBuffer;
 
 public class ClientConnectionThread implements Runnable {
 
     Hashtable<String, N64ROM> roms;
     Hashtable<String, N64Server> servers;
-    Socket clientsocket;
+    String clientaddr;
+    ConcurrentLinkedQueue<byte[]> queue = new ConcurrentLinkedQueue<byte[]>();
     
-    ClientConnectionThread(Hashtable<String, N64Server> servers, Hashtable<String, N64ROM> roms, Socket socket) {
+    ClientConnectionThread(Hashtable<String, N64Server> servers, Hashtable<String, N64ROM> roms, String clientaddr) {
         this.servers = servers;
         this.roms = roms;
-        this.clientsocket = socket;
+        this.clientaddr = clientaddr;
     }
     
+    public void SendMessage(byte data[]) {
+        byte[] copy = data.clone();
+        this.queue.add(copy);
+    }
+    
+    public String GetClientAddress() {
+        return this.clientaddr;
+    }
+    
+    public void run() {
+        while (true) {
+            byte[] data = this.queue.poll();
+            if (data != null) {
+                System.out.println("Got data");
+            }
+        }
+    }
+    
+    /*
     private void ListServers() throws IOException, InterruptedException {
         DataOutputStream dos = new DataOutputStream(this.clientsocket.getOutputStream());
         int replycount = this.servers.size();
@@ -213,6 +222,7 @@ public class ClientConnectionThread implements Runnable {
     }
     
     public void run() {
+
         try {
             int attempts = 5;
             DataInputStream dis = new DataInputStream(this.clientsocket.getInputStream());
@@ -250,4 +260,6 @@ public class ClientConnectionThread implements Runnable {
             e.printStackTrace();
         }
     }
+    */
+    
 }

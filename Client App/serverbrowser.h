@@ -48,6 +48,7 @@ class ServerBrowser : public wxFrame
     private:
         wxString m_MasterAddress;
         int      m_MasterPort;
+        wxDatagramSocket* m_Socket;
         ServerFinderThread* m_FinderThread;
         wxCriticalSection m_FinderThreadCS;
 
@@ -82,6 +83,7 @@ class ServerBrowser : public wxFrame
         void ThreadEvent(wxThreadEvent& event);
         wxString GetAddress();
         int GetPort();
+        wxDatagramSocket* GetSocket();
 };
 
 class ManualConnectWindow : public wxDialog

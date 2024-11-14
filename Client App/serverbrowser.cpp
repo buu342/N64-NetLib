@@ -8,6 +8,7 @@
 #include <wx/dir.h>
 #include <wx/msgdlg.h>
 #include <wx/tokenzr.h>
+#include <wx/msgqueue.h>
 #include <wx/app.h>
 #include "Resources/resources.h"
 
@@ -16,12 +17,15 @@ typedef enum {
     TEVENT_THREADENDED,
 } ThreadEventType;
 
+static wxMessageQueue<S64Packet*> global_msgqueue_serverthread;
+
 ServerBrowser::ServerBrowser(wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style) : wxFrame(parent, id, title, pos, size, style)
 {
     wxString addrstr;
     this->m_MasterAddress = DEFAULT_MASTERSERVER_ADDRESS; // TODO: This has to actually be editable
     this->m_MasterPort = DEFAULT_MASTERSERVER_PORT;
     this->m_FinderThread = NULL;
+    this->m_Socket = NULL;
     addrstr = wxString::Format("%s:%d", this->m_MasterAddress, this->m_MasterPort);
 
     this->SetSizeHints( wxDefaultSize, wxDefaultSize );
@@ -82,6 +86,7 @@ ServerBrowser::ServerBrowser(wxWindow* parent, wxWindowID id, const wxString& ti
     m_TextCtrl_MasterServerAddress->Connect( wxEVT_COMMAND_TEXT_UPDATED, wxCommandEventHandler( ServerBrowser::m_TextCtrl_MasterServerAddress_OnText ), NULL, this );
     m_DataViewListCtrl_Servers->Connect( wxEVT_COMMAND_DATAVIEW_ITEM_ACTIVATED, wxDataViewEventHandler( ServerBrowser::m_DataViewListCtrl_Servers_OnDataViewListCtrlItemActivated ), NULL, this );
 
+    // Connect to the master server
     this->ConnectMaster();
 }
 
@@ -104,7 +109,6 @@ ServerBrowser::~ServerBrowser()
 void ServerBrowser::m_Tool_Refresh_OnToolClicked(wxCommandEvent& event)
 {
     (void)event;
-    this->ClearServers();
     this->ConnectMaster();
 }
 
@@ -249,27 +253,31 @@ void ServerBrowser::CreateClient(wxString rom, wxString address)
 
 void ServerBrowser::ConnectMaster()
 {
-    // If the thread is running, kill it
+    // Clear the server list
+    this->ClearServers();
+
+    // Open a UDP socket
+    if (this->m_Socket == NULL)
     {
-        wxCriticalSectionLocker enter(this->m_FinderThreadCS);
-        if (this->m_FinderThread != NULL)
+        wxIPV4address localaddr;
+        localaddr.AnyAddress();
+        localaddr.Service(0);
+        this->m_Socket = new wxDatagramSocket(localaddr , wxSOCKET_NOWAIT);
+    }
+
+    // Create the finder thread
+    if (this->m_FinderThread == NULL)
+    {
+        this->m_FinderThread = new ServerFinderThread(this);
+        if (this->m_FinderThread->Run() != wxTHREAD_NO_ERROR)
         {
-            this->m_FinderThread->Delete();
+            delete this->m_FinderThread;
             this->m_FinderThread = NULL;
         }
     }
 
-    // Clear the server list
-    this->ClearServers();
-
-    // Create the finder thread
-    this->m_FinderThread = new ServerFinderThread(this);
-    if (this->m_FinderThread->Run() != wxTHREAD_NO_ERROR)
-    {
-        delete this->m_FinderThread;
-        this->m_FinderThread = NULL;
-    }
-    
+    // Send a message to the finder thread that we wanna connect to the master server
+    global_msgqueue_serverthread.Post(new S64Packet("LIST", 0, NULL));
 }
 
 void ServerBrowser::ClearServers()
@@ -309,6 +317,11 @@ wxString ServerBrowser::GetAddress()
 int ServerBrowser::GetPort()
 {
     return this->m_MasterPort;
+}
+
+wxDatagramSocket* ServerBrowser::GetSocket()
+{
+    return this->m_Socket;
 }
 
 
@@ -416,6 +429,7 @@ ServerFinderThread::~ServerFinderThread()
 
 void* ServerFinderThread::Entry()
 {
+    /*
     S64Packet* pkt;
     FoundServer serverdata;
     wxIPV4address addr;
@@ -459,6 +473,7 @@ void* ServerFinderThread::Entry()
             }
         }
     }
+    */
     return NULL;
 }
 

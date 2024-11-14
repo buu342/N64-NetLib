@@ -21,8 +21,8 @@ typedef enum {
     TEVENT_NETPACKET_SERVER_TO_USB,
 } ThreadEventType;
 
-wxMessageQueue<NetLibPacket*> global_msgqueue_usbthread;
-wxMessageQueue<NetLibPacket*> global_msgqueue_serverthread;
+static wxMessageQueue<NetLibPacket*> global_msgqueue_usbthread;
+static wxMessageQueue<NetLibPacket*> global_msgqueue_serverthread;
 
 ClientWindow::ClientWindow( wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style ) : wxFrame( parent, id, title, pos, size, style )
 {

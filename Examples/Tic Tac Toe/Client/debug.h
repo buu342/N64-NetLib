@@ -7,7 +7,7 @@
     
     // Enable/Disable debug
     #ifndef DEBUG_MODE
-        #define DEBUG_MODE    0   // Enable/Disable debug mode
+        #define DEBUG_MODE    1   // Enable/Disable debug mode
     #endif
     
     // Settings

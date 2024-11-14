@@ -1,17 +1,26 @@
 #include <stdio.h>
 #include "packets.h"
 #include "helper.h"
+#include <wx/buffer.h>
 
 
-#define S64PACKET_HEADER "S64PKT"
+#define S64PACKET_HEADER "S64"
 #define S64PACKET_VERSION 1
 
 #define USB_HEADER "DMA@"
 #define USB_TAIL "CMPH"
 
-#define NETLIBPACKET_HEADER "PKT"
+#define NETLIBPACKET_HEADER "NLP"
 #define NETLIBPACKET_HEADERSIZE 12
 #define NETLIBPACKET_VERSION 1
+
+uint16_t global_remoteseqnum = 0;
+uint16_t global_localseqnum = 0;
+
+inline bool sequence_greater_than(uint16_t s1, uint16_t s2)
+{
+    return ((s1 > s2) && (s1 - s2 <= 32768)) || ((s1 < s2) && (s2 - s1 > 32768));
+}
 
 
 S64Packet::S64Packet(int version, wxString type, int size, char* data)
@@ -19,6 +28,8 @@ S64Packet::S64Packet(int version, wxString type, int size, char* data)
     this->m_Version = version;
     this->m_Type = type;
     this->m_Size = size;
+    this->m_SequenceNum = 0;
+    this->m_Ack = 0;
     if (size > 0)
     {
         this->m_Data = (char*)malloc(size);
@@ -48,8 +59,9 @@ S64Packet::~S64Packet()
         free(this->m_Data);
 }
 
-S64Packet* S64Packet::ReadPacket(wxSocketClient* socket)
+S64Packet* S64Packet::ReadPacket(wxDatagramSocket* socket)
 {
+    /*
     short version;
     int typesize;
     int size;
@@ -131,33 +143,39 @@ S64Packet* S64Packet::ReadPacket(wxSocketClient* socket)
 
     // Create the packet
     return new S64Packet(version, type, size, data);
+    */
+    return NULL;
 }
 
-void S64Packet::SendPacket(wxSocketClient* socket)
+void S64Packet::SendPacket(wxDatagramSocket* socket, wxIPV4address address)
 {
-    char out[64];
     short data_short;
-    int data_int;
+    wxMemoryBuffer buff = wxMemoryBuffer(4096);
 
     // Write the header
-    sprintf(out, S64PACKET_HEADER);
-    socket->Write(out, strlen(S64PACKET_HEADER));
+    buff.AppendData(wxString(S64PACKET_HEADER).mb_str(), strlen(S64PACKET_HEADER));
+    buff.AppendByte(S64PACKET_VERSION);
 
-    // Version
-    data_short = swap_endian16(S64PACKET_VERSION);
-    socket->Write(&data_short, 2);
+    // Local sequence number, ack number, and ack bitfield
+    data_short = swap_endian16(global_localseqnum++);
+    buff.AppendData(&data_short, 2);
+    data_short = swap_endian16(global_remoteseqnum);
+    buff.AppendData(&data_short, 2);
+    data_short = swap_endian16(0);
+    buff.AppendData(&data_short, 2);
 
     // Type string length and the string itself
-    out[0] = this->m_Type.Length();
-    socket->Write(out, 1);
-    strncpy(out, (const char*)this->m_Type.mb_str(), 64);
-    socket->Write(out, this->m_Type.Length());
+    buff.AppendByte(this->m_Type.Length());
+    buff.AppendData(this->m_Type.mb_str(), this->m_Type.Length());
 
     // Data size and the data itself
-    data_int = swap_endian32(this->m_Size);
-    socket->Write(&data_int, 4);
+    data_short = swap_endian16(this->m_Size);
+    buff.AppendData(&data_short, 2);
     if (this->m_Size > 0)
-        socket->Write(this->m_Data, this->m_Size);
+        buff.AppendData(this->m_Data, this->m_Size);
+
+    // Send the packet
+    socket->SendTo(address, buff.GetData(), buff.GetDataLen());
 }
 
 int S64Packet::GetVersion()
