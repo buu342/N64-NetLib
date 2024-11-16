@@ -4,7 +4,10 @@ import java.util.Hashtable;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class ClientConnectionThread implements Runnable {
-
+	
+    int global_localseqnum = 0;
+    int global_remoteseqnum = 0;
+    
     Hashtable<String, N64ROM> roms;
     Hashtable<String, N64Server> servers;
     String clientaddr;
@@ -16,8 +19,9 @@ public class ClientConnectionThread implements Runnable {
         this.clientaddr = clientaddr;
     }
     
-    public void SendMessage(byte data[]) {
-        byte[] copy = data.clone();
+    public void SendMessage(byte data[], int size) {
+        byte[] copy = new byte[size];
+        System.arraycopy(data, 0, copy, 0, size);
         this.queue.add(copy);
     }
     

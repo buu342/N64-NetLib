@@ -179,6 +179,7 @@ ROMDownloadThread::~ROMDownloadThread()
 
 void* ROMDownloadThread::Entry()
 {
+    /*
     S64Packet* pkt;
     wxIPV4address addr;
     addr.Hostname(this->m_Window->GetAddress());
@@ -268,6 +269,8 @@ void* ROMDownloadThread::Entry()
     this->m_File = NULL;
     if (bytesleft <= 0)
         this->m_Success = true;
+    return NULL;
+    */
     return NULL;
 }
 

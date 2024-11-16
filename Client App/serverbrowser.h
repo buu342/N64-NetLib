@@ -108,7 +108,6 @@ class ManualConnectWindow : public wxDialog
 class ServerFinderThread : public wxThread
 {
     private:
-        wxSocketClient* m_Socket;
         ServerBrowser* m_Window;
 
     protected:

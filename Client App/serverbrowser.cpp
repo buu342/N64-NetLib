@@ -87,7 +87,7 @@ ServerBrowser::ServerBrowser(wxWindow* parent, wxWindowID id, const wxString& ti
     m_DataViewListCtrl_Servers->Connect( wxEVT_COMMAND_DATAVIEW_ITEM_ACTIVATED, wxDataViewEventHandler( ServerBrowser::m_DataViewListCtrl_Servers_OnDataViewListCtrlItemActivated ), NULL, this );
 
     // Connect to the master server
-    this->ConnectMaster();
+    //this->ConnectMaster();
 }
 
 ServerBrowser::~ServerBrowser()
@@ -417,20 +417,34 @@ void ManualConnectWindow::m_Button_Connect_OnButtonClick(wxCommandEvent& event)
 ServerFinderThread::ServerFinderThread(ServerBrowser* win)
 {
     this->m_Window = win;
-    this->m_Socket = NULL;
 }
 
 ServerFinderThread::~ServerFinderThread()
 {
     this->NotifyMainOfDeath();
-    if (this->m_Socket != NULL)
-        delete this->m_Socket;
 }
 
 void* ServerFinderThread::Entry()
 {
+    while (!TestDestroy())
+    {
+        S64Packet* pkt;
+
+        // Check for messages from the main thread
+        global_msgqueue_serverthread.ReceiveTimeout(0, pkt);
+        while (pkt != NULL)
+        {
+            wxIPV4address addr;
+            addr.Hostname(this->m_Window->GetAddress());
+            addr.Service(this->m_Window->GetPort());
+            pkt->SendPacket(this->m_Window->GetSocket(), addr);
+
+            pkt = NULL;
+            global_msgqueue_serverthread.ReceiveTimeout(0, pkt);
+        }
+    }
+    return NULL;
     /*
-    S64Packet* pkt;
     FoundServer serverdata;
     wxIPV4address addr;
     addr.Hostname(this->m_Window->GetAddress());
@@ -474,7 +488,6 @@ void* ServerFinderThread::Entry()
         }
     }
     */
-    return NULL;
 }
 
 void ServerFinderThread::OnSocketEvent(wxSocketEvent& event)

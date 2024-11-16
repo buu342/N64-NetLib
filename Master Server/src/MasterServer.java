@@ -50,15 +50,14 @@ public class MasterServer {
                 ClientConnectionThread t;
                 udppkt = new DatagramPacket(data, data.length);
                 ds.receive(udppkt);
-                clientaddr = udppkt.getAddress().toString() + ":" + udppkt.getPort();
+                clientaddr = udppkt.getAddress().getHostAddress() + ":" + udppkt.getPort();
                 t = connectiontable.get(clientaddr);
-                if (t != null) {
-                    t.SendMessage(data);
-                } else {
+                if (t == null) {
                     t = new ClientConnectionThread(servertable, romtable, clientaddr);
                     new Thread(t).start();
                     connectiontable.put(clientaddr, t);
                 }
+                t.SendMessage(data, udppkt.getLength());
             } catch (Exception e) {
                 System.err.println("Error during client connection.");
                 e.printStackTrace();

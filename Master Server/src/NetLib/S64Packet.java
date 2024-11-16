@@ -1,5 +1,6 @@
 package NetLib;
 
+import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -51,40 +52,45 @@ public class S64Packet {
             return true;
         return false;
     }
+    
+    static short getShort(byte[] arr) {
+        return (short) ((0xff & arr[0]) << 8 | (0xff & arr[1]));
+    }
 
-    static public S64Packet ReadPacket(DataInputStream dis, boolean skipheader) throws IOException {
+    static public S64Packet ReadPacket(byte[] pktdata) throws IOException {
         int version;
         int typesize;
         int size;
+        short seqnum_sender;
+        short seqnum_ack;
+        short seqnum_ackbitfield;
         byte[] data;
         String type = "";
+        ByteArrayInputStream dis = new ByteArrayInputStream(pktdata);
         
         // Get the packet header
-        if (!skipheader) {
-            data = dis.readNBytes(PACKET_HEADER.length());
-            if (!CheckCString(data, PACKET_HEADER)) {
-                return null;
-            }
+        data = dis.readNBytes(PACKET_HEADER.length());
+        if (!CheckCString(data, PACKET_HEADER)) {
+            return null;
         }
-        version = dis.readShort();
-        typesize = Byte.toUnsignedInt(dis.readByte());
-        data = dis.readNBytes(typesize);
+        version = dis.read();
+
+        // Get other data
+        seqnum_sender = getShort(dis.readNBytes(2));
+        seqnum_ack = getShort(dis.readNBytes(2));
+        seqnum_ackbitfield = getShort(dis.readNBytes(2));
+        typesize = dis.read();
         for (int i=0; i<typesize; i++)
-            type += (char)data[i];
-        size = dis.readInt();
+            type += (char)dis.read();
+        
+        // Read the data
+        size = getShort(dis.readNBytes(2));
         if (size > 0)
             data = dis.readNBytes(size);
         else
             data = null;
+        dis.close();
         return new S64Packet(version, type, data);
-    }
-
-    static public S64Packet ReadPacket(DataInputStream dis) throws IOException {
-        byte[] data = dis.readNBytes(PACKET_HEADER.length());
-        if (!CheckCString(data, PACKET_HEADER)) {
-            return null;
-        }
-        return S64Packet.ReadPacket(dis, true);
     }
     
     public void WritePacket(DataOutputStream dos) throws IOException {
