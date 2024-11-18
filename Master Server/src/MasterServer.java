@@ -1,5 +1,5 @@
 import java.net.DatagramPacket;
-import java.net.DatagramSocket;
+import java.net.DatagramSocket; 
 import java.io.File;
 import java.io.IOException;
 import java.util.Hashtable;
@@ -17,7 +17,6 @@ public class MasterServer {
 
     private static String romdir = "roms/";
     
-    @SuppressWarnings("resource")
     public static void main(String args[]) throws IOException {
         byte[] data = new byte[S64Packet.PACKET_MAXSIZE];
         DatagramSocket ds = null;
@@ -53,7 +52,7 @@ public class MasterServer {
                 clientaddr = udppkt.getAddress().getHostAddress() + ":" + udppkt.getPort();
                 t = connectiontable.get(clientaddr);
                 if (t == null) {
-                    t = new ClientConnectionThread(servertable, romtable, clientaddr);
+                    t = new ClientConnectionThread(servertable, romtable, ds, udppkt.getAddress().getHostAddress(), udppkt.getPort());
                     new Thread(t).start();
                     connectiontable.put(clientaddr, t);
                 }

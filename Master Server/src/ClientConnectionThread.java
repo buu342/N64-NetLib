@@ -1,41 +1,66 @@
 import N64.N64ROM;
 import N64.N64Server;
+import NetLib.S64Packet;
+import NetLib.UDPHandler;
+import java.io.IOException;
+import java.net.DatagramSocket;
 import java.util.Hashtable;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class ClientConnectionThread implements Runnable {
-	
-    int global_localseqnum = 0;
-    int global_remoteseqnum = 0;
     
     Hashtable<String, N64ROM> roms;
     Hashtable<String, N64Server> servers;
-    String clientaddr;
-    ConcurrentLinkedQueue<byte[]> queue = new ConcurrentLinkedQueue<byte[]>();
+    ConcurrentLinkedQueue<byte[]> msgqueue = new ConcurrentLinkedQueue<byte[]>();
+    UDPHandler handler;
     
-    ClientConnectionThread(Hashtable<String, N64Server> servers, Hashtable<String, N64ROM> roms, String clientaddr) {
+    ClientConnectionThread(Hashtable<String, N64Server> servers, Hashtable<String, N64ROM> roms, DatagramSocket socket, String addr, int port) {
         this.servers = servers;
         this.roms = roms;
-        this.clientaddr = clientaddr;
+        this.handler = new UDPHandler(socket, addr, port);
     }
     
     public void SendMessage(byte data[], int size) {
         byte[] copy = new byte[size];
         System.arraycopy(data, 0, copy, 0, size);
-        this.queue.add(copy);
-    }
-    
-    public String GetClientAddress() {
-        return this.clientaddr;
+        this.msgqueue.add(copy);
     }
     
     public void run() {
         while (true) {
-            byte[] data = this.queue.poll();
+            
+            // Check packets that came from a user (by reading the message queue)
+            byte[] data = this.msgqueue.poll();
             if (data != null) {
-                System.out.println("Got data");
+                try {
+                    if (!this.handler.IsS64Packet(data)) {
+                        System.err.println("Received data which isn't an S64Packet from " + this.handler.GetAddress());
+                        continue;
+                    }
+                    S64Packet pkt = this.handler.ReceiveS64Packet(data);
+                    
+                    if (pkt.GetType().equals("LIST")) {
+                        //this.ListServers();
+                        break;
+                    } else if (pkt.GetType().equals("REGISTER")) {
+                        this.RegisterServer(pkt.GetData());
+                        break;
+                    } else if (pkt.GetType().equals("DOWNLOAD")) {
+                        //this.DownloadROM(pkt.GetData());
+                        break;
+                    } else {
+                        System.out.println("Received packet with unknown type '" + pkt.GetType() + "'");
+                        break;
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
             }
         }
+    }
+    
+    private void RegisterServer(byte[] data) {
+        
     }
     
     /*

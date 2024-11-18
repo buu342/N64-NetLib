@@ -1,9 +1,8 @@
 package NetLib;
 
 import java.io.ByteArrayInputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 
 public class S64Packet {
@@ -14,15 +13,21 @@ public class S64Packet {
 
     private int version;
     private String type;
-    private int size;
+    private short size;
     private byte data[];
+    private short seqnum;
+    private short ack;
+    private short ackbitfield;
     
-    private S64Packet(int version, String type, byte data[]) {
+    private S64Packet(int version, String type, byte data[], short seqnum, short ack, short ackbitfield) {
         this.version = version;
         this.type = type;
         this.data = data;
+        this.seqnum = seqnum;
+        this.ack = ack;
+        this.ackbitfield = ackbitfield;
         if (data != null)
-            this.size = data.length;
+            this.size = (short)data.length;
         else
             this.size = 0;
     }
@@ -31,10 +36,26 @@ public class S64Packet {
         this.version = PACKET_VERSION;
         this.type = type;
         this.data = data;
+        this.seqnum = 0;
+        this.ack = 0;
+        this.ackbitfield = 0;
         if (data != null)
-            this.size = data.length;
+            this.size = (short)data.length;
         else
             this.size = 0;
+    }
+    
+    public String toString() {
+        String mystr = "NetLib Packet\n";
+        mystr += "    Version: " + this.version + "\n";
+        mystr += "    Type: " + this.type + "\n";
+        mystr += "    Data size: " + this.size + "\n";
+        mystr += "    Data: \n";
+        mystr += "        ";
+        if (this.data != null)
+            for (int i=0; i<this.data.length; i++)
+                mystr += this.data[i] + " ";
+        return mystr;
     }
     
     private static boolean CheckCString(byte[] data, String str) {
@@ -61,9 +82,9 @@ public class S64Packet {
         int version;
         int typesize;
         int size;
-        short seqnum_sender;
-        short seqnum_ack;
-        short seqnum_ackbitfield;
+        short seqnum;
+        short ack;
+        short ackbitfield;
         byte[] data;
         String type = "";
         ByteArrayInputStream dis = new ByteArrayInputStream(pktdata);
@@ -76,9 +97,9 @@ public class S64Packet {
         version = dis.read();
 
         // Get other data
-        seqnum_sender = getShort(dis.readNBytes(2));
-        seqnum_ack = getShort(dis.readNBytes(2));
-        seqnum_ackbitfield = getShort(dis.readNBytes(2));
+        seqnum = getShort(dis.readNBytes(2));
+        ack = getShort(dis.readNBytes(2));
+        ackbitfield = getShort(dis.readNBytes(2));
         typesize = dis.read();
         for (int i=0; i<typesize; i++)
             type += (char)dis.read();
@@ -90,18 +111,25 @@ public class S64Packet {
         else
             data = null;
         dis.close();
-        return new S64Packet(version, type, data);
+        return new S64Packet(version, type, data, seqnum, ack, ackbitfield);
     }
     
-    public void WritePacket(DataOutputStream dos) throws IOException {
-        dos.write(PACKET_HEADER.getBytes(StandardCharsets.US_ASCII), 0, PACKET_HEADER.length());
-        dos.writeShort(this.version);
-        dos.write(new byte[]{(byte) this.type.length()});
-        dos.write(this.type.getBytes(StandardCharsets.US_ASCII));
-        dos.writeInt(this.size);
+    public byte[] GetBytes() throws IOException {
+        byte[] out;
+        ByteBuffer buf = ByteBuffer.allocate(PACKET_MAXSIZE);
+        buf.put(PACKET_HEADER.getBytes(StandardCharsets.US_ASCII), 0, PACKET_HEADER.length());
+        buf.put((byte)this.version);
+        buf.putShort(this.seqnum);
+        buf.putShort(this.ack);
+        buf.putShort(this.ackbitfield);
+        buf.put((byte)this.type.length());
+        buf.put(this.type.getBytes(StandardCharsets.US_ASCII), 0, this.type.length());
+        buf.putShort(this.size);
         if (this.size > 0)
-            dos.write(this.data);
-        dos.flush();
+            buf.put(this.data, 0, this.data.length);
+        out = new byte[buf.position()];
+        buf.get(out);
+        return out;
     }
     
     public int GetVersion() {
@@ -118,5 +146,21 @@ public class S64Packet {
     
     public byte[] GetData() {
         return this.data;
+    }
+    
+    public short GetSequenceNumber() {
+        return this.seqnum;
+    }
+    
+    public void SetSequenceNumber(short seqnum) {
+        this.seqnum = seqnum;
+    }
+    
+    public void SetAck(short ack) {
+        this.ack = ack;
+    }
+    
+    public void SetAckBitfield(short ackbitfield) {
+        this.ackbitfield = ackbitfield;
     }
 }
