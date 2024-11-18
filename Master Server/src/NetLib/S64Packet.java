@@ -128,6 +128,7 @@ public class S64Packet {
         if (this.size > 0)
             buf.put(this.data, 0, this.data.length);
         out = new byte[buf.position()];
+        buf.position(0);
         buf.get(out);
         return out;
     }

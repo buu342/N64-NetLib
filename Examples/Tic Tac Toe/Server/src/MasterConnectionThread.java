@@ -1,38 +1,62 @@
-import java.net.Socket;
+import java.net.DatagramSocket;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 import NetLib.S64Packet;
-
-import java.io.DataOutputStream;
+import NetLib.UDPHandler;
 
 public class MasterConnectionThread implements Runnable {
 
-    Socket mastersocket;
+    String address;
+    int port;
+    DatagramSocket socket;
+    UDPHandler handler;
+    ConcurrentLinkedQueue<byte[]> msgqueue = new ConcurrentLinkedQueue<byte[]>();
     
-    MasterConnectionThread(Socket socket) {
-        this.mastersocket = socket;
+    MasterConnectionThread(DatagramSocket socket, String address, int port) {
+        this.socket = socket;
+        this.address = address;
+        this.port = port;
+        this.handler = null;
+    }
+    
+    public void SendMessage(byte data[], int size) {
+        byte[] copy = new byte[size];
+        System.arraycopy(data, 0, copy, 0, size);
+        this.msgqueue.add(copy);
     }
     
     public void run() {
-        DataOutputStream dos;
+        this.handler = new UDPHandler(this.socket, this.address, this.port);
         
-        // Open the data output stream
+        // Send the register packet to the master server
         try {
-            dos = new DataOutputStream(this.mastersocket.getOutputStream());
-        } catch (Exception e) {
-            System.err.println("Failed to open data output stream to master server.");
-            e.printStackTrace();
-            return;
-        }
-        
-        // Register to the master server
-        try {
-            byte[] serverbytes = TicTacToeServer.ToByteArray();
-            S64Packet pkt = new S64Packet("REGISTER", serverbytes);
-            pkt.WritePacket(dos);
-            System.out.println("Success.");
+            S64Packet pkt = new S64Packet("REGISTER", TicTacToeServer.ToByteArray());
+            this.handler.SendPacket(pkt);
         } catch (Exception e) {
             System.err.println("Unable to register to master server.");
             e.printStackTrace();
-        }        
+        }
+        
+        // TODO: Ensure we get an ACK from the master server
+        
+        // Read packets
+        while (true) {
+            try {
+                byte[] data = this.msgqueue.poll();
+                if (data != null) {
+                    if (!this.handler.IsS64Packet(data)) {
+                        System.err.println("Received data which isn't an S64Packet from master server");
+                        continue;
+                    }
+                    S64Packet pkt = this.handler.ReceiveS64Packet(data);
+                    
+                    // TODO: Handle heartbeats from the master server
+                } else {
+                    Thread.sleep(50);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
     }
 }

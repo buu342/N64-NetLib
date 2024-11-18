@@ -26,17 +26,12 @@ public class UDPHandler {
         this.acksleft = new LinkedList<>();
     }
 
-    boolean ShortGreaterThan(int s1, int s2)
-    {
+    boolean ShortGreaterThan(int s1, int s2) {
         return ((s1 > s2) && (s1 - s2 <= 32768)) || ((s1 < s2) && (s2 - s1 > 32768));
     }
     
     public String GetAddress() {
         return this.address;
-    }
-
-    public int GetPort() {
-        return this.port;
     }
     
     public boolean IsS64Packet(byte[] data) {

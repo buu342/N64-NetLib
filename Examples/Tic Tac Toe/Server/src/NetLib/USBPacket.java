@@ -36,7 +36,7 @@ public class USBPacket {
         byte[] data;
         
         // Get the packet header
-        data = dis.readNBytes(4);
+        data = dis.readNBytes(6);
         if (!CheckCString(data, PACKET_HEADER)) {
             return null;
         }
@@ -44,7 +44,6 @@ public class USBPacket {
         // Create the packet
         size = dis.readInt() & 0x00FFFFFF;
         data = dis.readNBytes(size);
-        dis.readInt(); // CMPH
         return new USBPacket(PACKET_TYPE_NETLIB, data);
     }
 

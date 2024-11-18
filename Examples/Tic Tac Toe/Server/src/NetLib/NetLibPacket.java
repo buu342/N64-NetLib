@@ -54,8 +54,9 @@ public class NetLibPacket {
         mystr += "    Data size: " + this.size + "\n";
         mystr += "    Data: \n";
         mystr += "        ";
-        for (int i=0; i<this.data.length; i++)
-            mystr += this.data[i] + " ";
+        if (this.data != null)
+            for (int i=0; i<this.data.length; i++)
+                mystr += this.data[i] + " ";
         return mystr;
     }
     

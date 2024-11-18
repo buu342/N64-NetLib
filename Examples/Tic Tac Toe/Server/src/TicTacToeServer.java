@@ -1,13 +1,13 @@
-import java.net.ServerSocket;
-import java.net.Socket;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.net.DatagramSocket;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.security.MessageDigest;
 import java.util.regex.Pattern;
+import java.util.Hashtable;
 import java.util.regex.Matcher;
 import com.dosse.upnp.UPnP;
 
@@ -21,10 +21,11 @@ public class TicTacToeServer {
     private static int maxplayers = 2;
     private static String romname;
     private static byte[] romhash;
+    private static Hashtable<String, ClientConnectionThread> connectiontable = new Hashtable<>();
     
     public static void main(String args[]) throws Exception {
-        ServerSocket ss = null;
-        boolean isrunning = true;
+        MasterConnectionThread master = null;
+        DatagramSocket ds = null;
         String masteraddress = MASTER_DEFAULTADDRESS;
         int masterport = MASTER_DEFAULTPORT;
 
@@ -74,18 +75,19 @@ public class TicTacToeServer {
         } else {
             System.out.println("UPnP is not available");
         }
+        ds = new DatagramSocket(port);
         
         // Try to connect to the master server and register ourselves
         System.out.println("Registering to master server");
         try {
-            Socket smaster = new Socket(masteraddress, masterport);
-            MasterConnectionThread t = new MasterConnectionThread(smaster);
-            new Thread(t).start();
+            master = new MasterConnectionThread(ds, masteraddress, masterport);
+            new Thread(master).start();
         } catch (Exception e) {
-            System.err.println("Unable to connect to master server");
+            System.err.println("Unable to register to master server");
             e.printStackTrace();
         }
-            
+        
+        /*
         // Try to open the server port
         try {
             ss = new ServerSocket(port);
@@ -116,6 +118,7 @@ public class TicTacToeServer {
         
         // End
         ss.close();
+        */
     }
     
     private static String ValidateN64ROM(String rompath) {    

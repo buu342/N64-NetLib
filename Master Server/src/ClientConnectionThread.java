@@ -4,17 +4,18 @@ import NetLib.S64Packet;
 import NetLib.UDPHandler;
 import java.io.IOException;
 import java.net.DatagramSocket;
-import java.util.Hashtable;
+import java.nio.ByteBuffer;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class ClientConnectionThread implements Runnable {
     
-    Hashtable<String, N64ROM> roms;
-    Hashtable<String, N64Server> servers;
+    ConcurrentHashMap<String, N64ROM> roms;
+    ConcurrentHashMap<String, N64Server> servers;
     ConcurrentLinkedQueue<byte[]> msgqueue = new ConcurrentLinkedQueue<byte[]>();
     UDPHandler handler;
     
-    ClientConnectionThread(Hashtable<String, N64Server> servers, Hashtable<String, N64ROM> roms, DatagramSocket socket, String addr, int port) {
+    ClientConnectionThread(ConcurrentHashMap<String, N64Server> servers, ConcurrentHashMap<String, N64ROM> roms, DatagramSocket socket, String addr, int port) {
         this.servers = servers;
         this.roms = roms;
         this.handler = new UDPHandler(socket, addr, port);
@@ -34,16 +35,16 @@ public class ClientConnectionThread implements Runnable {
             if (data != null) {
                 try {
                     if (!this.handler.IsS64Packet(data)) {
-                        System.err.println("Received data which isn't an S64Packet from " + this.handler.GetAddress());
+                        System.err.println("Received data which isn't an S64Packet from " + this.handler.GetAddress() + ":" + this.handler.GetPort());
                         continue;
                     }
                     S64Packet pkt = this.handler.ReceiveS64Packet(data);
-                    
-                    if (pkt.GetType().equals("LIST")) {
-                        //this.ListServers();
-                        break;
-                    } else if (pkt.GetType().equals("REGISTER")) {
+                  
+                    if (pkt.GetType().equals("REGISTER")) {
                         this.RegisterServer(pkt.GetData());
+                        break;
+                    } else if (pkt.GetType().equals("LIST")) {
+                        this.ListServers();
                         break;
                     } else if (pkt.GetType().equals("DOWNLOAD")) {
                         //this.DownloadROM(pkt.GetData());
@@ -52,7 +53,7 @@ public class ClientConnectionThread implements Runnable {
                         System.out.println("Received packet with unknown type '" + pkt.GetType() + "'");
                         break;
                     }
-                } catch (IOException e) {
+                } catch (Exception e) {
                     e.printStackTrace();
                 }
             }
@@ -60,6 +61,53 @@ public class ClientConnectionThread implements Runnable {
     }
     
     private void RegisterServer(byte[] data) {
+        int size;
+        int maxcount = 0;
+        int publicport = 0;
+        String servername = "";
+        String romname = "";
+        String romhashstr;
+        byte[] romhash;
+        N64Server server;
+        ByteBuffer bb = ByteBuffer.wrap(data);
+        String addrport = this.handler.GetAddress() + ":" + this.handler.GetPort();
+        System.out.println("Client " + addrport + " requested server register");
+        
+        // Server name
+        size = bb.getInt();
+        for (int i=0; i<size; i++)
+            servername += (char)bb.get();
+        
+        // Public port
+        publicport = bb.getInt();
+        
+        // Player max count
+        maxcount = bb.getInt();
+        
+        // ROM name
+        size = bb.getInt();
+        for (int i=0; i<size; i++)
+            romname += (char)bb.get();
+        
+        // ROM hash
+        size = bb.getInt();
+        romhash = new byte[size];
+        for (int i=0; i<size; i++)
+            romhash[i] += (char)bb.get();
+        
+        // Check if this ROM exists. If it doesn't, search the ROM folder to confirm if it's since been added
+        romhashstr = N64ROM.BytesToHash(romhash);
+        if (this.roms.get(romhashstr) == null)
+            MasterServer.ValidateROM(romname);
+        
+        // Store this server in our list
+        // If the server already exists, this will update it instead
+        server = new N64Server(servername, maxcount, this.handler.GetAddress(), publicport, romname, romhash);
+        this.servers.put(addrport, server);
+        System.out.println("Client " + addrport + " registered successfully");
+    }
+    
+    private void ListServers() throws IOException, InterruptedException {
         
     }
     
@@ -131,55 +179,6 @@ public class ClientConnectionThread implements Runnable {
         dos.close();
     }
     
-    private void RegisterServer(byte[] data) {
-        System.out.println("Client " + this.clientsocket + " requested server register");
-        int size;
-        int maxcount = 0;
-        String serveraddress = this.clientsocket.getInetAddress().getHostAddress();
-        int publicport = 0;
-        String servername = "";
-        String romname = "";
-        String fullserveraddr;
-        String romhashstr;
-        byte[] romhash;
-        N64Server server;
-        ByteBuffer bb = ByteBuffer.wrap(data);
-        
-        // Server name
-        size = bb.getInt();
-        for (int i=0; i<size; i++)
-            servername += (char)bb.get();
-        
-        // Public port
-        publicport = bb.getInt();
-        
-        // Player max count
-        maxcount = bb.getInt();
-        
-        // ROM name
-        size = bb.getInt();
-        for (int i=0; i<size; i++)
-            romname += (char)bb.get();
-        
-        // ROM hash
-        size = bb.getInt();
-        romhash = new byte[size];
-        for (int i=0; i<size; i++)
-            romhash[i] += (char)bb.get();
-        
-        // Check if this ROM exists. If it doesn't, search the ROM folder to confirm if it's since been added
-        romhashstr = N64ROM.BytesToHash(romhash);
-        if (this.roms.get(romhashstr) == null)
-            MasterServer.ValidateROM(romname);
-        
-        fullserveraddr = serveraddress + ":" + publicport;
-        
-        // Store this server in our list
-        // If the server already exists, this will update it instead
-        server = new N64Server(servername, maxcount, serveraddress, publicport, romname, romhash);
-        this.servers.put(fullserveraddr, server);
-    }
-    
     private void DownloadROM(byte[] data) throws Exception, IOException {
         int size, readcount;
         byte[] hash;
@@ -249,46 +248,5 @@ public class ClientConnectionThread implements Runnable {
         bis.close();
         dos.close();
     }
-    
-    public void run() {
-
-        try {
-            int attempts = 5;
-            DataInputStream dis = new DataInputStream(this.clientsocket.getInputStream());
-            System.out.println(this.clientsocket);
-            while (true) {
-                S64Packet pkt = S64Packet.ReadPacket(dis);
-                if (pkt == null) {
-                    System.err.println("    Received bad packet");
-                    attempts--;
-                    if (attempts == 0) {
-                        System.err.println("Too many bad packets from client "+this.clientsocket+". Disconnecting");
-                        break;
-                    }
-                    continue;
-                }
-                attempts = 5;
-                if (pkt.GetType().equals("LIST")) {
-                    this.ListServers();
-                    break;
-                } else if (pkt.GetType().equals("REGISTER")) {
-                    this.RegisterServer(pkt.GetData());
-                    break;
-                } else if (pkt.GetType().equals("DOWNLOAD")) {
-                    this.DownloadROM(pkt.GetData());
-                    break;
-                } else {
-                    System.out.println("Received packet with unknown type '" + pkt.GetType() + "'");
-                    break;
-                }
-            }
-            System.out.println("Finished with "+this.clientsocket);
-            this.clientsocket.close();
-            dis.close();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
     */
-    
 }

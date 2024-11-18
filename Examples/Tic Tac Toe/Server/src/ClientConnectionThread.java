@@ -23,7 +23,12 @@ public class ClientConnectionThread implements Runnable {
         this.game = game;
         this.player = null;
     }
+
+    public void run() {
+        
+    }
     
+    /*
     private void SendServerFullPacket(DataOutputStream dos) throws IOException {
     	NetLibPacket pkt = new NetLibPacket(PacketIDs.PACKETID_SERVERFULL.GetInt(), null);
         pkt.WritePacket(dos);
@@ -226,4 +231,5 @@ public class ClientConnectionThread implements Runnable {
         System.out.println("Player " + this.player.GetNumber() + " disconnected");
         game.DisconnectPlayer(this.player);
     }
+    */
 }

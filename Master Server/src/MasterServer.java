@@ -3,6 +3,8 @@ import java.net.DatagramSocket;
 import java.io.File;
 import java.io.IOException;
 import java.util.Hashtable;
+import java.util.concurrent.ConcurrentHashMap;
+
 import N64.N64ROM;
 import N64.N64Server;
 import NetLib.S64Packet;
@@ -11,8 +13,8 @@ public class MasterServer {
     
     private static final int DEFAULTPORT = 6464;
     
-    private static Hashtable<String, N64ROM> romtable = new Hashtable<>();
-    private static Hashtable<String, N64Server> servertable = new Hashtable<>();
+    private static ConcurrentHashMap<String, N64ROM> romtable = new ConcurrentHashMap<>();
+    private static ConcurrentHashMap<String, N64Server> servertable = new ConcurrentHashMap<>();
     private static Hashtable<String, ClientConnectionThread> connectiontable = new Hashtable<>();
 
     private static String romdir = "roms/";
@@ -75,8 +77,7 @@ public class MasterServer {
         // Loop through all ROMs and register them in the ROM table
         System.out.println("Checking ROMs folder.");
         files = folder.listFiles();
-        for (int i=0; i<files.length; i++)
-        {
+        for (int i=0; i<files.length; i++) {
             try {
                 N64ROM rom = new N64ROM(files[i]);
                 romtable.put(rom.GetHashString(), rom);
@@ -91,8 +92,7 @@ public class MasterServer {
     
     public static void ValidateROM(String name) {
         File file = new File(romdir + name);
-        if (file.exists())
-        {
+        if (file.exists())file {
             try {
                 N64ROM rom = new N64ROM(file);
                 romtable.put(rom.GetHashString(), rom);
