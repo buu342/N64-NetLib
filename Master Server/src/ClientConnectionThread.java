@@ -1,19 +1,21 @@
 import N64.N64ROM;
 import N64.N64Server;
+import NetLib.ClientTimeoutException;
 import NetLib.S64Packet;
 import NetLib.UDPHandler;
 import java.io.IOException;
 import java.net.DatagramSocket;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class ClientConnectionThread implements Runnable {
-    
+
+    UDPHandler handler;
     ConcurrentHashMap<String, N64ROM> roms;
     ConcurrentHashMap<String, N64Server> servers;
     ConcurrentLinkedQueue<byte[]> msgqueue = new ConcurrentLinkedQueue<byte[]>();
-    UDPHandler handler;
     
     ClientConnectionThread(ConcurrentHashMap<String, N64Server> servers, ConcurrentHashMap<String, N64ROM> roms, DatagramSocket socket, String addr, int port) {
         this.servers = servers;
@@ -28,12 +30,11 @@ public class ClientConnectionThread implements Runnable {
     }
     
     public void run() {
-        while (true) {
-            
-            // Check packets that came from a user (by reading the message queue)
-            byte[] data = this.msgqueue.poll();
-            if (data != null) {
-                try {
+        try {
+            while (true) {
+                // Check packets that came from a user (by reading the message queue)
+                byte[] data = this.msgqueue.poll();
+                if (data != null) {
                     if (!this.handler.IsS64Packet(data)) {
                         System.err.println("Received data which isn't an S64Packet from " + this.handler.GetAddress() + ":" + this.handler.GetPort());
                         continue;
@@ -53,10 +54,15 @@ public class ClientConnectionThread implements Runnable {
                         System.out.println("Received packet with unknown type '" + pkt.GetType() + "'");
                         break;
                     }
-                } catch (Exception e) {
-                    e.printStackTrace();
+                } else {
+                    Thread.sleep(50);
                 }
             }
+        //} catch (ClientTimeoutException e) {
+        //    System.out.println(e);
+        //    return;
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
     
@@ -108,7 +114,11 @@ public class ClientConnectionThread implements Runnable {
     }
     
     private void ListServers() throws IOException, InterruptedException {
-        
+        for (String addr : this.servers.keySet()) {
+            this.handler.SendPacket(new S64Packet("SERVER", addr.getBytes(StandardCharsets.US_ASCII)));
+            Thread.sleep(10);
+        }
+        this.handler.SendPacket(new S64Packet("DONELISTING", null));
     }
     
     /*

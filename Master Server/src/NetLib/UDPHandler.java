@@ -5,8 +5,12 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.util.LinkedList;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class UDPHandler {
+    
+    private final int TIME_TIMEOUT  = 30000;
+    private final int TIME_ACKRETRY = 5000;
     
     String address;
     int port;
@@ -67,6 +71,34 @@ public class UDPHandler {
         
         // Increase the local sequence number. We want a short, so we have to modulus it by the max 16 bit value
         this.localseqnum = (this.localseqnum + 1) % (0xFFFF + 1);
+    }
+    
+    public void SendPacketWaitAck(S64Packet pkt, ConcurrentLinkedQueue<byte[]> msgqueue) throws IOException, InterruptedException, ClientTimeoutException {
+        long packettime = 0;
+        while (true) {
+            S64Packet ack;
+            byte[] response;
+            this.SendPacket(pkt);
+            packettime = System.currentTimeMillis();
+            
+            // Wait for a response
+            response = msgqueue.poll();
+            while (response == null) {
+                Thread.sleep(10);
+                if ((packettime - System.currentTimeMillis()) > TIME_ACKRETRY)
+                    break;
+                if ((packettime - System.currentTimeMillis()) > TIME_TIMEOUT)
+                    throw new ClientTimeoutException(this.address + ":" + this.port);
+                response = msgqueue.poll();
+            }
+            if (response == null || !this.IsS64Packet(response))
+                continue;
+            
+            // If we got an ack, we're done
+            ack = S64Packet.ReadPacket(response);
+            if (ack.GetType() == "ACK")
+                return;
+        }
     }
     
     // TODO:

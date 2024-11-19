@@ -11,6 +11,7 @@ import NetLib.S64Packet;
 
 public class MasterServer {
     
+    private static final int TIME_SERVERKEEP = 1000*60*10;
     private static final int DEFAULTPORT = 6464;
     
     private static ConcurrentHashMap<String, N64ROM> romtable = new ConcurrentHashMap<>();
@@ -92,7 +93,7 @@ public class MasterServer {
     
     public static void ValidateROM(String name) {
         File file = new File(romdir + name);
-        if (file.exists())file {
+        if (file.exists()) {
             try {
                 N64ROM rom = new N64ROM(file);
                 romtable.put(rom.GetHashString(), rom);
