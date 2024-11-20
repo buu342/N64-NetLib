@@ -39,33 +39,33 @@ class S64Packet
 {
     private:
         uint8_t  m_Version;
-        wxString m_Type;
-        uint32_t m_Size;
         uint16_t m_SequenceNum;
         uint16_t m_Ack;
         uint16_t m_AckBitField;
+        wxString m_Type;
+        uint16_t m_Size;
         uint8_t* m_Data;
-        S64Packet(int version, wxString type, int size, uint8_t* data);
+        S64Packet(uint8_t version, wxString type, uint16_t size, uint8_t* data, uint16_t seqnum, uint16_t acknum, uint16_t ackbitfield);
 
     protected:
 
     public:
-        S64Packet(wxString type, int size, uint8_t* data);
+        S64Packet(wxString type, uint16_t size, uint8_t* data);
         ~S64Packet();
 
-        static bool IsS64Packet(uint8_t* data);
-        static S64Packet* FromBytes(uint8_t* data);
+        static bool IsS64Packet(uint8_t* bytes);
+        static S64Packet* FromBytes(uint8_t* bytes);
 
-        int      GetVersion();
+        uint8_t  GetVersion();
         wxString GetType();
-        int      GetSize();
+        uint16_t GetSize();
         uint8_t* GetData();
-        uint8_t* GetAsBytes();
-        int      GetAsBytes_Size();
-        void SetSequenceNumber(uint16_t seqnum);
-        void SetAck(uint16_t seqnum);
-        void SetAckBitfield(uint16_t seqnum);
         uint16_t GetSequenceNumber();
+        uint8_t* GetAsBytes();
+        uint16_t GetAsBytes_Size();
+        void SetSequenceNumber(uint16_t seqnum);
+        void SetAck(uint16_t acknum);
+        void SetAckBitfield(uint16_t bitfield);
 };
 
 // Netlib packet
@@ -79,6 +79,7 @@ class NetLibPacket
         uint16_t m_Size;
         uint16_t m_SequenceNum;
         uint16_t m_Ack;
+        uint16_t m_AckBitField;
         uint8_t* m_Data;
         NetLibPacket(int version, int id, int recipients, int size, uint8_t* data);
 
@@ -87,18 +88,18 @@ class NetLibPacket
     public:
         ~NetLibPacket();
 
-        static bool IsNetLibPacket(uint8_t* data);
-        static NetLibPacket* FromBytes(uint8_t* data);
+        static bool IsNetLibPacket(uint8_t* bytes);
+        static NetLibPacket* FromBytes(uint8_t* bytes);
 
-        int      GetVersion();
-        int      GetID();
-        int      GetSize();
-        int      GetRecipients();
+        uint8_t  GetVersion();
+        uint8_t  GetID();
+        uint16_t GetSize();
+        uint32_t GetRecipients();
         uint8_t* GetData();
-        uint8_t* GetAsBytes();
-        int      GetAsBytes_Size();
-        void SetSequenceNumber(uint16_t seqnum);
-        void SetAck(uint16_t seqnum);
-        void SetAckBitfield(uint16_t seqnum);
         uint16_t GetSequenceNumber();
+        uint8_t* GetAsBytes();
+        uint16_t GetAsBytes_Size();
+        void SetSequenceNumber(uint16_t seqnum);
+        void SetAck(uint16_t acknum);
+        void SetAckBitfield(uint16_t bitfield);
 };

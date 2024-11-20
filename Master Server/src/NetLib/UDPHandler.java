@@ -95,7 +95,7 @@ public class UDPHandler {
                 continue;
             
             // If we got an ack, we're done
-            ack = S64Packet.ReadPacket(response);
+            ack = this.ReadS64Packet(response);
             if (ack != null && ack.GetType() == "ACK")
                 return;
         }

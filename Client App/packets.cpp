@@ -100,12 +100,13 @@ void UDPHandler::SendPacketWaitAck(S64Packet* pkt)
             continue;
         
         // If we got an ack, we're done
-        ack = S64Packet::FromBytes(response);
+        ack = this->ReadS64Packet(response);
         if (ack != NULL && ack->GetType() == "ACK")
         {
             free(response);
             return;
         }
+        delete ack;
     }
 }
 
@@ -127,183 +128,208 @@ S64Packet* UDPHandler::ReadS64Packet(uint8_t* data)
     return pkt;
 }
 
-#if 0
-    S64Packet::S64Packet(int version, wxString type, int size, char* data)
+S64Packet::S64Packet(uint8_t version, wxString type, uint16_t size, uint8_t* data, uint16_t seqnum, uint16_t acknum, uint16_t ackbitfield)
+{
+    this->m_Version = version;
+    this->m_Type = type;
+    this->m_Size = size;
+    this->m_SequenceNum = seqnum;
+    this->m_Ack = acknum;
+    this->m_AckBitField = ackbitfield;
+    if (size > 0)
     {
-        this->m_Version = version;
-        this->m_Type = type;
-        this->m_Size = size;
-        this->m_SequenceNum = 0;
-        this->m_Ack = 0;
-        if (size > 0)
-        {
-            this->m_Data = (char*)malloc(size);
-            memcpy(this->m_Data, data, size);
-        }
-        else
-            this->m_Data = NULL;
+        this->m_Data = (uint8_t*)malloc(size);
+        memcpy(this->m_Data, data, size);
     }
+    else
+        this->m_Data = NULL;
+}
 
-    S64Packet::S64Packet(wxString type, int size, char* data)
+S64Packet::S64Packet(wxString type, uint16_t size, uint8_t* data)
+{
+    this->m_Version = S64PACKET_VERSION;
+    this->m_Type = type;
+    this->m_Size = size;
+    this->m_SequenceNum = 0;
+    this->m_Ack = 0;
+    this->m_AckBitField = 0;
+    if (size > 0)
     {
-        this->m_Version = S64PACKET_VERSION;
-        this->m_Type = type;
-        this->m_Size = size;
-        if (size > 0)
-        {
-            this->m_Data = (char*)malloc(size);
-            memcpy(this->m_Data, data, size);
-        }
-        else
-            this->m_Data = NULL;
+        this->m_Data = (uint8_t*)malloc(size);
+        memcpy(this->m_Data, data, size);
     }
+    else
+        this->m_Data = NULL;
+}
 
-    S64Packet::~S64Packet()
-    {
-        if (this->m_Size > 0)
-            free(this->m_Data);
-    }
+S64Packet::~S64Packet()
+{
+    if (this->m_Size > 0)
+        free(this->m_Data);
+}
 
-    S64Packet* S64Packet::ReadPacket(wxDatagramSocket* socket)
-    {
-        /*
-        short version;
-        int typesize;
-        int size;
-        char header[64];
-        char* data;
-        wxString type = "";
+bool S64Packet::IsS64Packet(uint8_t* bytes)
+{
+    return !strncmp((const char*)bytes, S64PACKET_HEADER, strlen(S64PACKET_HEADER));
+}
 
-        // Read the packet header
-        socket->Read(header, 6);
-        if (socket->LastCount() == 0)
-            return NULL;
-        if (socket->LastError() != wxSOCKET_NOERROR)
-        {
-            printf("Socket threw error %d\n", socket->LastError());
-            return NULL;
-        }
-        if (strncmp(header, S64PACKET_HEADER, 6) != 0)
-        {
-            printf("Received bad packet header %.6s\n", header);
-            return NULL;
-        }
+S64Packet* S64Packet::FromBytes(uint8_t* bytes)
+{
+    uint8_t  version;
+    uint16_t seqnum;
+    uint16_t acknum;
+    uint16_t ackbitfield;
+    uint8_t  typestr_len;
+    char*    typestr;
+    uint16_t data_len;
+    uint8_t* data = NULL;
+    S64Packet* ret = NULL;
+    uint32_t readcount = 0;
 
-        // Read the packet version
-        socket->Read(&version, 2);
-        if (socket->LastError() != wxSOCKET_NOERROR)
-        {
-            printf("Socket threw error %d\n", socket->LastError());
-            return NULL;
-        }
-        version = swap_endian16(version);
-
-        // Read the packet type size
-        socket->Read(&header, 1);
-        if (socket->LastError() != wxSOCKET_NOERROR)
-        {
-            printf("Socket threw error %d\n", socket->LastError());
-            return NULL;
-        }
-        typesize = header[0];
-
-        // Read the packet type
-        socket->Read(&header, typesize);
-        if (socket->LastError() != wxSOCKET_NOERROR)
-        {
-            printf("Socket threw error %d\n", socket->LastError());
-            return NULL;
-        }
-        header[typesize] = '\0';
-        type = wxString(header);
-
-        // Read the packet size
-        socket->Read(&size, 4);
-        size = swap_endian32(size);
-        if (socket->LastError() != wxSOCKET_NOERROR)
-        {
-            printf("Socket threw error %d\n", socket->LastError());
-            return NULL;
-        }
-
-        // Malloc a buffer for the packet data, and then read it
-        if (size > 0)
-        {
-            data = (char*)malloc(size);
-            if (data == NULL)
-            {
-                printf("Unable to allocate buffer of %d bytes for packet data\n", size);
-                return NULL;
-            }
-            socket->Read(data, size);
-            if (socket->LastError() != wxSOCKET_NOERROR)
-            {
-                free(data);
-                printf("Socket threw error %d\n", socket->LastError());
-                return NULL;
-            }
-        }
-        else
-            data = NULL;
-
-        // Create the packet
-        return new S64Packet(version, type, size, data);
-        */
+    // Read the header
+    if (!S64Packet::IsS64Packet(bytes))
         return NULL;
-    }
+    readcount += strlen(S64PACKET_HEADER);
+    memcpy(&version, bytes+readcount, sizeof(version));
+    readcount += sizeof(version);
 
-    void S64Packet::SendPacket(wxDatagramSocket* socket, wxIPV4address address)
+    // Read the sequence data
+    memcpy(&seqnum, bytes+readcount, sizeof(seqnum));
+    seqnum = swap_endian16(seqnum);
+    readcount += sizeof(seqnum);
+    memcpy(&acknum, bytes+readcount, sizeof(acknum));
+    acknum = swap_endian16(acknum);
+    readcount += sizeof(acknum);
+    memcpy(&ackbitfield, bytes+readcount, sizeof(ackbitfield));
+    ackbitfield = swap_endian16(ackbitfield);
+    readcount += sizeof(ackbitfield);
+
+    // Read the type string
+    memcpy(&typestr_len, bytes+readcount, sizeof(typestr_len));
+    readcount += sizeof(typestr_len);
+    typestr = (char*)malloc(typestr_len + 1);
+    memcpy(typestr, bytes+readcount, typestr_len);
+    typestr[typestr_len] = '\0';
+    readcount += typestr_len;
+
+    // Read the data
+    memcpy(&data_len, bytes+readcount, sizeof(data_len));
+    readcount += sizeof(data_len);
+    if (data_len > 0)
     {
-        short data_short;
-        wxMemoryBuffer buff = wxMemoryBuffer(4096);
-
-        // Write the header
-        buff.AppendData(wxString(S64PACKET_HEADER).mb_str(), strlen(S64PACKET_HEADER));
-        buff.AppendByte(S64PACKET_VERSION);
-
-        // Local sequence number, ack number, and ack bitfield
-        data_short = swap_endian16(global_localseqnum++);
-        buff.AppendData(&data_short, 2);
-        data_short = swap_endian16(global_remoteseqnum);
-        buff.AppendData(&data_short, 2);
-        data_short = swap_endian16(0);
-        buff.AppendData(&data_short, 2);
-
-        // Type string length and the string itself
-        buff.AppendByte(this->m_Type.Length());
-        buff.AppendData(this->m_Type.mb_str(), this->m_Type.Length());
-
-        // Data size and the data itself
-        data_short = swap_endian16(this->m_Size);
-        buff.AppendData(&data_short, 2);
-        if (this->m_Size > 0)
-            buff.AppendData(this->m_Data, this->m_Size);
-
-        // Send the packet
-        socket->SendTo(address, buff.GetData(), buff.GetDataLen());
+        data = (uint8_t*)malloc(data_len);
+        memcpy(data, bytes+readcount, data_len);
+        readcount += data_len;
     }
 
-    int S64Packet::GetVersion()
+    // Build the packet object and cleanup
+    ret = new S64Packet(version, wxString(typestr), data_len, data, seqnum, acknum, ackbitfield);
+    free(typestr);
+    if (data_len > 0)
+        free(data);
+    return ret;
+}
+
+uint8_t S64Packet::GetVersion()
+{
+    return this->m_Version;
+}
+
+wxString S64Packet::GetType()
+{
+    return this->m_Type;
+}
+
+uint16_t S64Packet::GetSize()
+{
+    return this->m_Size;
+}
+
+uint8_t* S64Packet::GetData()
+{
+    return this->m_Data;
+}
+
+uint16_t S64Packet::GetSequenceNumber()
+{
+    return this->m_SequenceNum;
+}
+
+uint8_t* S64Packet::GetAsBytes()
+{
+    uint8_t  write8b;
+    uint16_t write16b;
+    uint8_t* bytes = NULL;
+    uint32_t writecount = 0;
+
+    // Malloc the bytes
+    bytes = (uint8_t*)malloc(this->GetAsBytes_Size());
+    if (bytes == NULL)
+        return NULL;
+
+    // Write the header
+    memcpy(bytes+writecount, S64PACKET_HEADER, strlen(S64PACKET_HEADER));
+    writecount += strlen(S64PACKET_HEADER);
+    memcpy(bytes+writecount, &this->m_Version, sizeof(this->m_Version));
+    writecount += sizeof(this->m_Version);
+
+    // Read the sequence data
+    write16b = swap_endian16(this->m_SequenceNum);
+    memcpy(bytes+writecount, &write16b, sizeof(write16b));
+    writecount += sizeof(write16b);
+    write16b = swap_endian16(this->m_Ack);
+    memcpy(bytes+writecount, &write16b, sizeof(write16b));
+    writecount += sizeof(write16b);
+    write16b = swap_endian16(this->m_AckBitField);
+    memcpy(bytes+writecount, &write16b, sizeof(write16b));
+    writecount += sizeof(write16b);
+
+    // Type string
+    write8b = this->m_Type.Length();
+    memcpy(bytes+writecount, &write8b, sizeof(write8b));
+    writecount += sizeof(write8b);
+    memcpy(bytes+writecount, this->m_Type.mb_str(), this->m_Type.Length());
+    writecount += this->m_Type.Length();
+
+    // Data
+    write16b = swap_endian16(this->m_Size);
+    memcpy(bytes+writecount, &write16b, sizeof(write16b));
+    writecount += sizeof(write16b);
+    if (this->m_Size > 0)
     {
-        return this->m_Version;
+        memcpy(bytes+writecount, this->m_Data, this->m_Size);
+        writecount += this->m_Size;
     }
 
-    wxString S64Packet::GetType()
-    {
-        return this->m_Type;
-    }
+    // Done
+    return bytes;
+}
 
-    int S64Packet::GetSize()
-    {
-        return this->m_Size;
-    }
+uint16_t S64Packet::GetAsBytes_Size()
+{
+    return sizeof(S64PACKET_HEADER) + sizeof(this->m_Version) +
+        sizeof(this->m_SequenceNum) + sizeof(this->m_Ack) + sizeof(this->m_AckBitField) +
+        1 + this->m_Type.Length() +
+        sizeof(this->m_Size) + this->m_Size;
+}
 
-    char* S64Packet::GetData()
-    {
-        return this->m_Data;
-    }
+void S64Packet::SetSequenceNumber(uint16_t seqnum)
+{
+    this->m_SequenceNum = seqnum;
+}
+
+void S64Packet::SetAck(uint16_t acknum)
+{
+    this->m_Ack = acknum;
+}
+
+void S64Packet::SetAckBitfield(uint16_t bitfield)
+{
+    this->m_AckBitField = bitfield;
+}
 
 
+#if 0
     NetLibPacket::NetLibPacket(int version, int id, int recipients, int size, char* data)
     {
         this->m_Version = version;
