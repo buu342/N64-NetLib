@@ -96,7 +96,7 @@ public class UDPHandler {
             
             // If we got an ack, we're done
             ack = S64Packet.ReadPacket(response);
-            if (ack.GetType() == "ACK")
+            if (ack != null && ack.GetType() == "ACK")
                 return;
         }
     }
@@ -106,7 +106,7 @@ public class UDPHandler {
     //    
     //}
     
-    public S64Packet ReceiveS64Packet(byte[] data) throws IOException {
+    public S64Packet ReadS64Packet(byte[] data) throws IOException {
         S64Packet pkt;
         if (!S64Packet.IsS64PacketHeader(data))
             return null;
@@ -123,7 +123,7 @@ public class UDPHandler {
     }
 
     // TODO:
-    //public NetLibPacket ReceiveNetLibPacket(byte[] data) throws IOException {
+    //public NetLibPacket ReadNetLibPacket(byte[] data) throws IOException {
     //    if (!NetLibPacket.IsNetLibPacketHeader(data))
     //        return null;
     //    return NetLibPacket.ReadPacket(data);

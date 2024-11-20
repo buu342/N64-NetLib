@@ -8,7 +8,6 @@
 #include <wx/dir.h>
 #include <wx/msgdlg.h>
 #include <wx/tokenzr.h>
-#include <wx/msgqueue.h>
 #include <wx/app.h>
 #include "Resources/resources.h"
 
@@ -26,6 +25,7 @@ ServerBrowser::ServerBrowser(wxWindow* parent, wxWindowID id, const wxString& ti
     this->m_MasterPort = DEFAULT_MASTERSERVER_PORT;
     this->m_FinderThread = NULL;
     this->m_Socket = NULL;
+    this->m_MasterConnectionHandler = NULL;
     addrstr = wxString::Format("%s:%d", this->m_MasterAddress, this->m_MasterPort);
 
     this->SetSizeHints( wxDefaultSize, wxDefaultSize );

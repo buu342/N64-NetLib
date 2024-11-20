@@ -25,6 +25,7 @@ typedef struct IUnknown IUnknown;
 #include <wx/button.h>
 #include <wx/sizer.h>
 #include <wx/dialog.h>
+#include "packets.h"
 
 #define DEFAULT_MASTERSERVER_ADDRESS "localhost"
 #define DEFAULT_MASTERSERVER_PORT    6464
@@ -46,8 +47,9 @@ class ServerFinderThread;
 class ServerBrowser : public wxFrame
 {
     private:
-        wxString m_MasterAddress;
-        int      m_MasterPort;
+        wxString    m_MasterAddress;
+        int         m_MasterPort;
+        UDPHandler* m_MasterConnectionHandler;
         wxDatagramSocket* m_Socket;
         ServerFinderThread* m_FinderThread;
         wxCriticalSection m_FinderThreadCS;

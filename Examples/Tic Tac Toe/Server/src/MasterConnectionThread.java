@@ -48,7 +48,7 @@ public class MasterConnectionThread implements Runnable {
                         System.err.println("Received data which isn't an S64Packet from master server");
                         continue;
                     }
-                    S64Packet pkt = this.handler.ReceiveS64Packet(data);
+                    S64Packet pkt = this.handler.ReadS64Packet(data);
                     
                     // TODO: Handle heartbeats from the master server
                 } else {
