@@ -9,6 +9,7 @@
 #include <wx/msgdlg.h>
 #include <wx/tokenzr.h>
 #include <wx/app.h>
+#include <vector>
 #include "Resources/resources.h"
 
 typedef enum {
@@ -99,6 +100,9 @@ ServerBrowser::~ServerBrowser()
         if (this->m_FinderThread != NULL)
             this->m_FinderThread->Delete();
     }
+
+    // Close the socket
+    this->m_Socket->Destroy();
 
     // Disconnect events
     this->Disconnect(wxID_ANY, wxEVT_THREAD, wxThreadEventHandler(ServerBrowser::ThreadEvent));
@@ -256,7 +260,7 @@ void ServerBrowser::ConnectMaster()
     // Clear the server list
     this->ClearServers();
 
-    // Open a UDP socket
+    // Open a UDP socket if it's not open yet
     if (this->m_Socket == NULL)
     {
         wxIPV4address localaddr;
@@ -265,7 +269,7 @@ void ServerBrowser::ConnectMaster()
         this->m_Socket = new wxDatagramSocket(localaddr , wxSOCKET_NOWAIT);
     }
 
-    // Create the finder thread
+    // Create the finder thread if it doesn't exist yet
     if (this->m_FinderThread == NULL)
     {
         this->m_FinderThread = new ServerFinderThread(this);
@@ -426,6 +430,10 @@ ServerFinderThread::~ServerFinderThread()
 
 void* ServerFinderThread::Entry()
 {
+    std::vector<std::pair<wxString, wxLongLong>> serversleft; 
+    uint8_t* buff = (uint8_t*)malloc(4096);
+    wxDatagramSocket* sock = this->m_Window->GetSocket();
+    UDPHandler* handler = new UDPHandler(sock, this->m_Window->GetAddress(), this->m_Window->GetPort());
     while (!TestDestroy())
     {
         S64Packet* pkt;
@@ -434,69 +442,41 @@ void* ServerFinderThread::Entry()
         global_msgqueue_serverthread.ReceiveTimeout(0, pkt);
         while (pkt != NULL)
         {
-            wxIPV4address addr;
-            addr.Hostname(this->m_Window->GetAddress());
-            addr.Service(this->m_Window->GetPort());
-            pkt->SendPacket(this->m_Window->GetSocket(), addr);
+            handler->SendPacket(pkt);
 
+            // Get the next packet (you must set NULL because ReceiveTimeout won't do it for you)
             pkt = NULL;
             global_msgqueue_serverthread.ReceiveTimeout(0, pkt);
         }
-    }
-    return NULL;
-    /*
-    FoundServer serverdata;
-    wxIPV4address addr;
-    addr.Hostname(this->m_Window->GetAddress());
-    addr.Service(this->m_Window->GetPort());
 
-    // Attempt to connect the socket
-    this->m_Socket = new wxSocketClient(wxSOCKET_BLOCK | wxSOCKET_WAITALL);
-    this->m_Socket->SetTimeout(10);
-    this->m_Socket->Connect(addr);
-    if (!this->m_Socket->IsConnected())
-    {
-        this->m_Socket->Close();
-        printf("Master Server socket failed to connect.\n");
-        return NULL;
-    }
-
-    printf("Connected to master server successfully!\n");
-    pkt = new S64Packet("LIST", 0, NULL);
-    pkt->SendPacket(this->m_Socket);
-    printf("Requested server list\n");
-    while (!TestDestroy())
-    {
-        if (this->m_Socket->IsData())
+        // Check for packets from the master server
+        sock->Read(buff, 4096);
+        while (sock->LastReadCount() > 0)
         {
-            pkt = S64Packet::ReadPacket(this->m_Socket);
-
-            // Parse the packet
+            pkt = handler->ReadS64Packet(buff);
             if (pkt != NULL)
             {
                 if (!strncmp(pkt->GetType(), "SERVER", 6))
-                    ParsePacket_Server(pkt->GetData());
+                    serversleft.push_back(std::pair(this->ParsePacket_Server(pkt->GetData(), pkt->GetSize()), wxGetLocalTimeMillis()));
+                else if (!strncmp(pkt->GetType(), "DONELISTING", 11))
+                    printf("Master server finished sending server list\n");
                 else
                     printf("Unexpected packet type received\n");
                 delete pkt;
-                continue;
+                pkt = NULL;
             }
-            else if (this->m_Socket->LastCount() == 0)
-            {
-                wxMilliSleep(100);
-            }
+            sock->Read(buff, 4096);
         }
+
+        wxMilliSleep(100);
     }
-    */
+    return NULL;
 }
 
-void ServerFinderThread::OnSocketEvent(wxSocketEvent& event)
+wxString ServerFinderThread::ParsePacket_Server(uint8_t* buf, uint16_t size)
 {
-    (void)event;
-}
-
-void ServerFinderThread::ParsePacket_Server(char* buf)
-{
+    return wxString::FromUTF8((char*)buf, size);
+    /*
     uint32_t i;
     uint32_t strsize;
     int buffoffset = 0;
@@ -554,6 +534,7 @@ void ServerFinderThread::ParsePacket_Server(char* buf)
 
     // Send the server info to the main thread
     this->AddServer(&server);
+    */
 }
 
 void ServerFinderThread::AddServer(FoundServer* server)

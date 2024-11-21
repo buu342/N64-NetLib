@@ -81,7 +81,7 @@ class NetLibPacket
         uint16_t m_Ack;
         uint16_t m_AckBitField;
         uint8_t* m_Data;
-        NetLibPacket(int version, int id, int recipients, int size, uint8_t* data);
+        NetLibPacket(uint8_t version, uint8_t id, uint32_t recipients, uint16_t size, uint8_t* data, uint16_t seqnum, uint16_t acknum, uint16_t ackbitfield);
 
     protected:
 

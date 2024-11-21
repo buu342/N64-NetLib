@@ -11,11 +11,7 @@
 #define S64PACKET_HEADER "S64"
 #define S64PACKET_VERSION 1
 
-#define USB_HEADER "DMA@"
-#define USB_TAIL "CMPH"
-
 #define NETLIBPACKET_HEADER "NLP"
-#define NETLIBPACKET_HEADERSIZE 12
 #define NETLIBPACKET_VERSION 1
 
 
@@ -89,7 +85,7 @@ void UDPHandler::SendPacketWaitAck(S64Packet* pkt)
         this->m_Socket->Read(response, MAX_PACKETSIZE);
         while (this->m_Socket->LastReadCount() > 0)
         {
-            if ((packettime - wxGetLocalTimeMillis()) > TIME_TIMEOUT)
+            if ((wxGetLocalTimeMillis() - packettime) > TIME_TIMEOUT)
             {
                 free(response);
                 return; // TODO: Need a timeout exception or something
@@ -329,186 +325,86 @@ void S64Packet::SetAckBitfield(uint16_t bitfield)
 }
 
 
-#if 0
-    NetLibPacket::NetLibPacket(int version, int id, int recipients, int size, char* data)
+NetLibPacket::NetLibPacket(uint8_t version, uint8_t id, uint32_t recipients, uint16_t size, uint8_t* data, uint16_t seqnum, uint16_t acknum, uint16_t ackbitfield)
+{
+    this->m_Version = version;
+    this->m_SequenceNum = seqnum;
+    this->m_Ack = acknum;
+    this->m_AckBitField = ackbitfield;
+    this->m_ID = id;
+    this->m_Recipients = recipients;
+    this->m_Size = size;
+    if (size > 0)
     {
-        this->m_Version = version;
-        this->m_ID = id;
-        this->m_Recipients = recipients;
-        this->m_Size = size;
-        if (size > 0)
-        {
-            this->m_Data = (char*)malloc(size);
-            memcpy(this->m_Data, data, size);
-        }
-        else
-            this->m_Data = NULL;
+        this->m_Data = (uint8_t*)malloc(size);
+        memcpy(this->m_Data, data, size);
     }
+    else
+        this->m_Data = NULL;
+}
 
-    NetLibPacket::~NetLibPacket()
-    {
-        if (this->m_Size > 0)
-            free(this->m_Data);
-    }
+NetLibPacket::~NetLibPacket()
+{
+    if (this->m_Size > 0)
+        free(this->m_Data);
+}
 
-    NetLibPacket* NetLibPacket::ReadPacket(wxSocketClient* socket)
-    {
-        int version;
-        int id;
-        int recipients;
-        int size;
-        char* data;
-        char header[4];
-        NetLibPacket* pkt;
+bool NetLibPacket::IsNetLibPacket(uint8_t* bytes)
+{
+    return !strncmp((const char*)bytes, NETLIBPACKET_HEADER, strlen(NETLIBPACKET_HEADER));
+}
 
-        // Read the packet header
-        socket->Read(header, 4);
-        if (socket->LastCount() == 0)
-            return NULL;
-        if (socket->LastError() != wxSOCKET_NOERROR)
-        {
-            printf("Socket threw error %d\n", socket->LastError());
-            return NULL;
-        }
-        if (strncmp(header, NETLIBPACKET_HEADER, 3) != 0)
-        {
-            printf("Received bad packet header %.3s\n", header);
-            return NULL;
-        }
-        version = header[3];
+NetLibPacket* NetLibPacket::FromBytes(uint8_t* bytes)
+{
+    return NULL; // TODO
+}
 
-        // Read the size and ID
-        socket->Read(&size, 4);
-        if (socket->LastError() != wxSOCKET_NOERROR)
-        {
-            printf("Socket threw error %d\n", socket->LastError());
-            return NULL;
-        }
-        size = swap_endian32(size);
-        id = (size & 0xFF000000) >> 24;
-        size = size & 0x00FFFFFF;
+uint8_t NetLibPacket::GetVersion()
+{
+    return this->m_Version;
+}
 
-        // Read the recepients
-        socket->Read(&recipients, 4);
-        if (socket->LastError() != wxSOCKET_NOERROR)
-        {
-            printf("Socket threw error %d\n", socket->LastError());
-            return NULL;
-        }
-        recipients = swap_endian32(recipients);
+uint8_t NetLibPacket::GetID()
+{
+    return this->m_Recipients;
+}
 
-        // Malloc a buffer for the packet data, and then read it
-        if (size > 0)
-        {
-            data = (char*)malloc(size);
-            if (data == NULL)
-            {
-                printf("Unable to allocate buffer of %d bytes for packet data\n", size);
-                return NULL;
-            }
-            socket->Read(data, size);
-            if (socket->LastError() != wxSOCKET_NOERROR)
-            {
-                free(data);
-                printf("Socket threw error %d\n", socket->LastError());
-                return NULL;
-            }
-        }
-        else
-            data = NULL;
+uint16_t NetLibPacket::GetSize()
+{
+    return this->m_Size;
+}
 
-        // Create the packet
-        pkt = new NetLibPacket(version, id, recipients, size, data);
-        free(data);
-        return pkt;
-    }
+uint32_t NetLibPacket::GetRecipients()
+{
+    return this->m_Recipients;
+}
 
-    NetLibPacket* NetLibPacket::FromBytes(char* data)
-    {
-        int version;
-        int id;
-        int size;
-        int recipients;
-        version = data[3];
-        memcpy(&id, data+4, sizeof(int));
-        id = swap_endian32(id);
-        size = id & 0x00FFFFFF;
-        id = (id & 0xFF000000) >> 24;
-        memcpy(&recipients, data+8, sizeof(int));
-        recipients = swap_endian32(recipients);
-        if (id != 4)
-        {
-            printf("Got packet from USB: ");
-            for (int i=0; i<size; i++)
-                printf("%02x ", data[i]);
-            printf("\n");
-        }
-        return new NetLibPacket(version, id, recipients, size, data+12);
-    }
+uint8_t* NetLibPacket::GetData()
+{
+    return this->m_Data;
+}
 
-    void NetLibPacket::SendPacket(wxSocketClient* socket)
-    {
-        char* out = this->GetAsBytes();
-        if (this->m_ID != 4)
-        {
-            printf("Sending packet to server: ");
-            for (int i=0; i<this->m_Size; i++)
-                printf("%02x ", this->m_Data[i]);
-            printf("\n");
-            printf("Written as: ");
-            for (int i=0; i<this->m_Size; i++)
-                printf("%02x ", out[i+12]);
-            printf("\n");
-        }
-        socket->Write(out, this->GetAsBytes_Size());
-        free(out);
-    }
+uint8_t* NetLibPacket::GetAsBytes()
+{
+    return NULL; // TODO
+}
 
-    int NetLibPacket::GetVersion()
-    {
-        return this->m_Version;
-    }
+uint16_t NetLibPacket::GetAsBytes_Size()
+{
+    return 0; // TODO
+}
 
-    int NetLibPacket::GetID()
-    {
-        return this->m_Recipients;
-    }
+void NetLibPacket::SetSequenceNumber(uint16_t seqnum)
+{
+    this->m_SequenceNum = seqnum;
+}
 
-    int NetLibPacket::GetSize()
-    {
-        return this->m_Size;
-    }
+void NetLibPacket::SetAck(uint16_t acknum)
+{
+    this->m_Ack = acknum;
+}
 
-    int NetLibPacket::GetRecipients()
-    {
-        return this->m_Recipients;
-    }
-
-    char* NetLibPacket::GetData()
-    {
-        return this->m_Data;
-    }
-
-    char* NetLibPacket::GetAsBytes()
-    {
-        int data_int;
-        char* bytes = (char*)malloc(this->m_Size + NETLIBPACKET_HEADERSIZE);
-        bytes[0] = NETLIBPACKET_HEADER[0];
-        bytes[1] = NETLIBPACKET_HEADER[1];
-        bytes[2] = NETLIBPACKET_HEADER[2];
-        bytes[3] = this->m_Version;
-        data_int = (this->m_ID << 24) | (this->m_Size & 0x00FFFFFFF);
-        data_int = swap_endian32(data_int);
-        memcpy(bytes+4, &data_int, sizeof(int));
-        data_int = swap_endian32(this->m_Recipients);
-        memcpy(bytes+8, &data_int, sizeof(int));
-        if (this->m_Size > 0)
-            memcpy(bytes+12, this->m_Data, this->m_Size);
-        return bytes;
-    }
-
-    int NetLibPacket::GetAsBytes_Size()
-    {
-        return this->m_Size + NETLIBPACKET_HEADERSIZE;
-    }
-#endif
+void NetLibPacket::SetAckBitfield(uint16_t bitfield)
+{
+    this->m_AckBitField = bitfield;
+}

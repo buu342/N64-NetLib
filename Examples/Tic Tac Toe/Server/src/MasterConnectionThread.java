@@ -31,13 +31,12 @@ public class MasterConnectionThread implements Runnable {
         // Send the register packet to the master server
         try {
             S64Packet pkt = new S64Packet("REGISTER", TicTacToeServer.ToByteArray());
-            this.handler.SendPacket(pkt);
+            this.handler.SendPacketWaitAck(pkt, this.msgqueue);
+            System.out.println("Register successful.");
         } catch (Exception e) {
             System.err.println("Unable to register to master server.");
             e.printStackTrace();
         }
-        
-        // TODO: Ensure we get an ACK from the master server
         
         // Read packets
         while (true) {

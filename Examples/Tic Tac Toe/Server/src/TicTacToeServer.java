@@ -2,6 +2,7 @@ import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
@@ -10,6 +11,8 @@ import java.util.regex.Pattern;
 import java.util.Hashtable;
 import java.util.regex.Matcher;
 import com.dosse.upnp.UPnP;
+
+import NetLib.S64Packet;
 
 public class TicTacToeServer {
     
@@ -28,6 +31,7 @@ public class TicTacToeServer {
         DatagramSocket ds = null;
         String masteraddress = MASTER_DEFAULTADDRESS;
         int masterport = MASTER_DEFAULTPORT;
+        byte[] data = new byte[S64Packet.PACKET_MAXSIZE];
 
         // Validate program arguments
         if (args.length < 3 || args.length > 4) {
@@ -119,6 +123,40 @@ public class TicTacToeServer {
         // End
         ss.close();
         */
+        
+        // Pass messages over to clients
+        while (true) {
+            DatagramPacket udppkt;
+            try {
+                String clientaddr;
+                ClientConnectionThread t;
+                udppkt = new DatagramPacket(data, data.length);
+                ds.receive(udppkt);
+                clientaddr = udppkt.getAddress().getHostAddress() + ":" + udppkt.getPort();
+                
+                // Check first if they're packets from the master server
+                if (clientaddr.equals(masteraddress + ":" + masterport))
+                {
+                    master.SendMessage(data, udppkt.getLength());
+                    continue;
+                }
+                
+                // If they aren't, handle a client packet
+                // TODO:
+                /*
+                t = connectiontable.get(clientaddr);
+                if (t == null) {
+                    t = new ClientConnectionThread(servertable, romtable, ds, udppkt.getAddress().getHostAddress(), udppkt.getPort());
+                    new Thread(t).start();
+                    connectiontable.put(clientaddr, t);
+                }
+                t.SendMessage(data, udppkt.getLength());
+                */
+            } catch (Exception e) {
+                System.err.println("Error during client connection.");
+                e.printStackTrace();
+            }
+        }
     }
     
     private static String ValidateN64ROM(String rompath) {    

@@ -85,9 +85,9 @@ public class UDPHandler {
             response = msgqueue.poll();
             while (response == null) {
                 Thread.sleep(10);
-                if ((packettime - System.currentTimeMillis()) > TIME_ACKRETRY)
+                if ((System.currentTimeMillis() - packettime) > TIME_ACKRETRY)
                     break;
-                if ((packettime - System.currentTimeMillis()) > TIME_TIMEOUT)
+                if ((System.currentTimeMillis() - packettime) > TIME_TIMEOUT)
                     throw new ClientTimeoutException(this.address + ":" + this.port);
                 response = msgqueue.poll();
             }

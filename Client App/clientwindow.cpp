@@ -367,7 +367,7 @@ void* DeviceThread::Entry()
             NetLibPacket* pkt;
             if (global_msgqueue_usbthread.ReceiveTimeout(0, pkt) == wxMSGQUEUE_NO_ERROR)
             {
-                char* pktasbytes = pkt->GetAsBytes();
+                uint8_t* pktasbytes = pkt->GetAsBytes();
                 device_senddata(DATATYPE_NETPACKET, (byte*)pkt->GetAsBytes(), (uint32_t)pkt->GetAsBytes_Size());
                 free(pktasbytes);
                 delete pkt;
@@ -402,7 +402,7 @@ void DeviceThread::ParseUSB_TextPacket(uint8_t* buff, uint32_t size)
 
 void DeviceThread::ParseUSB_NetLibPacket(uint8_t* buff)
 {
-    NetLibPacket* pkt = NetLibPacket::FromBytes((char*)buff);
+    NetLibPacket* pkt = NetLibPacket::FromBytes((uint8_t*)buff);
     wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
     evt.SetInt(TEVENT_NETPACKET_USB_TO_SERVER);
     evt.SetPayload<NetLibPacket*>(pkt);
@@ -614,6 +614,7 @@ ServerConnectionThread::~ServerConnectionThread()
 
 void* ServerConnectionThread::Entry()
 {
+    /*
     wxIPV4address addr;
     addr.Hostname(this->m_Window->GetAddress());
     addr.Service(this->m_Window->GetPort());
@@ -653,6 +654,7 @@ void* ServerConnectionThread::Entry()
     }
     this->WriteConsoleError("Server Disconnected.\n");
     this->NotifyDeath();
+    */
     return NULL;
 }
 

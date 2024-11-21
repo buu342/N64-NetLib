@@ -43,16 +43,12 @@ public class ClientConnectionThread implements Runnable {
                   
                     if (pkt.GetType().equals("REGISTER")) {
                         this.RegisterServer(pkt.GetData());
-                        break;
                     } else if (pkt.GetType().equals("LIST")) {
                         this.ListServers();
-                        break;
                     } else if (pkt.GetType().equals("DOWNLOAD")) {
                         //this.DownloadROM(pkt.GetData());
-                        break;
                     } else {
                         System.out.println("Received packet with unknown type '" + pkt.GetType() + "'");
-                        break;
                     }
                 } else {
                     Thread.sleep(50);
@@ -66,7 +62,7 @@ public class ClientConnectionThread implements Runnable {
         }
     }
     
-    private void RegisterServer(byte[] data) {
+    private void RegisterServer(byte[] data) throws IOException {
         int size;
         int maxcount = 0;
         int publicport = 0;
@@ -110,15 +106,21 @@ public class ClientConnectionThread implements Runnable {
         // If the server already exists, this will update it instead
         server = new N64Server(servername, maxcount, this.handler.GetAddress(), publicport, romname, romhash);
         this.servers.put(addrport, server);
+        
+        // Send an ack, and finish
+        this.handler.SendPacket(new S64Packet("ACK", null));
         System.out.println("Client " + addrport + " registered successfully");
     }
     
     private void ListServers() throws IOException, InterruptedException {
+        String addrport = this.handler.GetAddress() + ":" + this.handler.GetPort();
+        System.out.println("Client " + addrport + " requested server list");
         for (String addr : this.servers.keySet()) {
             this.handler.SendPacket(new S64Packet("SERVER", addr.getBytes(StandardCharsets.US_ASCII)));
             Thread.sleep(10);
         }
         this.handler.SendPacket(new S64Packet("DONELISTING", null));
+        System.out.println("Client " + addrport + " got server list");
     }
     
     /*

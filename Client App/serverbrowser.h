@@ -34,6 +34,8 @@ typedef struct
 {
     wxString name;
     wxString address;
+    int port;
+    wxDatagramSocket socket;
     int playercount;
     int maxplayers;
     int ping;
@@ -83,8 +85,8 @@ class ServerBrowser : public wxFrame
         void ConnectMaster();
         void ClearServers();
         void ThreadEvent(wxThreadEvent& event);
-        wxString GetAddress();
-        int GetPort();
+        wxString          GetAddress();
+        int               GetPort();
         wxDatagramSocket* GetSocket();
 };
 
@@ -119,8 +121,7 @@ class ServerFinderThread : public wxThread
         ~ServerFinderThread();
 
         virtual void* Entry() wxOVERRIDE;
-        void OnSocketEvent(wxSocketEvent& event);
-        void ParsePacket_Server(char* buf);
+        wxString ParsePacket_Server(uint8_t* buf, uint16_t size);
         void AddServer(FoundServer* server);
         void NotifyMainOfDeath();
 };

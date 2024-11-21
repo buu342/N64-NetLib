@@ -58,6 +58,7 @@ public class MasterServer {
                     t = new ClientConnectionThread(servertable, romtable, ds, udppkt.getAddress().getHostAddress(), udppkt.getPort());
                     new Thread(t).start();
                     connectiontable.put(clientaddr, t);
+                    // TOOD: Notification system for when the client connection thread dies
                 }
                 t.SendMessage(data, udppkt.getLength());
             } catch (Exception e) {
