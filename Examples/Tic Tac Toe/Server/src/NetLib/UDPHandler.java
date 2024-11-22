@@ -72,6 +72,28 @@ public class UDPHandler {
         this.localseqnum = (this.localseqnum + 1) % (0xFFFF + 1);
     }
     
+    public void SendPacket(NetLibPacket pkt) {
+        byte[] data;
+        DatagramPacket out;
+        short ackbitfield = 0;
+        
+        // Set the sequence data
+        pkt.SetSequenceNumber((short)this.localseqnum);
+        pkt.SetAck((short)this.remoteseqnum);
+        for (Integer ack : this.acksleft)
+            if (ShortGreaterThan(this.remoteseqnum, ack.intValue()))
+                ackbitfield |= 1 << ((this.remoteseqnum - ack.intValue()) - 1);
+        pkt.SetAckBitfield(ackbitfield);
+        
+        // Send the packet
+        data = pkt.GetBytes();
+        out= new DatagramPacket(data, data.length, InetAddress.getByName(this.address), this.port);
+        this.socket.send(out);
+        
+        // Increase the local sequence number. We want a short, so we have to modulus it by the max 16 bit value
+        this.localseqnum = (this.localseqnum + 1) % (0xFFFF + 1);
+    }
+    
     public void SendPacketWaitAck(S64Packet pkt, ConcurrentLinkedQueue<byte[]> msgqueue) throws IOException, InterruptedException, ClientTimeoutException {
         long packettime = 0;
         while (true) {
@@ -100,10 +122,33 @@ public class UDPHandler {
         }
     }
     
-    // TODO:
-    //public void SendPacket(NetLibPacket pkt) {
-    //    
-    //}
+    public void SendPacketWaitAck(NetLibPacket pkt, ConcurrentLinkedQueue<byte[]> msgqueue) throws IOException, InterruptedException, ClientTimeoutException {
+        long packettime = 0;
+        while (true) {
+            NetLibPacket ack;
+            byte[] response;
+            this.SendPacket(pkt);
+            packettime = System.currentTimeMillis();
+            
+            // Wait for a response
+            response = msgqueue.poll();
+            while (response == null) {
+                Thread.sleep(10);
+                if ((System.currentTimeMillis() - packettime) > TIME_ACKRETRY)
+                    break;
+                if ((System.currentTimeMillis() - packettime) > TIME_TIMEOUT)
+                    throw new ClientTimeoutException(this.address + ":" + this.port);
+                response = msgqueue.poll();
+            }
+            if (response == null || !this.IsS64Packet(response))
+                continue;
+            
+            // If we got an ack, we're done
+            ack = this.ReadNetLibPacket(response);
+            if (ack != null && ack.GetType().equals("ACK"))
+                return;
+        }
+    }
     
     public S64Packet ReadS64Packet(byte[] data) throws IOException {
         S64Packet pkt;
@@ -121,11 +166,20 @@ public class UDPHandler {
         return pkt;
     }
 
-    // TODO:
-    //public NetLibPacket ReadNetLibPacket(byte[] data) throws IOException {
-    //    if (!NetLibPacket.IsNetLibPacketHeader(data))
-    //        return null;
-    //    return NetLibPacket.ReadPacket(data);
-    //}
+    public NetLibPacket ReadNetLibPacket(byte[] data) throws IOException {
+        NetLibPacket pkt;
+        if (!NetLibPacket.IsNetLibPacketHeader(data))
+            return null;
+        pkt = NetLibPacket.ReadPacket(data);
+        if (pkt != null) {
+            if (ShortGreaterThan(pkt.GetSequenceNumber(), this.remoteseqnum)) {
+                this.remoteseqnum = pkt.GetSequenceNumber();
+            }
+            if (this.acksleft.size() > 17)
+                this.acksleft.removeFirst();
+            this.acksleft.addLast(Integer.valueOf(pkt.GetSequenceNumber()));
+        }
+        return pkt;
+    }
 
 }

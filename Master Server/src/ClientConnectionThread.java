@@ -6,7 +6,6 @@ import NetLib.UDPHandler;
 import java.io.IOException;
 import java.net.DatagramSocket;
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 

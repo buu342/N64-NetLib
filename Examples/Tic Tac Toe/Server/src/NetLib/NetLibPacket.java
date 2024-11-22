@@ -1,5 +1,6 @@
 package NetLib;
 
+import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -8,16 +9,34 @@ import java.nio.charset.StandardCharsets;
 public class NetLibPacket {
     
     private static final int    PACKET_VERSION = 1;
-    private static final String PACKET_HEADER = "PKT";
+    private static final String PACKET_HEADER = "NLP";
     private static final int    PACKET_MAXSIZE = 4096;
     
     private int version;
-    private int id;
-    private int size;
+    private int type;
+    private int flags;
     private int recipients;
     private int sender;
+    private short seqnum;
+    private short ack;
+    private short ackbitfield;
+    private short size;
     private byte data[];
     
+    /*
+        NLP - 3 bytes
+        Version - 1 byte
+        Type - 1 byte
+        Flags - 1 byte
+        Data size - 2 bytes
+        Recipients - 4 bytes
+        Sequence num - 2 bytes
+        Last Ack - 2 bytes
+        Ack bitfield - 2 bytes
+        Data - n bytes
+     */
+    
+    /*
     private NetLibPacket(int version, int id, int recipients, byte data[]) {
         this.version = version;
         this.id = id;
@@ -74,6 +93,10 @@ public class NetLibPacket {
         if (CheckCString(data, PACKET_HEADER))
             return true;
         return false;
+    }
+    
+    static short getShort(byte[] arr) {
+        return (short) ((0xff & arr[0]) << 8 | (0xff & arr[1]));
     }
     
     static public NetLibPacket ReadPacket(DataInputStream dis, boolean skipheader) throws IOException {
@@ -153,5 +176,22 @@ public class NetLibPacket {
     public int GetSender() {
         return this.sender;
     }
+    
+    public short GetSequenceNumber() {
+        return this.seqnum;
+    }
+    
+    public void SetSequenceNumber(short seqnum) {
+        this.seqnum = seqnum;
+    }
+    
+    public void SetAck(short ack) {
+        this.ack = ack;
+    }
+    
+    public void SetAckBitfield(short ackbitfield) {
+        this.ackbitfield = ackbitfield;
+    }
+    */
 
 }

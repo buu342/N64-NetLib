@@ -87,7 +87,7 @@ ServerBrowser::ServerBrowser(wxWindow* parent, wxWindowID id, const wxString& ti
     m_DataViewListCtrl_Servers->Connect( wxEVT_COMMAND_DATAVIEW_ITEM_ACTIVATED, wxDataViewEventHandler( ServerBrowser::m_DataViewListCtrl_Servers_OnDataViewListCtrlItemActivated ), NULL, this );
 
     // Connect to the master server
-    //this->ConnectMaster();
+    this->ConnectMaster();
 }
 
 ServerBrowser::~ServerBrowser()
@@ -101,7 +101,8 @@ ServerBrowser::~ServerBrowser()
     }
 
     // Close the socket
-    this->m_Socket->Destroy();
+    if (this->m_Socket != NULL)
+        this->m_Socket->Destroy();
 
     // Disconnect events
     this->Disconnect(wxID_ANY, wxEVT_THREAD, wxThreadEventHandler(ServerBrowser::ThreadEvent));
