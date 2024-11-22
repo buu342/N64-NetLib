@@ -32,16 +32,15 @@ typedef struct IUnknown IUnknown;
 
 typedef struct
 {
+    UDPHandler* handler;
+    wxString fulladdress;
     wxString name;
-    wxString address;
-    int port;
-    wxDatagramSocket socket;
     int playercount;
     int maxplayers;
     int ping;
-    wxString rom;
+    wxString romname;
     wxString hash;
-    bool romonmaster;
+    bool romdownloadable;
 } FoundServer;
 
 class ServerFinderThread;
@@ -121,7 +120,7 @@ class ServerFinderThread : public wxThread
         ~ServerFinderThread();
 
         virtual void* Entry() wxOVERRIDE;
-        wxString ParsePacket_Server(uint8_t* buf, uint16_t size);
+        FoundServer ParsePacket_Server(wxDatagramSocket* socket, uint8_t* buf);
         void AddServer(FoundServer* server);
         void NotifyMainOfDeath();
 };

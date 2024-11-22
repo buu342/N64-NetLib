@@ -26,7 +26,9 @@ class UDPHandler
 
     public:
         UDPHandler(wxDatagramSocket* socket, wxString address, int port);
+        UDPHandler(wxDatagramSocket* socket, wxString fulladdress);
         ~UDPHandler();
+        wxDatagramSocket* GetSocket();
         wxString GetAddress();
         int      GetPort();
         void SendPacket(S64Packet* pkt);

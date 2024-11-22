@@ -216,15 +216,11 @@ void ServerBrowser::m_DataViewListCtrl_Servers_OnDataViewListCtrlItemActivated(w
 
 void ServerBrowser::m_TextCtrl_MasterServerAddress_OnText(wxCommandEvent& event)
 {
-    int port;
     wxString str = event.GetString();
     wxStringTokenizer tokenizer(str, ":");
     this->m_MasterAddress = tokenizer.GetNextToken();
     if (tokenizer.HasMoreTokens())
-    {
-        tokenizer.GetNextToken().ToInt(&port);
-        this->m_MasterPort = port;
-    }
+        tokenizer.GetNextToken().ToInt(&this->m_MasterPort);
 }
 
 void ServerBrowser::m_MenuItem_File_Connect_OnMenuSelection(wxCommandEvent& event)
@@ -297,7 +293,7 @@ void ServerBrowser::ThreadEvent(wxThreadEvent& event)
             this->m_FinderThread = NULL;
             break;
         case TEVENT_ADDSERVER:
-            FoundServer* server = event.GetPayload<FoundServer*>();
+            /*FoundServer* server = event.GetPayload<FoundServer*>();
             wxVector<wxVariant> data;
             data.push_back(wxVariant("?"));
             data.push_back(wxVariant(wxString::Format("%d/%d", server->playercount, server->maxplayers)));
@@ -309,6 +305,7 @@ void ServerBrowser::ThreadEvent(wxThreadEvent& event)
             // TODO: Poke the server to get its ping and player count
             this->m_DataViewListCtrl_Servers->AppendItem(data);
             free(server);
+            */
             break;
     }
 }
@@ -430,7 +427,7 @@ ServerFinderThread::~ServerFinderThread()
 
 void* ServerFinderThread::Entry()
 {
-    std::vector<std::pair<wxString, wxLongLong>> serversleft; 
+    std::vector<std::pair<FoundServer, wxLongLong>> serversleft; 
     uint8_t* buff = (uint8_t*)malloc(4096);
     wxDatagramSocket* sock = this->m_Window->GetSocket();
     UDPHandler* handler = new UDPHandler(sock, this->m_Window->GetAddress(), this->m_Window->GetPort());
@@ -442,14 +439,16 @@ void* ServerFinderThread::Entry()
         global_msgqueue_serverthread.ReceiveTimeout(0, pkt);
         while (pkt != NULL)
         {
-            handler->SendPacket(pkt);
+            if (pkt->GetType() == "LIST")
+                handler->SendPacket(pkt);
 
             // Get the next packet (you must set NULL because ReceiveTimeout won't do it for you)
+            delete pkt;
             pkt = NULL;
             global_msgqueue_serverthread.ReceiveTimeout(0, pkt);
         }
 
-        // Check for packets from the master server
+        // Check for packets from the master server / servers we pinged
         sock->Read(buff, 4096);
         while (sock->LastReadCount() > 0)
         {
@@ -457,9 +456,13 @@ void* ServerFinderThread::Entry()
             if (pkt != NULL)
             {
                 if (!strncmp(pkt->GetType(), "SERVER", 6))
-                    serversleft.push_back(std::pair(this->ParsePacket_Server(pkt->GetData(), pkt->GetSize()), wxGetLocalTimeMillis()));
+                    serversleft.push_back(std::make_pair(this->ParsePacket_Server(handler->GetSocket(), pkt->GetData()), wxGetLocalTimeMillis()));
                 else if (!strncmp(pkt->GetType(), "DONELISTING", 11))
                     printf("Master server finished sending server list\n");
+                else if (!strncmp(pkt->GetType(), "DISCOVER", 8))
+                {
+                    this->AddServer(NULL); // TODO:
+                }
                 else
                     printf("Unexpected packet type received\n");
                 delete pkt;
@@ -473,68 +476,51 @@ void* ServerFinderThread::Entry()
     return NULL;
 }
 
-wxString ServerFinderThread::ParsePacket_Server(uint8_t* buf, uint16_t size)
+FoundServer ServerFinderThread::ParsePacket_Server(wxDatagramSocket* socket, uint8_t* buf)
 {
-    return wxString::FromUTF8((char*)buf, size);
-    /*
-    uint32_t i;
-    uint32_t strsize;
-    int buffoffset = 0;
     uint8_t hash[32];
+    uint32_t read32;
+    uint32_t buffoffset = 0;
+    S64Packet ping = S64Packet("DISCOVER", 0, NULL);;
     FoundServer server;
 
-    // Read the server name
-    memcpy(&strsize, buf + buffoffset, sizeof(int));
-    strsize = swap_endian32(strsize);
+    // Read the full server address
+    memcpy(&read32, buf + buffoffset, sizeof(uint32_t));
+    read32 = swap_endian32(read32);
     buffoffset += sizeof(int);
-    server.name = wxString(buf + buffoffset, (size_t)strsize);
-    buffoffset += strsize;
+    server.fulladdress = wxString(buf + buffoffset, (size_t)read32);
+    buffoffset += read32;
 
-    // Read the max players
-    memcpy(&strsize, buf + buffoffset, sizeof(int));
-    strsize = swap_endian32(strsize);
+    // Read the ROM name
+    memcpy(&read32, buf + buffoffset, sizeof(uint32_t));
+    read32 = swap_endian32(read32);
     buffoffset += sizeof(int);
-    server.maxplayers = strsize;
-
-    // Read the server address
-    memcpy(&strsize, buf + buffoffset, sizeof(int));
-    strsize = swap_endian32(strsize);
-    buffoffset += sizeof(int);
-    server.address = wxString(buf + buffoffset, (size_t)strsize);
-    buffoffset += strsize;
-
-    // Read the rom
-    memcpy(&strsize, buf + buffoffset, sizeof(int));
-    strsize = swap_endian32(strsize);
-    buffoffset += sizeof(int);
-    server.rom = wxString(buf + buffoffset, (size_t)strsize);
-    buffoffset += strsize;
+    server.romname = wxString(buf + buffoffset, (size_t)read32);
+    buffoffset += read32;
 
     // Read the rom hash
-    memcpy(&strsize, buf + buffoffset, sizeof(int));
-    strsize = swap_endian32(strsize);
+    memcpy(&read32, buf + buffoffset, sizeof(int));
+    read32 = swap_endian32(read32);
     buffoffset += sizeof(int);
-    memcpy(hash, buf + buffoffset, (size_t)strsize);
-    buffoffset += strsize;
+    memcpy(hash, buf + buffoffset, read32);
+    buffoffset += read32;
 
     // Convert the hash
     server.hash = "";
-    for (i=0; i<strsize; i++)
+    for (uint32_t i=0; i<read32; i++)
         server.hash += wxString::Format("%02X", hash[i]);
 
     // Read if the ROM is on the master
     memcpy(hash, buf + buffoffset, sizeof(char));
     buffoffset += sizeof(char);
-    server.romonmaster = hash[0];
+    server.romdownloadable = hash[0];
 
-    // Read the playercount
-    memcpy(hash, buf + buffoffset, sizeof(char));
-    buffoffset += sizeof(char);
-    server.playercount = hash[0];
+    // Create the UDP handler and send the ping packet
+    server.handler = new UDPHandler(socket, server.fulladdress);
+    server.handler->SendPacket(&ping);
 
-    // Send the server info to the main thread
-    this->AddServer(&server);
-    */
+    // Done
+    return server;
 }
 
 void ServerFinderThread::AddServer(FoundServer* server)
@@ -543,13 +529,14 @@ void ServerFinderThread::AddServer(FoundServer* server)
     wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
 
     // Copy the server data
+    server_copy->fulladdress = server->fulladdress;
     server_copy->name = server->name;
     server_copy->playercount = server->playercount;
     server_copy->maxplayers = server->maxplayers;
-    server_copy->address = server->address;
-    server_copy->rom = server->rom;
+    server_copy->ping = server->ping;
+    server_copy->romname = server->romname;
     server_copy->hash = server->hash;
-    server_copy->romonmaster = server->romonmaster;
+    server_copy->romdownloadable = server->romdownloadable;
 
     // Send the event
     evt.SetInt(TEVENT_ADDSERVER);

@@ -54,7 +54,7 @@ public class MasterServer {
                 ds.receive(udppkt);
                 clientaddr = udppkt.getAddress().getHostAddress() + ":" + udppkt.getPort();
                 t = connectiontable.get(clientaddr);
-                if (t == null) {
+                if (t == null || !t.isAlive()) {
                     t = new ClientConnectionThread(servertable, romtable, ds, udppkt.getAddress().getHostAddress(), udppkt.getPort());
                     new Thread(t).start();
                     connectiontable.put(clientaddr, t);
@@ -92,7 +92,7 @@ public class MasterServer {
         System.out.println("Done parsing ROMs folder. "+romtable.size()+" ROMs found.");
     }
     
-    public static void ValidateROM(String name) {
+    public static void FindROMWithName(String name) {
         File file = new File(romdir + name);
         if (file.exists()) {
             try {

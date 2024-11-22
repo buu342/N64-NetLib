@@ -30,8 +30,7 @@ public class UDPHandler {
         this.acksleft = new LinkedList<>();
     }
 
-    boolean ShortGreaterThan(int s1, int s2)
-    {
+    boolean ShortGreaterThan(int s1, int s2) {
         return ((s1 > s2) && (s1 - s2 <= 32768)) || ((s1 < s2) && (s2 - s1 > 32768));
     }
     
@@ -96,7 +95,7 @@ public class UDPHandler {
             
             // If we got an ack, we're done
             ack = this.ReadS64Packet(response);
-            if (ack != null && ack.GetType() == "ACK")
+            if (ack != null && ack.GetType().equals("ACK"))
                 return;
         }
     }

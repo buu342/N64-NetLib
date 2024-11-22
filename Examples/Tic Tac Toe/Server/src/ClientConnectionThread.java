@@ -1,11 +1,14 @@
+import java.net.DatagramSocket;
 import java.net.Socket;
 import NetLib.NetLibPacket;
 import NetLib.S64Packet;
+import NetLib.UDPHandler;
 import TicTacToe.PacketIDs;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.SocketException;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class ClientConnectionThread implements Runnable {
 
@@ -13,19 +16,62 @@ public class ClientConnectionThread implements Runnable {
     private static final int HEARTBEAT_WAIT = 5000;
     private static final int HBSTATE_WAIT = 0;
     private static final int HBSTATE_SENT = 1;
-    
+
+    String address;
+    int port;
+    DatagramSocket socket;
+    UDPHandler handler;
     TicTacToe.Game game;
-    Socket clientsocket;
     TicTacToe.Player player;
+    ConcurrentLinkedQueue<byte[]> msgqueue = new ConcurrentLinkedQueue<byte[]>();
     
-    ClientConnectionThread(Socket socket, TicTacToe.Game game) {
-        this.clientsocket = socket;
-        this.game = game;
+    ClientConnectionThread(DatagramSocket socket, String address, int port, TicTacToe.Game game) {
+        this.socket = socket;
+        this.address = address;
+        this.port = port;
+        this.handler = null;
         this.player = null;
+    }
+    
+    public void SendMessage(byte data[], int size) {
+        byte[] copy = new byte[size];
+        System.arraycopy(data, 0, copy, 0, size);
+        this.msgqueue.add(copy);
     }
 
     public void run() {
+        this.handler = new UDPHandler(this.socket, this.address, this.port);
         
+        while (true) {
+            try {
+                byte[] data = this.msgqueue.poll();
+                if (data != null) {
+                    if (this.handler.IsS64Packet(data)) {
+                        this.HandleS64Packets(this.handler.ReadS64Packet(data));
+                    } else if (this.handler.IsNetLibPacket(data)) {
+                        //this.HandleNetLibPackets(this.handler.ReadNetLibPacket(data));
+                    } else {
+                        System.err.println("Received unknown data from client " + this.address + ":" + this.port);
+                    }
+                } else {
+                    Thread.sleep(500);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+    
+    private void HandleS64Packets(S64Packet pkt) {
+        if (pkt == null)
+            return;
+        if (pkt.GetType().equals("DISCOVER")) {
+            // TODO:
+        }
+    }
+    
+    private void ReadNetLibPacket(NetLibPacket pkt) {
+        // TODO:
     }
     
     /*

@@ -1,3 +1,4 @@
+
 import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -91,40 +92,12 @@ public class TicTacToeServer {
             e.printStackTrace();
         }
         
-        /*
-        // Try to open the server port
-        try {
-            ss = new ServerSocket(port);
-        } catch (Exception e) {
-            System.err.println("Failed to open server port "+port+".");
-            e.printStackTrace();
-            System.exit(1);
-        }
-        System.out.println("Server is ready to accept players.");
-        
         // Begin the game
         TicTacToe.Game game = new TicTacToe.Game();
         new Thread(game).start();
         
-        // Allow clients to connect
-        while (isrunning) {
-            Socket s = null;
-            try {
-                s = ss.accept();
-                ClientConnectionThread t = new ClientConnectionThread(s, game);
-                System.out.println("Client connected.");
-                new Thread(t).start();
-            } catch (Exception e) {
-                System.err.println("Error during client connection.");
-                e.printStackTrace();
-            }
-        }
-        
-        // End
-        ss.close();
-        */
-        
-        // Pass messages over to clients
+        // Allow clients to connect, and pass messages over to them
+        System.out.println("Server is ready to accept players.");
         while (true) {
             DatagramPacket udppkt;
             try {
@@ -135,23 +108,19 @@ public class TicTacToeServer {
                 clientaddr = udppkt.getAddress().getHostAddress() + ":" + udppkt.getPort();
                 
                 // Check first if they're packets from the master server
-                if (clientaddr.equals(masteraddress + ":" + masterport))
-                {
+                if (clientaddr.equals(masteraddress + ":" + masterport)) {
                     master.SendMessage(data, udppkt.getLength());
                     continue;
                 }
                 
                 // If they aren't, handle a client packet
-                // TODO:
-                /*
                 t = connectiontable.get(clientaddr);
                 if (t == null) {
-                    t = new ClientConnectionThread(servertable, romtable, ds, udppkt.getAddress().getHostAddress(), udppkt.getPort());
+                    t = new ClientConnectionThread(ds, udppkt.getAddress().getHostAddress(), udppkt.getPort(), game);
                     new Thread(t).start();
                     connectiontable.put(clientaddr, t);
                 }
                 t.SendMessage(data, udppkt.getLength());
-                */
             } catch (Exception e) {
                 System.err.println("Error during client connection.");
                 e.printStackTrace();
@@ -198,17 +167,25 @@ public class TicTacToeServer {
         return digest.digest();
     }
     
-    public static byte[] ToByteArray() {
+    public static byte[] ToByteArray_Master() {
         try {
             ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-            bytes.write(ByteBuffer.allocate(4).putInt(servername.length()).array());
-            bytes.write(servername.getBytes());
             bytes.write(ByteBuffer.allocate(4).putInt(port).array());
-            bytes.write(ByteBuffer.allocate(4).putInt(maxplayers).array());
             bytes.write(ByteBuffer.allocate(4).putInt(romname.length()).array());
             bytes.write(romname.getBytes());
             bytes.write(ByteBuffer.allocate(4).putInt(romhash.length).array());
             bytes.write(romhash);
+            return bytes.toByteArray();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+    
+    public static byte[] ToByteArray_Client() {
+        try {
+            ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+            // TODO:
             return bytes.toByteArray();
         } catch (Exception e) {
             e.printStackTrace();

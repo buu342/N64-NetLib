@@ -30,7 +30,7 @@ public class MasterConnectionThread implements Runnable {
         
         // Send the register packet to the master server
         try {
-            S64Packet pkt = new S64Packet("REGISTER", TicTacToeServer.ToByteArray());
+            S64Packet pkt = new S64Packet("REGISTER", TicTacToeServer.ToByteArray_Master());
             this.handler.SendPacketWaitAck(pkt, this.msgqueue);
             System.out.println("Register successful.");
         } catch (Exception e) {
@@ -38,7 +38,7 @@ public class MasterConnectionThread implements Runnable {
             e.printStackTrace();
         }
         
-        // Read packets
+        // Read packets from the master server
         while (true) {
             try {
                 byte[] data = this.msgqueue.poll();
@@ -49,9 +49,10 @@ public class MasterConnectionThread implements Runnable {
                     }
                     S64Packet pkt = this.handler.ReadS64Packet(data);
                     
-                    // TODO: Handle heartbeats from the master server
+                    if (pkt.GetType().equals("HEARTBEAT"))
+                        this.handler.SendPacket(new S64Packet("ACK", null));
                 } else {
-                    Thread.sleep(50);
+                    Thread.sleep(500);
                 }
             } catch (Exception e) {
                 e.printStackTrace();

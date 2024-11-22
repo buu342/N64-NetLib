@@ -2,6 +2,7 @@
 #include "packets.h"
 #include "helper.h"
 #include <wx/buffer.h>
+#include <wx/tokenzr.h>
 
 #define MAX_PACKETSIZE  4096
 
@@ -31,6 +32,19 @@ UDPHandler::UDPHandler(wxDatagramSocket* socket, wxString address, int port)
     this->m_AcksLeft = std::deque<uint16_t>();
 }
 
+UDPHandler::UDPHandler(wxDatagramSocket* socket, wxString fulladdress)
+{
+    wxStringTokenizer tokenizer(fulladdress, ":");
+    this->m_Address = tokenizer.GetNextToken();
+    if (tokenizer.HasMoreTokens())
+        tokenizer.GetNextToken().ToInt(&this->m_Port);
+    this->m_Socket = socket;
+    this->m_LocalSeqNum = 0;
+    this->m_RemoteSeqNum = 0;
+    this->m_AckBitfield = 0;
+    this->m_AcksLeft = std::deque<uint16_t>();
+}
+
 UDPHandler::~UDPHandler()
 {
 
@@ -44,6 +58,11 @@ wxString UDPHandler::GetAddress()
 int UDPHandler::GetPort()
 {
     return this->m_Port;
+}
+
+wxDatagramSocket* UDPHandler::GetSocket()
+{
+    return this->m_Socket;
 }
 
 void UDPHandler::SendPacket(S64Packet* pkt)
