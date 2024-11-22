@@ -57,7 +57,7 @@ public class ClientConnectionThread extends Thread {
                         break;
                     }
                 } else {
-                    Thread.sleep(50);
+                    Thread.sleep(10);
                 }
             }
         //} catch (ClientTimeoutException e) {

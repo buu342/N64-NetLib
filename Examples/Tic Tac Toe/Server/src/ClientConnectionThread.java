@@ -8,6 +8,7 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.SocketException;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class ClientConnectionThread implements Runnable {
@@ -54,7 +55,7 @@ public class ClientConnectionThread implements Runnable {
                         System.err.println("Received unknown data from client " + this.address + ":" + this.port);
                     }
                 } else {
-                    Thread.sleep(500);
+                    Thread.sleep(10);
                 }
             } catch (Exception e) {
                 e.printStackTrace();
@@ -62,15 +63,17 @@ public class ClientConnectionThread implements Runnable {
         }
     }
     
-    private void HandleS64Packets(S64Packet pkt) {
+    private void HandleS64Packets(S64Packet pkt) throws IOException {
         if (pkt == null)
             return;
         if (pkt.GetType().equals("DISCOVER")) {
-            // TODO:
+            String identifier = new String(pkt.GetData(), StandardCharsets.UTF_8);
+            this.handler.SendPacket(new S64Packet("DISCOVER", TicTacToeServer.ToByteArray_Client(identifier)));
+            System.out.println("Client " + this.address + ":" + this.port + " discovered server");
         }
     }
     
-    private void ReadNetLibPacket(NetLibPacket pkt) {
+    private void HandleNetLibPackets(NetLibPacket pkt) {
         // TODO:
     }
     

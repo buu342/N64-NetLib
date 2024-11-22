@@ -25,6 +25,7 @@ typedef struct IUnknown IUnknown;
 #include <wx/button.h>
 #include <wx/sizer.h>
 #include <wx/dialog.h>
+#include <map>
 #include "packets.h"
 
 #define DEFAULT_MASTERSERVER_ADDRESS "localhost"
@@ -37,9 +38,9 @@ typedef struct
     wxString name;
     int playercount;
     int maxplayers;
-    int ping;
+    wxLongLong ping;
     wxString romname;
-    wxString hash;
+    wxString romhash;
     bool romdownloadable;
 } FoundServer;
 
@@ -120,7 +121,7 @@ class ServerFinderThread : public wxThread
         ~ServerFinderThread();
 
         virtual void* Entry() wxOVERRIDE;
-        FoundServer ParsePacket_Server(wxDatagramSocket* socket, uint8_t* buf);
-        void AddServer(FoundServer* server);
+        FoundServer ParsePacket_Server(wxDatagramSocket* socket, S64Packet* pkt);
+        void DiscoveredServer(std::unordered_map<wxString, std::pair<FoundServer, wxLongLong>>* serverlist, S64Packet* pkt);
         void NotifyMainOfDeath();
 };

@@ -25,6 +25,7 @@ public class TicTacToeServer {
     private static int maxplayers = 2;
     private static String romname;
     private static byte[] romhash;
+    private static TicTacToe.Game game;
     private static Hashtable<String, ClientConnectionThread> connectiontable = new Hashtable<>();
     
     public static void main(String args[]) throws Exception {
@@ -93,7 +94,7 @@ public class TicTacToeServer {
         }
         
         // Begin the game
-        TicTacToe.Game game = new TicTacToe.Game();
+        game = new TicTacToe.Game();
         new Thread(game).start();
         
         // Allow clients to connect, and pass messages over to them
@@ -182,10 +183,15 @@ public class TicTacToeServer {
         }
     }
     
-    public static byte[] ToByteArray_Client() {
+    public static byte[] ToByteArray_Client(String identifier) {
         try {
             ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-            // TODO:
+            bytes.write(ByteBuffer.allocate(4).putInt(identifier.length()).array());
+            bytes.write(identifier.getBytes());
+            bytes.write(ByteBuffer.allocate(4).putInt(servername.length()).array());
+            bytes.write(servername.getBytes());
+            bytes.write(ByteBuffer.allocate(4).putInt(game.PlayerCount()).array());
+            bytes.write(ByteBuffer.allocate(4).putInt(maxplayers).array());
             return bytes.toByteArray();
         } catch (Exception e) {
             e.printStackTrace();
