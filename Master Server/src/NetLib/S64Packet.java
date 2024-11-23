@@ -13,11 +13,11 @@ public class S64Packet {
 
     private int version;
     private String type;
-    private short size;
-    private byte data[];
     private short seqnum;
     private short ack;
     private short ackbitfield;
+    private short size;
+    private byte data[];
     
     private S64Packet(int version, String type, byte data[], short seqnum, short ack, short ackbitfield) {
         this.version = version;

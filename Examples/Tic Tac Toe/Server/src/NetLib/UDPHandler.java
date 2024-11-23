@@ -72,7 +72,7 @@ public class UDPHandler {
         this.localseqnum = (this.localseqnum + 1) % (0xFFFF + 1);
     }
     
-    public void SendPacket(NetLibPacket pkt) {
+    public void SendPacket(NetLibPacket pkt) throws IOException {
         byte[] data;
         DatagramPacket out;
         short ackbitfield = 0;
@@ -145,7 +145,7 @@ public class UDPHandler {
             
             // If we got an ack, we're done
             ack = this.ReadNetLibPacket(response);
-            if (ack != null && ack.GetType().equals("ACK"))
+            if (ack != null && ack.GetType() == 0)
                 return;
         }
     }
