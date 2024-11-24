@@ -75,15 +75,15 @@ class NetLibPacket
 {
     private:
         uint8_t  m_Version;
-        uint32_t m_Recipients;
-        uint8_t  m_ID;
+        uint8_t  m_Type;
         uint8_t  m_Flags;
-        uint16_t m_Size;
         uint16_t m_SequenceNum;
         uint16_t m_Ack;
         uint16_t m_AckBitField;
+        uint32_t m_Recipients;
+        uint16_t m_Size;
         uint8_t* m_Data;
-        NetLibPacket(uint8_t version, uint8_t id, uint32_t recipients, uint16_t size, uint8_t* data, uint16_t seqnum, uint16_t acknum, uint16_t ackbitfield);
+        NetLibPacket(uint8_t version, uint8_t type, uint8_t flags, uint32_t recipients, uint16_t size, uint8_t* data, uint16_t seqnum, uint16_t acknum, uint16_t ackbitfield);
 
     protected:
 
@@ -94,13 +94,14 @@ class NetLibPacket
         static NetLibPacket* FromBytes(uint8_t* bytes);
 
         uint8_t  GetVersion();
-        uint8_t  GetID();
-        uint16_t GetSize();
+        uint8_t  GetType();
         uint32_t GetRecipients();
-        uint8_t* GetData();
         uint16_t GetSequenceNumber();
+        uint16_t GetSize();
+        uint8_t* GetData();
         uint8_t* GetAsBytes();
         uint16_t GetAsBytes_Size();
+        void SetFlags(uint8_t flags);
         void SetSequenceNumber(uint16_t seqnum);
         void SetAck(uint16_t acknum);
         void SetAckBitfield(uint16_t bitfield);

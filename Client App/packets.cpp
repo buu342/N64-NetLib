@@ -229,6 +229,7 @@ S64Packet* S64Packet::FromBytes(uint8_t* bytes)
 
     // Read the data
     memcpy(&data_len, bytes+readcount, sizeof(data_len));
+    data_len = swap_endian16(data_len);
     readcount += sizeof(data_len);
     if (data_len > 0)
     {
@@ -288,7 +289,7 @@ uint8_t* S64Packet::GetAsBytes()
     memcpy(bytes+writecount, &this->m_Version, sizeof(this->m_Version));
     writecount += sizeof(this->m_Version);
 
-    // Read the sequence data
+    // Write the sequence data
     write16b = swap_endian16(this->m_SequenceNum);
     memcpy(bytes+writecount, &write16b, sizeof(write16b));
     writecount += sizeof(write16b);
@@ -344,15 +345,16 @@ void S64Packet::SetAckBitfield(uint16_t bitfield)
 }
 
 
-NetLibPacket::NetLibPacket(uint8_t version, uint8_t id, uint32_t recipients, uint16_t size, uint8_t* data, uint16_t seqnum, uint16_t acknum, uint16_t ackbitfield)
+NetLibPacket::NetLibPacket(uint8_t version, uint8_t type, uint8_t flags, uint32_t recipients, uint16_t size, uint8_t* data, uint16_t seqnum, uint16_t acknum, uint16_t ackbitfield)
 {
     this->m_Version = version;
+    this->m_Type = type;
+    this->m_Flags = flags;
+    this->m_Size = size;
+    this->m_Recipients = recipients;
     this->m_SequenceNum = seqnum;
     this->m_Ack = acknum;
     this->m_AckBitField = ackbitfield;
-    this->m_ID = id;
-    this->m_Recipients = recipients;
-    this->m_Size = size;
     if (size > 0)
     {
         this->m_Data = (uint8_t*)malloc(size);
@@ -375,7 +377,59 @@ bool NetLibPacket::IsNetLibPacket(uint8_t* bytes)
 
 NetLibPacket* NetLibPacket::FromBytes(uint8_t* bytes)
 {
-    return NULL; // TODO
+    uint8_t  version, type, flags;
+    uint16_t seqnum, acknum, ackbitfield;
+    uint32_t recipients;
+    uint16_t data_len;
+    uint8_t* data = NULL;
+    NetLibPacket* ret = NULL;
+    uint32_t readcount = 0;
+
+    // Read the header
+    if (!NetLibPacket::IsNetLibPacket(bytes))
+        return NULL;
+    readcount += strlen(NETLIBPACKET_HEADER);
+    memcpy(&version, bytes+readcount, sizeof(version));
+    readcount += sizeof(version);
+
+    // Read the type and flags
+    memcpy(&type, bytes+readcount, sizeof(type));
+    readcount += sizeof(type);
+    memcpy(&flags, bytes+readcount, sizeof(flags));
+    readcount += sizeof(flags);
+
+    // Read the sequence data
+    memcpy(&seqnum, bytes+readcount, sizeof(seqnum));
+    seqnum = swap_endian16(seqnum);
+    readcount += sizeof(seqnum);
+    memcpy(&acknum, bytes+readcount, sizeof(acknum));
+    acknum = swap_endian16(acknum);
+    readcount += sizeof(acknum);
+    memcpy(&ackbitfield, bytes+readcount, sizeof(ackbitfield));
+    ackbitfield = swap_endian16(ackbitfield);
+    readcount += sizeof(ackbitfield);
+
+    // Read the recipients
+    memcpy(&recipients, bytes+readcount, sizeof(recipients));
+    recipients = swap_endian32(recipients);
+    readcount += sizeof(recipients);
+
+    // Read the data
+    memcpy(&data_len, bytes+readcount, sizeof(data_len));
+    data_len = swap_endian16(data_len);
+    readcount += sizeof(data_len);
+    if (data_len > 0)
+    {
+        data = (uint8_t*)malloc(data_len);
+        memcpy(data, bytes+readcount, data_len);
+        readcount += data_len;
+    }
+
+    // Build the packet object and cleanup
+    ret = new NetLibPacket(version, type, flags, recipients, data_len, data, seqnum, acknum, ackbitfield);
+    if (data_len > 0)
+        free(data);
+    return ret;
 }
 
 uint8_t NetLibPacket::GetVersion()
@@ -383,19 +437,24 @@ uint8_t NetLibPacket::GetVersion()
     return this->m_Version;
 }
 
-uint8_t NetLibPacket::GetID()
+uint8_t NetLibPacket::GetType()
 {
-    return this->m_Recipients;
-}
-
-uint16_t NetLibPacket::GetSize()
-{
-    return this->m_Size;
+    return this->m_Type;
 }
 
 uint32_t NetLibPacket::GetRecipients()
 {
     return this->m_Recipients;
+}
+
+uint16_t NetLibPacket::GetSequenceNumber()
+{
+    return this->m_SequenceNum;
+}
+
+uint16_t NetLibPacket::GetSize()
+{
+    return this->m_Size;
 }
 
 uint8_t* NetLibPacket::GetData()
@@ -405,12 +464,70 @@ uint8_t* NetLibPacket::GetData()
 
 uint8_t* NetLibPacket::GetAsBytes()
 {
-    return NULL; // TODO
+    uint16_t write16b;
+    uint32_t write32b;
+    uint8_t* bytes = NULL;
+    uint32_t writecount = 0;
+
+    // Malloc the bytes
+    bytes = (uint8_t*)malloc(this->GetAsBytes_Size());
+    if (bytes == NULL)
+        return NULL;
+
+    // Write the header
+    memcpy(bytes+writecount, NETLIBPACKET_HEADER, strlen(NETLIBPACKET_HEADER));
+    writecount += strlen(NETLIBPACKET_HEADER);
+    memcpy(bytes+writecount, &this->m_Version, sizeof(this->m_Version));
+    writecount += sizeof(this->m_Version);
+
+    // Write the type and the flags
+    memcpy(bytes+writecount, &this->m_Type, sizeof(this->m_Type));
+    writecount += sizeof(this->m_Type);
+    memcpy(bytes+writecount, &this->m_Flags, sizeof(this->m_Flags));
+    writecount += sizeof(this->m_Flags);
+
+    // Write the sequence data
+    write16b = swap_endian16(this->m_SequenceNum);
+    memcpy(bytes+writecount, &write16b, sizeof(write16b));
+    writecount += sizeof(write16b);
+    write16b = swap_endian16(this->m_Ack);
+    memcpy(bytes+writecount, &write16b, sizeof(write16b));
+    writecount += sizeof(write16b);
+    write16b = swap_endian16(this->m_AckBitField);
+    memcpy(bytes+writecount, &write16b, sizeof(write16b));
+    writecount += sizeof(write16b);
+
+    // Write the recipients
+    write32b = swap_endian32(this->m_Recipients);
+    memcpy(bytes+writecount, &write32b, sizeof(write32b));
+    writecount += sizeof(write32b);
+
+    // Data
+    write16b = swap_endian16(this->m_Size);
+    memcpy(bytes+writecount, &write16b, sizeof(write16b));
+    writecount += sizeof(write16b);
+    if (this->m_Size > 0)
+    {
+        memcpy(bytes+writecount, this->m_Data, this->m_Size);
+        writecount += this->m_Size;
+    }
+
+    // Done
+    return bytes;
 }
 
 uint16_t NetLibPacket::GetAsBytes_Size()
 {
-    return 0; // TODO
+    return sizeof(NETLIBPACKET_HEADER) + sizeof(this->m_Version) +
+        this->m_Type + this->m_Flags +
+        sizeof(this->m_SequenceNum) + sizeof(this->m_Ack) + sizeof(this->m_AckBitField) +
+        sizeof(this->m_Recipients) +
+        sizeof(this->m_Size) + this->m_Size;
+}
+
+void NetLibPacket::SetFlags(uint8_t flags)
+{
+    this->m_Flags = flags;
 }
 
 void NetLibPacket::SetSequenceNumber(uint16_t seqnum)

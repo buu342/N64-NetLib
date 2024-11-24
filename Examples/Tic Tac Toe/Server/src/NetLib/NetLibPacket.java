@@ -100,7 +100,6 @@ public class NetLibPacket {
                 ((arr[2] & 0xFF) << 8 ) | 
                 ((arr[3] & 0xFF) << 0 );
     }
-
     
     static public NetLibPacket ReadPacket(byte[] pktdata) throws IOException {
         int version, type, flags, recipients;
@@ -133,19 +132,6 @@ public class NetLibPacket {
         dis.close();
         return new NetLibPacket(version, type, flags, recipients, data, seqnum, ack, ackbitfield);
     }
-    
-    /*
-        NLP - 3 bytes
-        Version - 1 byte
-        Type - 1 byte
-        Flags - 1 byte
-        Sequence num - 2 bytes
-        Last Ack - 2 bytes
-        Ack bitfield - 2 bytes
-        Recipients - 4 bytes
-        Data size - 2 bytes
-        Data - n bytes
-     */
     
     public byte[] GetBytes() throws IOException {
         byte[] out;
