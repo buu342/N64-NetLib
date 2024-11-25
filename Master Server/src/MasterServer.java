@@ -3,6 +3,7 @@ import java.net.DatagramSocket;
 import java.io.File;
 import java.io.IOException;
 import java.util.Hashtable;
+import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 
 import N64.N64ROM;
@@ -14,6 +15,7 @@ public class MasterServer {
     private static final int TIME_SERVERKEEP = 1000*60*10;
     private static final int DEFAULTPORT = 6464;
     
+    private static int port = DEFAULTPORT;
     private static ConcurrentHashMap<String, N64ROM> romtable = new ConcurrentHashMap<>();
     private static ConcurrentHashMap<String, N64Server> servertable = new ConcurrentHashMap<>();
     private static Hashtable<String, ClientConnectionThread> connectiontable = new Hashtable<>();
@@ -23,12 +25,9 @@ public class MasterServer {
     public static void main(String args[]) throws IOException {
         byte[] data = new byte[S64Packet.PACKET_MAXSIZE];
         DatagramSocket ds = null;
-        int port = DEFAULTPORT;
         
-        // Ensure we have enough arguments
-        if (args.length == 1 ) {
-            port = Integer.getInteger(args[0]);
-        }
+        // Check for optional arguments
+        ReadArguments(args);
         System.out.println("Starting N64NetLib Master Server.");
 
         // Open the ROM directory and get all the ROMs inside
@@ -50,17 +49,28 @@ public class MasterServer {
             try {
                 String clientaddr;
                 ClientConnectionThread t;
+                
+                // Receive packets
                 udppkt = new DatagramPacket(data, data.length);
                 ds.receive(udppkt);
                 clientaddr = udppkt.getAddress().getHostAddress() + ":" + udppkt.getPort();
                 t = connectiontable.get(clientaddr);
+                
+                // Create a thread for this client if it doesn't exist
                 if (t == null || !t.isAlive()) {
                     t = new ClientConnectionThread(servertable, romtable, ds, udppkt.getAddress().getHostAddress(), udppkt.getPort());
                     new Thread(t).start();
                     connectiontable.put(clientaddr, t);
-                    // TOOD: Notification system for when the client connection thread dies
                 }
+                
+                // Send the packet to this client thread
                 t.SendMessage(data, udppkt.getLength());
+                
+                // Clean up the connection table of dead clients
+                for (Entry<String, ClientConnectionThread> entry : connectiontable.entrySet()) {
+                    if (!entry.getValue().isAlive()) 
+                        connectiontable.remove(entry.getKey());
+                }
             } catch (Exception e) {
                 System.err.println("Error during client connection.");
                 e.printStackTrace();
@@ -68,9 +78,43 @@ public class MasterServer {
         }
     }
     
+    private static void ReadArguments(String args[]) {
+        for (int i=0; i<args.length; i++) {
+            switch (args[i]) {
+                case "-port":
+                    if (i+1 >= args.length) {
+                        System.err.println("Missing argument for port command");
+                        ShowHelp();
+                        System.exit(1);
+                    }
+                    port = Integer.parseInt(args[++i]);
+                    break;
+                case "-dir":
+                    if (i+1 >= args.length) {
+                        System.err.println("Missing argument for port command");
+                        ShowHelp();
+                        System.exit(1);
+                    }
+                    romdir = args[++i];
+                    break;
+                case "-help":
+                default:
+                    ShowHelp();
+                    System.exit(0);
+            }
+        }
+    }
+    
+    private static void ShowHelp() {
+        System.out.println("Program arguments:");
+        System.out.println("    -help\t\tDisplay this");
+        System.out.println("    -port <Number>\tServer port (default '6464')");
+        System.out.println("    -dir <Path/To/Dir>\tROM Directory (default 'roms')");
+    }
+    
     private static void ReadROMs() {
         File[] files;
-        File folder = new File(romdir);
+        File folder = new File(romdir + "/");
         
         // Create the folder if it doesn't exist
         if (!folder.exists())
@@ -93,7 +137,7 @@ public class MasterServer {
     }
     
     public static void FindROMWithName(String name) {
-        File file = new File(romdir + name);
+        File file = new File(romdir + "/" + name);
         if (file.exists()) {
             try {
                 N64ROM rom = new N64ROM(file);
