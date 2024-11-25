@@ -9,13 +9,15 @@ public class N64Server {
     private String ROMName;
     private byte[] ROMHash;
     private String ROMHashStr;
+    private long lastmessage;
     
     public N64Server(String address, int publicport, String ROMName, byte[] ROMHash) {
         this.address = address;
         this.publicport = publicport;
         this.ROMName = ROMName;
         this.ROMHash = ROMHash;
-        this.ROMHashStr = N64ROM.BytesToHash(ROMHash);;
+        this.ROMHashStr = N64ROM.BytesToHash(ROMHash);
+        this.lastmessage = System.currentTimeMillis();
     }
     
     public int GetAddress() {
@@ -38,6 +40,10 @@ public class N64Server {
         return this.ROMHashStr;
     }
     
+    public long GetLastInteractionTime() {
+        return this.lastmessage;
+    }
+    
     public byte[] toByteArray(boolean hasrom) {
         try {
             ByteArrayOutputStream bytes = new ByteArrayOutputStream();
@@ -54,5 +60,9 @@ public class N64Server {
             e.printStackTrace();
             return null;
         }
+    }
+    
+    public void UpdateLastInteractionTime() {
+        this.lastmessage = System.currentTimeMillis();
     }
 }

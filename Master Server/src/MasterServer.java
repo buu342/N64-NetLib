@@ -1,5 +1,5 @@
 import java.net.DatagramPacket;
-import java.net.DatagramSocket; 
+import java.net.DatagramSocket;
 import java.io.File;
 import java.io.IOException;
 import java.util.Hashtable;
@@ -12,7 +12,7 @@ import NetLib.S64Packet;
 
 public class MasterServer {
     
-    private static final int TIME_SERVERKEEP = 1000*60*10;
+    private static final int TIME_KEEPSERVERS = 1000*60*10;
     private static final int DEFAULTPORT = 6464;
     
     private static int port = DEFAULTPORT;
@@ -56,6 +56,14 @@ public class MasterServer {
                 clientaddr = udppkt.getAddress().getHostAddress() + ":" + udppkt.getPort();
                 t = connectiontable.get(clientaddr);
                 
+                // Check for dead servers
+                for (Entry<String, N64Server> entry : servertable.entrySet()) {
+                    if (System.currentTimeMillis() - entry.getValue().GetLastInteractionTime() > TIME_KEEPSERVERS) {
+                        System.err.println("No interactions from "+entry.getKey()+". Removing from registry.");
+                        servertable.remove(entry.getKey());
+                    }
+                }
+                
                 // Create a thread for this client if it doesn't exist
                 if (t == null || !t.isAlive()) {
                     t = new ClientConnectionThread(servertable, romtable, ds, udppkt.getAddress().getHostAddress(), udppkt.getPort());
@@ -67,10 +75,9 @@ public class MasterServer {
                 t.SendMessage(data, udppkt.getLength());
                 
                 // Clean up the connection table of dead clients
-                for (Entry<String, ClientConnectionThread> entry : connectiontable.entrySet()) {
-                    if (!entry.getValue().isAlive()) 
+                for (Entry<String, ClientConnectionThread> entry : connectiontable.entrySet())
+                    if (!entry.getValue().isAlive())
                         connectiontable.remove(entry.getKey());
-                }
             } catch (Exception e) {
                 System.err.println("Error during client connection.");
                 e.printStackTrace();

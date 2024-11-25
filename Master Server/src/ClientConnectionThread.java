@@ -1,6 +1,5 @@
 import N64.N64ROM;
 import N64.N64Server;
-import NetLib.ClientTimeoutException;
 import NetLib.S64Packet;
 import NetLib.UDPHandler;
 import java.io.IOException;
@@ -11,10 +10,10 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class ClientConnectionThread extends Thread {
 
-    UDPHandler handler;
-    ConcurrentHashMap<String, N64ROM> roms;
-    ConcurrentHashMap<String, N64Server> servers;
-    ConcurrentLinkedQueue<byte[]> msgqueue = new ConcurrentLinkedQueue<byte[]>();
+    private UDPHandler handler;
+    private ConcurrentHashMap<String, N64ROM> roms;
+    private ConcurrentHashMap<String, N64Server> servers;
+    private ConcurrentLinkedQueue<byte[]> msgqueue = new ConcurrentLinkedQueue<byte[]>();
     
     ClientConnectionThread(ConcurrentHashMap<String, N64Server> servers, ConcurrentHashMap<String, N64ROM> roms, DatagramSocket socket, String addr, int port) {
         this.servers = servers;
@@ -30,7 +29,7 @@ public class ClientConnectionThread extends Thread {
     
     public void run() {
         try {
-            while (true) {
+            while (!Thread.currentThread().isInterrupted()) {
                 // Check packets that came from a user (by reading the message queue)
                 byte[] data = this.msgqueue.poll();
                 if (data != null) {
@@ -49,8 +48,9 @@ public class ClientConnectionThread extends Thread {
                     } else if (pkt.GetType().equals("DOWNLOAD")) {
                         //this.DownloadROM(pkt.GetData());
                         break;
-                    } else if (pkt.GetType().equals("ACK")) {
-                        continue;
+                    } else if (pkt.GetType().equals("HEARTBEAT")) {
+                        this.HandleServerHeartbeat();
+                        break;
                     } else {
                         System.out.println("Received packet with unknown type '" + pkt.GetType() + "'");
                         break;
@@ -59,9 +59,6 @@ public class ClientConnectionThread extends Thread {
                     Thread.sleep(10);
                 }
             }
-        //} catch (ClientTimeoutException e) {
-        //    System.out.println(e);
-        //    return;
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -116,6 +113,14 @@ public class ClientConnectionThread extends Thread {
         }
         this.handler.SendPacket(new S64Packet("DONELISTING", null));
         System.out.println("Client " + addrport + " got server list");
+    }
+    
+    private void HandleServerHeartbeat() throws IOException {
+        N64Server server =  this.servers.get(this.handler.GetAddress() + ":" + this.handler.GetPort());
+        if (server != null) {
+            server.UpdateLastInteractionTime();
+            this.handler.SendPacket(new S64Packet("ACK", null));
+        }
     }
     
     /*    

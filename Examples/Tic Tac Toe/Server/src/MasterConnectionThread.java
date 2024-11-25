@@ -1,10 +1,13 @@
 import java.net.DatagramSocket;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import NetLib.ClientTimeoutException;
 import NetLib.S64Packet;
 import NetLib.UDPHandler;
 
 public class MasterConnectionThread implements Runnable {
+
+    private static final int TIME_HEARTBEAT = 1000*60*5;
 
     String address;
     int port;
@@ -38,22 +41,14 @@ public class MasterConnectionThread implements Runnable {
             e.printStackTrace();
         }
         
-        // Read packets from the master server
+        // Send heartbeat packets every 5 minutes
         while (true) {
             try {
-                byte[] data = this.msgqueue.poll();
-                if (data != null) {
-                    if (!this.handler.IsS64Packet(data)) {
-                        System.err.println("Received data which isn't an S64Packet from master server");
-                        continue;
-                    }
-                    S64Packet pkt = this.handler.ReadS64Packet(data);
-                    
-                    if (pkt.GetType().equals("HEARTBEAT"))
-                        this.handler.SendPacket(new S64Packet("ACK", null));
-                } else {
-                    Thread.sleep(500);
-                }
+                this.handler.SendPacketWaitAck(new S64Packet("HEARTBEAT", null), this.msgqueue);
+                Thread.sleep(TIME_HEARTBEAT);
+            } catch (ClientTimeoutException e) {
+                System.err.println("Master server did not respond to heartbeat.");
+                break;
             } catch (Exception e) {
                 e.printStackTrace();
             }

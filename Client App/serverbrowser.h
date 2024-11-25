@@ -90,25 +90,6 @@ class ServerBrowser : public wxFrame
         wxDatagramSocket* GetSocket();
 };
 
-class ManualConnectWindow : public wxDialog
-{
-    private:
-
-    protected:
-        wxTextCtrl* m_TextCtrl_Server;
-        wxFilePickerCtrl* m_FilePicker_ROM;
-        wxButton* m_Button_Connect;
-
-        //void m_TextCtrl_Server_OnText(wxCommandEvent& event);
-        //void m_FilePicker_ROM_OnFileChanged(wxFileDirPickerEvent& event);
-        void m_Button_Connect_OnButtonClick(wxCommandEvent& event);
-
-    public:
-        ManualConnectWindow( wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxT("Manual Server Connect"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 300,125 ), long style = wxDEFAULT_DIALOG_STYLE|wxRESIZE_BORDER );
-        ~ManualConnectWindow();
-};
-
-
 class ServerFinderThread : public wxThread
 {
     private:
@@ -124,4 +105,20 @@ class ServerFinderThread : public wxThread
         FoundServer ParsePacket_Server(wxDatagramSocket* socket, S64Packet* pkt);
         void DiscoveredServer(std::unordered_map<wxString, std::pair<FoundServer, wxLongLong>>* serverlist, S64Packet* pkt);
         void NotifyMainOfDeath();
+};
+
+class ManualConnectWindow : public wxDialog
+{
+    private:
+
+    protected:
+        wxTextCtrl* m_TextCtrl_Server;
+        wxFilePickerCtrl* m_FilePicker_ROM;
+        wxButton* m_Button_Connect;
+
+        void m_Button_Connect_OnButtonClick(wxCommandEvent& event);
+
+    public:
+        ManualConnectWindow( wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxT("Manual Server Connect"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 300,125 ), long style = wxDEFAULT_DIALOG_STYLE|wxRESIZE_BORDER );
+        ~ManualConnectWindow();
 };

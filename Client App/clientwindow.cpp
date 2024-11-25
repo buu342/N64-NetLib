@@ -91,12 +91,7 @@ ClientWindow::~ClientWindow()
 void ClientWindow::BeginWorking()
 {
     this->m_DeviceThread = new DeviceThread(this);
-    if (this->m_DeviceThread->Create() != wxTHREAD_NO_ERROR)
-    {
-        delete this->m_DeviceThread;
-        this->m_DeviceThread = NULL;
-    }
-    else if (this->m_DeviceThread->Run() != wxTHREAD_NO_ERROR)
+    if (this->m_DeviceThread->Run() != wxTHREAD_NO_ERROR)
     {
         delete this->m_DeviceThread;
         this->m_DeviceThread = NULL;
@@ -105,12 +100,7 @@ void ClientWindow::BeginWorking()
     if (this->GetAddress() != "")
     {
         this->m_ServerThread = new ServerConnectionThread(this);
-        if (this->m_ServerThread->Create() != wxTHREAD_NO_ERROR)
-        {
-            delete this->m_ServerThread;
-            this->m_ServerThread = NULL;
-        }
-        else if (this->m_ServerThread->Run() != wxTHREAD_NO_ERROR)
+        if (this->m_ServerThread->Run() != wxTHREAD_NO_ERROR)
         {
             delete this->m_ServerThread;
             this->m_ServerThread = NULL;
@@ -208,6 +198,10 @@ void ClientWindow::SetROM(wxString rom)
     this->m_ROMPath = rom;
 }
 
+void ClientWindow::SetSocket(wxDatagramSocket* socket)
+{
+    this->m_Socket = socket;
+}
 
 void ClientWindow::SetAddress(wxString addr)
 {
@@ -222,6 +216,11 @@ void ClientWindow::SetPortNumber(int port)
 wxString ClientWindow::GetROM()
 {
     return this->m_ROMPath;
+}
+
+wxDatagramSocket* ClientWindow::GetSocket()
+{
+    return this->m_Socket;
 }
 
 wxString ClientWindow::GetAddress()
@@ -500,14 +499,8 @@ void DeviceThread::SetMainWindow(ClientWindow* win)
 void DeviceThread::UploadROM(wxString path)
 {
     UploadThread* dev = new UploadThread(this->m_Window, path);
-    if (dev->Create() != wxTHREAD_NO_ERROR)
-    {
+    if (dev->Run() != wxTHREAD_NO_ERROR)
         delete dev;
-    }
-    else if (dev->Run() != wxTHREAD_NO_ERROR)
-    {
-        delete dev;
-    }
 }
 
 void DeviceThread::NotifyDeath()
@@ -607,8 +600,6 @@ ServerConnectionThread::ServerConnectionThread(ClientWindow* win)
 
 ServerConnectionThread::~ServerConnectionThread()
 {
-    if (this->m_Socket->IsConnected())
-        this->m_Socket->Close();
     this->NotifyDeath();
 }
 

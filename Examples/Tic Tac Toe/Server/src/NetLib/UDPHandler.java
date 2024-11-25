@@ -90,7 +90,7 @@ public class UDPHandler {
         out= new DatagramPacket(data, data.length, InetAddress.getByName(this.address), this.port);
         this.socket.send(out);
         
-        // TODO: Resend missing packets
+        // TODO: Resend missing packets. Timeout if we received no ack for 16 packets
         
         // Increase the local sequence number. We want a short, so we have to modulus it by the max 16 bit value
         this.localseqnum = (this.localseqnum + 1) % (0xFFFF + 1);

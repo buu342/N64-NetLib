@@ -64,7 +64,7 @@ public class TicTacToeServer {
                 }
             );
             System.out.println("Attempting UPnP port forwarding...");
-            if (UPnP.isUPnPAvailable()){
+            if (UPnP.isUPnPAvailable()) {
                 if (UPnP.isMappedTCP(port)) {
                     System.out.println("UPnP port is already mapped");
                 } else if (UPnP.openPortTCP(port)) {

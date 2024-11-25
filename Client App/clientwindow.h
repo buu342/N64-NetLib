@@ -42,6 +42,7 @@ class ClientWindow : public wxFrame
     private:
 
     protected:
+        wxDatagramSocket* m_Socket;
         wxString m_ServerAddress;
         int m_ServerPort;
         wxGridBagSizer* m_Sizer_Input;
@@ -67,8 +68,10 @@ class ClientWindow : public wxFrame
         void BeginWorking();
         void SetClientDeviceStatus(ClientDeviceStatus status);
         void SetROM(wxString rom);
+        void SetSocket(wxDatagramSocket* socket);
         void SetAddress(wxString addr);
         void SetPortNumber(int port);
+        wxDatagramSocket* GetSocket();
         wxString GetROM();
         wxString GetAddress();
         int GetPort();
@@ -119,7 +122,7 @@ class UploadThread : public wxThread
 class ServerConnectionThread : public wxThread
 {
     private:
-        wxSocketClient* m_Socket;
+        wxDatagramSocket* m_Socket;
         ClientWindow* m_Window;
 
     protected:

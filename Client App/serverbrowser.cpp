@@ -98,6 +98,7 @@ ServerBrowser::~ServerBrowser()
 
         if (this->m_FinderThread != NULL)
             this->m_FinderThread->Delete();
+        this->m_FinderThread = NULL;
     }
 
     // Close the socket
@@ -175,42 +176,40 @@ void ServerBrowser::m_DataViewListCtrl_Servers_OnDataViewListCtrlItemActivated(w
         else
             this->CreateClient(rompath, serveraddr);
     }
+    else if (romavailable)
+    {
+        wxMessageDialog dialog(this, wxString("In order to join this server, the ROM '") + romname + wxString("' must be downloaded. This ROM is available to download from the Master Server.\n\nContinue?"), wxString("Download ROM?"), wxICON_QUESTION | wxYES_NO);
+        if (dialog.ShowModal() == wxID_YES)
+        {
+            // Stop the server retrieval thread if it is running
+            {
+                wxCriticalSectionLocker enter(this->m_FinderThreadCS);
+
+                if (this->m_FinderThread != NULL)
+                    this->m_FinderThread->Delete();
+                this->m_FinderThread = NULL;
+            }
+
+            // Create the ROM download dialog
+            ROMDownloadWindow* rdw = new ROMDownloadWindow(this);
+            rdw->SetROMPath(rompath);
+            rdw->SetROMHash(romhash);
+            rdw->SetAddress(this->m_MasterAddress);
+            rdw->SetPortNumber(this->m_MasterPort);
+            rdw->BeginConnection();
+            if (rdw->ShowModal() == 0)
+            {
+                wxMessageDialog dialog(this, wxString("ROM download was unsuccessful."), wxString("ROM Download Failed"), wxICON_ERROR);
+                dialog.ShowModal();
+            }
+            else
+                this->CreateClient(rompath, serveraddr);
+        }
+    }
     else
     {
-        if (romavailable)
-        {
-            wxMessageDialog dialog(this, wxString("In order to join this server, the ROM '") + romname + wxString("' must be downloaded. This ROM is available to download from the Master Server.\n\nContinue?"), wxString("Download ROM?"), wxICON_QUESTION | wxYES_NO);
-            if (dialog.ShowModal() == wxID_YES)
-            {
-                // Stop the server retrieval thread if it is running
-                {
-                    wxCriticalSectionLocker enter(this->m_FinderThreadCS);
-
-                    if (this->m_FinderThread != NULL)
-                        this->m_FinderThread->Delete();
-                }
-
-                // Create the ROM download dialog
-                ROMDownloadWindow* rdw = new ROMDownloadWindow(this);
-                rdw->SetROMPath(rompath);
-                rdw->SetROMHash(romhash);
-                rdw->SetAddress(this->m_MasterAddress);
-                rdw->SetPortNumber(this->m_MasterPort);
-                rdw->BeginConnection();
-                if (rdw->ShowModal() == 0)
-                {
-                    wxMessageDialog dialog(this, wxString("ROM download was unsuccessful."), wxString("ROM Download Failed"), wxICON_ERROR);
-                    dialog.ShowModal();
-                }
-                else
-                    this->CreateClient(rompath, serveraddr);
-            }
-        }
-        else
-        {
-            wxMessageDialog dialog(this, wxString("This server requires the ROM '") + romname + wxString("', which is not available for download from the master server.\n\nIn order to join this server, you must manually find and download the ROM, and place it in your ROMs folder."), wxString("ROM Unavailable"), wxICON_ERROR);
-            dialog.ShowModal();
-        }
+        wxMessageDialog dialog(this, wxString("This server requires the ROM '") + romname + wxString("', which is not available for download from the master server.\n\nIn order to join this server, you must manually find and download the ROM, and place it in your ROMs folder."), wxString("ROM Unavailable"), wxICON_ERROR);
+        dialog.ShowModal();
     }
 }
 
@@ -241,7 +240,28 @@ void ServerBrowser::CreateClient(wxString rom, wxString address)
     int port;
     wxStringTokenizer tokenizer(address, ":");
     ClientWindow* cw = new ClientWindow(this);
+
+    // Kill the server finder thread so it doesn't steal packets from the client window
+    {
+        wxCriticalSectionLocker enter(this->m_FinderThreadCS);
+
+        if (this->m_FinderThread != NULL)
+            this->m_FinderThread->Delete();
+        this->m_FinderThread = NULL;
+    }
+
+    // Open a UDP socket if it's not open yet
+    if (this->m_Socket == NULL)
+    {
+        wxIPV4address localaddr;
+        localaddr.AnyAddress();
+        localaddr.Service(0);
+        this->m_Socket = new wxDatagramSocket(localaddr , wxSOCKET_NOWAIT);
+    }
+
+    // Initialize the client window
     cw->SetROM(rom);
+    cw->SetSocket(this->m_Socket);
     cw->SetAddress(tokenizer.GetNextToken());
     tokenizer.GetNextToken().ToInt(&port);
     this->Lower();
@@ -321,91 +341,6 @@ int ServerBrowser::GetPort()
 wxDatagramSocket* ServerBrowser::GetSocket()
 {
     return this->m_Socket;
-}
-
-
-/*=============================================================
-
-=============================================================*/
-
-ManualConnectWindow::ManualConnectWindow( wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style ) : wxDialog( parent, id, title, pos, size, style )
-{
-    this->SetSizeHints( wxDefaultSize, wxDefaultSize );
-
-    wxFlexGridSizer* m_Sizer_Main;
-    m_Sizer_Main = new wxFlexGridSizer( 2, 1, 0, 0 );
-    m_Sizer_Main->AddGrowableCol( 0 );
-    m_Sizer_Main->AddGrowableRow( 0 );
-    m_Sizer_Main->SetFlexibleDirection( wxBOTH );
-    m_Sizer_Main->SetNonFlexibleGrowMode( wxFLEX_GROWMODE_SPECIFIED );
-
-    wxFlexGridSizer* m_Sizer_Inputs;
-    m_Sizer_Inputs = new wxFlexGridSizer( 0, 2, 0, 0 );
-    m_Sizer_Inputs->AddGrowableCol( 1 );
-    m_Sizer_Inputs->AddGrowableRow( 1 );
-    m_Sizer_Inputs->SetFlexibleDirection( wxBOTH );
-    m_Sizer_Inputs->SetNonFlexibleGrowMode( wxFLEX_GROWMODE_SPECIFIED );
-
-    wxStaticText* m_StaticText_Server;
-    m_StaticText_Server = new wxStaticText( this, wxID_ANY, wxT("Server IP:"), wxDefaultPosition, wxDefaultSize, 0 );
-    m_StaticText_Server->Wrap( -1 );
-    m_Sizer_Inputs->Add( m_StaticText_Server, 0, wxALL, 5 );
-
-    m_TextCtrl_Server = new wxTextCtrl( this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0 );
-    m_Sizer_Inputs->Add( m_TextCtrl_Server, 0, wxALL|wxEXPAND, 5 );
-
-    wxStaticText* m_StaticText_ROM;
-    m_StaticText_ROM = new wxStaticText( this, wxID_ANY, wxT("ROM Path:"), wxDefaultPosition, wxDefaultSize, 0 );
-    m_StaticText_ROM->Wrap( -1 );
-    m_Sizer_Inputs->Add( m_StaticText_ROM, 0, wxALIGN_CENTER|wxALL, 5 );
-
-    m_FilePicker_ROM = new wxFilePickerCtrl( this, wxID_ANY, wxEmptyString, wxT("Load ROM"), wxT("*.*"), wxDefaultPosition, wxDefaultSize, wxFLP_DEFAULT_STYLE|wxFLP_FILE_MUST_EXIST|wxFLP_OPEN|wxFLP_SMALL|wxFLP_USE_TEXTCTRL );
-    m_FilePicker_ROM->DragAcceptFiles( true );
-
-    m_Sizer_Inputs->Add( m_FilePicker_ROM, 0, wxALL|wxEXPAND, 5 );
-
-    m_Sizer_Main->Add( m_Sizer_Inputs, 1, wxEXPAND, 5 );
-
-    m_Button_Connect = new wxButton( this, wxID_ANY, wxT("Connect"), wxDefaultPosition, wxDefaultSize, 0 );
-    m_Sizer_Main->Add( m_Button_Connect, 0, wxALIGN_CENTER|wxALL, 5 );
-
-    this->SetSizer( m_Sizer_Main );
-    this->Layout();
-
-    this->Centre( wxBOTH );
-
-    // Connect Events
-    //m_TextCtrl_Server->Connect( wxEVT_COMMAND_TEXT_UPDATED, wxCommandEventHandler( ManualConnectWindow::m_TextCtrl_Server_OnText ), NULL, this );
-    //m_FilePicker_ROM->Connect( wxEVT_COMMAND_FILEPICKER_CHANGED, wxFileDirPickerEventHandler( ManualConnectWindow::m_FilePicker_ROM_OnFileChanged ), NULL, this );
-    m_Button_Connect->Connect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( ManualConnectWindow::m_Button_Connect_OnButtonClick ), NULL, this );
-}
-
-ManualConnectWindow::~ManualConnectWindow()
-{
-    // Disconnect Events
-    //m_TextCtrl_Server->Disconnect( wxEVT_COMMAND_TEXT_UPDATED, wxCommandEventHandler( ManualConnectWindow::m_TextCtrl_Server_OnText ), NULL, this );
-    //m_FilePicker_ROM->Disconnect( wxEVT_COMMAND_FILEPICKER_CHANGED, wxFileDirPickerEventHandler( ManualConnectWindow::m_FilePicker_ROM_OnFileChanged ), NULL, this );
-    m_Button_Connect->Disconnect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( ManualConnectWindow::m_Button_Connect_OnButtonClick ), NULL, this );
-}
-
-/*void ManualConnectWindow::m_TextCtrl_Server_OnText(wxCommandEvent& event)
-{
-
-}
-
-void ManualConnectWindow::m_FilePicker_ROM_OnFileChanged(wxFileDirPickerEvent& event)
-{
-
-}*/
-
-void ManualConnectWindow::m_Button_Connect_OnButtonClick(wxCommandEvent& event)
-{
-    (void)event;
-    wxString path = this->m_FilePicker_ROM->GetPath();
-    wxString address = this->m_TextCtrl_Server->GetValue();
-    ServerBrowser* parent = (ServerBrowser*)this->GetParent();
-    this->Destroy(); // Must be done first or the parent window will steal attention from the client
-    parent->CreateClient(path, address);
 }
 
 
@@ -594,4 +529,76 @@ void ServerFinderThread::NotifyMainOfDeath()
     wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
     evt.SetInt(TEVENT_THREADENDED);
     wxQueueEvent(this->m_Window, evt.Clone());
+}
+
+
+
+/*=============================================================
+
+=============================================================*/
+
+ManualConnectWindow::ManualConnectWindow( wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style ) : wxDialog( parent, id, title, pos, size, style )
+{
+    this->SetSizeHints( wxDefaultSize, wxDefaultSize );
+
+    wxFlexGridSizer* m_Sizer_Main;
+    m_Sizer_Main = new wxFlexGridSizer( 2, 1, 0, 0 );
+    m_Sizer_Main->AddGrowableCol( 0 );
+    m_Sizer_Main->AddGrowableRow( 0 );
+    m_Sizer_Main->SetFlexibleDirection( wxBOTH );
+    m_Sizer_Main->SetNonFlexibleGrowMode( wxFLEX_GROWMODE_SPECIFIED );
+
+    wxFlexGridSizer* m_Sizer_Inputs;
+    m_Sizer_Inputs = new wxFlexGridSizer( 0, 2, 0, 0 );
+    m_Sizer_Inputs->AddGrowableCol( 1 );
+    m_Sizer_Inputs->AddGrowableRow( 1 );
+    m_Sizer_Inputs->SetFlexibleDirection( wxBOTH );
+    m_Sizer_Inputs->SetNonFlexibleGrowMode( wxFLEX_GROWMODE_SPECIFIED );
+
+    wxStaticText* m_StaticText_Server;
+    m_StaticText_Server = new wxStaticText( this, wxID_ANY, wxT("Server IP:"), wxDefaultPosition, wxDefaultSize, 0 );
+    m_StaticText_Server->Wrap( -1 );
+    m_Sizer_Inputs->Add( m_StaticText_Server, 0, wxALL, 5 );
+
+    m_TextCtrl_Server = new wxTextCtrl( this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0 );
+    m_Sizer_Inputs->Add( m_TextCtrl_Server, 0, wxALL|wxEXPAND, 5 );
+
+    wxStaticText* m_StaticText_ROM;
+    m_StaticText_ROM = new wxStaticText( this, wxID_ANY, wxT("ROM Path:"), wxDefaultPosition, wxDefaultSize, 0 );
+    m_StaticText_ROM->Wrap( -1 );
+    m_Sizer_Inputs->Add( m_StaticText_ROM, 0, wxALIGN_CENTER|wxALL, 5 );
+
+    m_FilePicker_ROM = new wxFilePickerCtrl( this, wxID_ANY, wxEmptyString, wxT("Load ROM"), wxT("*.*"), wxDefaultPosition, wxDefaultSize, wxFLP_DEFAULT_STYLE|wxFLP_FILE_MUST_EXIST|wxFLP_OPEN|wxFLP_SMALL|wxFLP_USE_TEXTCTRL );
+    m_FilePicker_ROM->DragAcceptFiles( true );
+
+    m_Sizer_Inputs->Add( m_FilePicker_ROM, 0, wxALL|wxEXPAND, 5 );
+
+    m_Sizer_Main->Add( m_Sizer_Inputs, 1, wxEXPAND, 5 );
+
+    m_Button_Connect = new wxButton( this, wxID_ANY, wxT("Connect"), wxDefaultPosition, wxDefaultSize, 0 );
+    m_Sizer_Main->Add( m_Button_Connect, 0, wxALIGN_CENTER|wxALL, 5 );
+
+    this->SetSizer( m_Sizer_Main );
+    this->Layout();
+
+    this->Centre( wxBOTH );
+
+    // Connect Events
+    m_Button_Connect->Connect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( ManualConnectWindow::m_Button_Connect_OnButtonClick ), NULL, this );
+}
+
+ManualConnectWindow::~ManualConnectWindow()
+{
+    // Disconnect Events
+    m_Button_Connect->Disconnect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( ManualConnectWindow::m_Button_Connect_OnButtonClick ), NULL, this );
+}
+
+void ManualConnectWindow::m_Button_Connect_OnButtonClick(wxCommandEvent& event)
+{
+    (void)event;
+    wxString path = this->m_FilePicker_ROM->GetPath();
+    wxString address = this->m_TextCtrl_Server->GetValue();
+    ServerBrowser* parent = (ServerBrowser*)this->GetParent();
+    this->Destroy(); // Must be done first or the parent window will steal attention from the client
+    parent->CreateClient(path, address);
 }
