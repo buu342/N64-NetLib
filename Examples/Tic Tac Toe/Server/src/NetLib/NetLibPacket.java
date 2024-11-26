@@ -186,7 +186,7 @@ public class NetLibPacket {
     }
     
     public void SetFlags(int flags) {
-        this.flags = flags;
+        this.flags |= flags;
     }
     
     public void AddRecipient(int plynum) {

@@ -8,19 +8,23 @@ import java.nio.charset.StandardCharsets;
 public class NetLibPacket {
     
     private static final int    PACKET_VERSION = 1;
-    private static final String PACKET_HEADER = "NLP";
+    private static final String PACKET_HEADER  = "NLP";
     private static final int    PACKET_MAXSIZE = 4096;
+    public  static final int    PACKET_MAXACK  = 0xFFFF;
+    
     
     private int version;
     private int type;
     private int flags;
     private int recipients;
-    private int sender;
     private short seqnum;
     private short ack;
     private short ackbitfield;
     private short size;
     private byte data[];
+    private int sender;
+    private long sendtime;
+    private int attempts;
     
     private NetLibPacket(int version, int type, int flags, int recipients, byte data[], short seqnum, short ack, short ackbitfield) {
         this.version = version;
@@ -28,16 +32,18 @@ public class NetLibPacket {
         this.flags = flags;
         this.recipients = recipients;
         this.data = data;
-        this.seqnum = seqnum;
-        this.ack = ack;
-        this.sender = 0;
-        this.ackbitfield = ackbitfield;
         if (data != null)
             this.size = (short)data.length;
         else
             this.size = 0;
         if (this.size > PACKET_MAXSIZE)
             System.err.println("Packet size exceeds N64 library's capacity!");
+        this.seqnum = seqnum;
+        this.ack = ack;
+        this.ackbitfield = ackbitfield;
+        this.sender = 0;
+        this.sendtime = 0;
+        this.attempts = 0;
     }
     
     public NetLibPacket(int type, byte data[]) {
@@ -45,10 +51,6 @@ public class NetLibPacket {
         this.type = type;
         this.flags = 0;
         this.recipients = 0;
-        this.sender = 0;
-        this.seqnum = 0;
-        this.ack = 0;
-        this.ackbitfield = 0;
         this.data = data;
         if (data != null)
             this.size = (short)data.length;
@@ -56,6 +58,12 @@ public class NetLibPacket {
             this.size = 0;
         if (this.size > PACKET_MAXSIZE)
             System.err.println("Packet size exceeds N64 library's capacity!");
+        this.seqnum = 0;
+        this.ack = 0;
+        this.ackbitfield = 0;
+        this.sender = 0;
+        this.sendtime = 0;
+        this.attempts = 0;
     }
     
     public String toString() {
@@ -72,6 +80,10 @@ public class NetLibPacket {
             for (int i=0; i<this.data.length; i++)
                 mystr += this.data[i] + " ";
         return mystr;
+    }
+    
+    public static boolean SequenceGreaterThan(int s1, int s2) {
+        return ((s1 > s2) && (s1 - s2 <= ((PACKET_MAXACK/2)+1))) || ((s1 < s2) && (s2 - s1 > ((PACKET_MAXACK/2)+1)));
     }
     
     private static boolean CheckCString(byte[] data, String str) {
@@ -134,19 +146,6 @@ public class NetLibPacket {
         return new NetLibPacket(version, type, flags, recipients, data, seqnum, ack, ackbitfield);
     }
     
-    /*
-        NLP - 3 bytes
-        Version - 1 byte
-        Type - 1 byte
-        Flags - 1 byte
-        Sequence num - 2 bytes
-        Last Ack - 2 bytes
-        Ack bitfield - 2 bytes
-        Recipients - 4 bytes
-        Data size - 2 bytes
-        Data - n bytes
-     */
-    
     public byte[] GetBytes() throws IOException {
         byte[] out;
         ByteBuffer buf = ByteBuffer.allocate(PACKET_MAXSIZE);
@@ -191,16 +190,34 @@ public class NetLibPacket {
         return this.data;
     }
     
-    public int GetSender() {
-        return this.sender;
-    }
-    
     public short GetSequenceNumber() {
         return this.seqnum;
     }
     
-    public void SetFlags(int flags) {
-        this.flags = flags;
+    public boolean IsAcked(short number) {
+        int diff;
+        if (this.ack == number)
+            return true;
+        diff = this.ack - number;
+        if (diff < 0)
+            diff += PACKET_MAXACK;
+        return ((this.ackbitfield & (1 << diff)) != 0);
+    }
+    
+    public int GetSender() {
+        return this.sender;
+    }
+    
+    public long GetSendTime() {
+        return System.currentTimeMillis() - this.sendtime;
+    }
+    
+    public int GetSendAttempts() {
+        return this.attempts;
+    }
+    
+    public void EnableFlags(int flags) {
+        this.flags |= flags;
     }
     
     public void AddRecipient(int plynum) {
@@ -222,5 +239,9 @@ public class NetLibPacket {
     public void SetAckBitfield(short ackbitfield) {
         this.ackbitfield = ackbitfield;
     }
-
+    
+    public void UpdateSendAttempt() {
+        this.attempts++;
+        this.sendtime = System.currentTimeMillis();
+    }
 }

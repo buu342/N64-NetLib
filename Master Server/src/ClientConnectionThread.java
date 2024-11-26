@@ -1,5 +1,6 @@
 import N64.N64ROM;
 import N64.N64Server;
+import NetLib.ClientTimeoutException;
 import NetLib.S64Packet;
 import NetLib.UDPHandler;
 import java.io.IOException;
@@ -64,7 +65,7 @@ public class ClientConnectionThread extends Thread {
         }
     }
     
-    private void RegisterServer(byte[] data) throws IOException {
+    private void RegisterServer(byte[] data) throws IOException, ClientTimeoutException {
         int size;
         int publicport = 0;
         String romname = "";
@@ -104,7 +105,7 @@ public class ClientConnectionThread extends Thread {
         System.out.println("Client " + addrport + " registered successfully");
     }
     
-    private void ListServers() throws IOException, InterruptedException {
+    private void ListServers() throws IOException, InterruptedException, ClientTimeoutException {
         String addrport = this.handler.GetAddress() + ":" + this.handler.GetPort();
         System.out.println("Client " + addrport + " requested server list");
         for (N64Server server : this.servers.values()) {
@@ -115,7 +116,7 @@ public class ClientConnectionThread extends Thread {
         System.out.println("Client " + addrport + " got server list");
     }
     
-    private void HandleServerHeartbeat() throws IOException {
+    private void HandleServerHeartbeat() throws IOException, ClientTimeoutException {
         N64Server server =  this.servers.get(this.handler.GetAddress() + ":" + this.handler.GetPort());
         if (server != null) {
             server.UpdateLastInteractionTime();
@@ -123,7 +124,7 @@ public class ClientConnectionThread extends Thread {
         }
     }
     
-    /*    
+    /*
     private void DownloadROM(byte[] data) throws Exception, IOException {
         int size, readcount;
         byte[] hash;

@@ -1,5 +1,8 @@
 import java.net.DatagramSocket;
 import java.net.Socket;
+
+import NetLib.ClientDisconnectException;
+import NetLib.ClientTimeoutException;
 import NetLib.NetLibPacket;
 import NetLib.S64Packet;
 import NetLib.UDPHandler;
@@ -17,11 +20,15 @@ public class ClientConnectionThread implements Runnable {
     private static final int HEARTBEAT_WAIT = 5000;
     private static final int HBSTATE_WAIT = 0;
     private static final int HBSTATE_SENT = 1;
+    
+    private static final int CLIENTSTATE_UNCONNECTED = 0;
+    private static final int CLIENTSTATE_CONNECTING = 1;
 
     String address;
     int port;
     DatagramSocket socket;
     UDPHandler handler;
+    int clientstate;
     TicTacToe.Game game;
     TicTacToe.Player player;
     ConcurrentLinkedQueue<byte[]> msgqueue = new ConcurrentLinkedQueue<byte[]>();
@@ -32,6 +39,7 @@ public class ClientConnectionThread implements Runnable {
         this.port = port;
         this.handler = null;
         this.player = null;
+        this.clientstate = CLIENTSTATE_UNCONNECTED;
     }
     
     public void SendMessage(byte data[], int size) {
@@ -50,13 +58,17 @@ public class ClientConnectionThread implements Runnable {
                     if (this.handler.IsS64Packet(data)) {
                         this.HandleS64Packets(this.handler.ReadS64Packet(data));
                     } else if (this.handler.IsNetLibPacket(data)) {
-                        //this.HandleNetLibPackets(this.handler.ReadNetLibPacket(data));
+                        this.HandleNetLibPackets(this.handler.ReadNetLibPacket(data));
                     } else {
                         System.err.println("Received unknown data from client " + this.address + ":" + this.port);
                     }
                 } else {
                     Thread.sleep(10);
                 }
+            } catch (ClientTimeoutException e) {
+                return;
+            } catch (ClientDisconnectException e) {
+                return;
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -73,129 +85,83 @@ public class ClientConnectionThread implements Runnable {
         }
     }
     
-    private void HandleNetLibPackets(NetLibPacket pkt) {
-        // TODO:
-    }
-    
-    /*
-    private void SendServerFullPacket(DataOutputStream dos) throws IOException {
-    	NetLibPacket pkt = new NetLibPacket(PacketIDs.PACKETID_SERVERFULL.GetInt(), null);
-        pkt.WritePacket(dos);
-    }
-    
-    private void SendHeartbeatPacket(DataOutputStream dos) throws IOException {
-        NetLibPacket pkt = new NetLibPacket(PacketIDs.PACKETID_HEARTBEAT.GetInt(), null);
-        pkt.WritePacket(dos);
-    }
-    
-    private void SendPlayerInfoPacket(DataOutputStream dos, TicTacToe.Player target, TicTacToe.Player who) throws IOException {
-    	NetLibPacket pkt = new NetLibPacket(PacketIDs.PACKETID_PLAYERINFO.GetInt(), new byte[]{(byte)who.GetNumber()});
-        pkt.AddRecipient(target.GetNumber());
-        if (target == who)
-            pkt.WritePacket(dos);
-        else
-            target.SendMessage(who, pkt);
-    }
-    
-    private void SendPlayerDisconnectPacket(DataOutputStream dos, TicTacToe.Player target, TicTacToe.Player who) throws IOException {
-    	NetLibPacket pkt = new NetLibPacket(PacketIDs.PACKETID_PLAYERDISCONNECT.GetInt(), new byte[]{(byte)who.GetNumber()});
-        pkt.AddRecipient(target.GetNumber());
-        if (target == who)
-            pkt.WritePacket(dos);
-        else
-            target.SendMessage(who, pkt);
-    }
-    
-    private void HandleMasterPing(DataInputStream dis, DataOutputStream dos) throws IOException {
-        S64Packet pkt;
-        dis.readNBytes(3); // skip the rest of the header
-        pkt = S64Packet.ReadPacket(dis, true);
-        System.out.println("Received ping from master server");
-        if (pkt.GetType().equals("PING")) {
-            pkt = new S64Packet("PING", new byte[]{(byte)this.game.PlayerCount()});
-            pkt.WritePacket(dos);
-        }
-        System.out.println("Finished ponging master server");
-    }
-    
-    public void run() {
-        DataInputStream dis;
-        DataOutputStream dos;
-        Thread.currentThread().setName("Connecting Client " + this.clientsocket);
-        
-        // First, we have to receive a client connection request packet
-        // This tells us that the player has the game booted on the N64,
-        // and that they're ready to be assigned player data
-        // as well as to receive information about other connected players
-        try {
-            int attempts = 5;
-            dis = new DataInputStream(this.clientsocket.getInputStream());
-            dos = new DataOutputStream(this.clientsocket.getOutputStream());
-            while (true) {
-                byte[] data = dis.readNBytes(3);
-                
-                // Handle Master Server pings first
-                if (!NetLibPacket.IsNetLibPacketHeader(data)) {
-                    HandleMasterPing(dis, dos);
-                    dis.close();
-                    dos.close();
-                    this.clientsocket.close();
-                    return;
-                }
-                NetLibPacket pkt = NetLibPacket.ReadPacket(dis, true);
-                
-                // Try to read a USB packet
-                if (pkt == null) {
-                    System.err.println("    Received bad packet");
-                    attempts--;
-                    if (attempts == 0) {
-                        System.err.println("Too many bad packets from client " + this.clientsocket + ". Disconnecting");
-                        dis.close();
-                        dos.close();
-                        this.clientsocket.close();
-                        return;
-                    }
-                    continue;
-                }
-                
+    private void HandleNetLibPackets(NetLibPacket pkt) throws IOException, ClientDisconnectException, InterruptedException, ClientTimeoutException {
+        if (pkt == null)
+            return;
+        switch (this.clientstate)
+        {
+            // First, we have to receive a client connection request packet
+            // This tells us that the player has the game booted on the N64,
+            // and that they're ready to be assigned player data
+            // as well as to receive information about other connected players
+            case CLIENTSTATE_UNCONNECTED:
+            {
                 // Now read the client request packet
-                if (pkt.GetID() != PacketIDs.PACKETID_CLIENTCONNECT.GetInt()) {
-                    System.err.println("Expected client connect packet, got " + pkt.GetID() + ". Disconnecting");
-                    dis.close();
-                    dos.close();
-                    this.clientsocket.close();
-                    return;
+                if (pkt.GetType() != PacketIDs.PACKETID_CLIENTCONNECT.GetInt()) {
+                    System.err.println("Expected client connect packet, got " + pkt.GetType() + ". Disconnecting");
+                    throw new ClientDisconnectException(this.handler.GetAddress() + this.handler.GetPort());
                 }
                 
                 // Try to connect the player to the game
                 this.player = this.game.ConnectPlayer();
                 if (this.player == null) {
                     System.err.println("Server full");
-                	this.SendServerFullPacket(dos);
+                    this.SendServerFullPacket();
                     return;
                 }
-                Thread.currentThread().setName("Client " + this.player.GetNumber());
                 
                 // Respond with the player's own info
-                this.SendPlayerInfoPacket(dos, this.player, this.player);
+                this.SendPlayerInfoPacket(this.player, this.player);
                 
                 // Also send the rest of the connected player's information (and notify other players of us)
                 for (TicTacToe.Player ply : this.game.GetPlayers()) {
-                	if (ply != null && ply.GetNumber() != this.player.GetNumber()) {
-                	    this.SendPlayerInfoPacket(dos, this.player, ply);
-                		this.SendPlayerInfoPacket(dos, ply, this.player);
-                	}
+                    if (ply != null && ply.GetNumber() != this.player.GetNumber()) {
+                        this.SendPlayerInfoPacket(this.player, ply);
+                        this.SendPlayerInfoPacket(ply, this.player);
+                    }
                 }
                 
                 // Done with the initial handshake, now we can go into the gameplay packet loop
                 System.out.println("Player " + this.player.GetNumber() + " has joined the game");
+                
+                this.clientstate = CLIENTSTATE_CONNECTING;
+                Thread.currentThread().setName("Client " + this.player.GetNumber());
                 break;
             }
-        } catch (Exception e) {
-            e.printStackTrace();
-            System.err.println("Client disconnected");
-            return;
         }
+    }
+    
+    private void SendServerFullPacket() throws IOException, InterruptedException, ClientTimeoutException {
+        this.handler.SendPacketWaitAck(new NetLibPacket(PacketIDs.PACKETID_SERVERFULL.GetInt(), null), this.msgqueue);
+    }
+
+    private void SendHeartbeatPacket() throws IOException {
+        this.handler.SendPacket(new NetLibPacket(PacketIDs.PACKETID_ACKBEAT.GetInt(), null));
+    }
+    
+    private void SendPlayerInfoPacket(TicTacToe.Player target, TicTacToe.Player who) throws IOException, InterruptedException, ClientTimeoutException {
+    	NetLibPacket pkt = new NetLibPacket(PacketIDs.PACKETID_PLAYERINFO.GetInt(), new byte[]{(byte)who.GetNumber()});
+        pkt.AddRecipient(target.GetNumber());
+        if (target == who)
+            this.handler.SendPacketWaitAck(pkt, this.msgqueue);
+        else
+            target.SendMessage(who, pkt);
+    }
+    
+    private void SendPlayerDisconnectPacket(TicTacToe.Player target, TicTacToe.Player who) throws IOException, InterruptedException, ClientTimeoutException {
+    	NetLibPacket pkt = new NetLibPacket(PacketIDs.PACKETID_PLAYERDISCONNECT.GetInt(), new byte[]{(byte)who.GetNumber()});
+        pkt.AddRecipient(target.GetNumber());
+        if (target == who)
+            this.handler.SendPacketWaitAck(pkt, this.msgqueue);
+        else
+            target.SendMessage(who, pkt);
+    }
+
+    /*
+    public void run() {
+        DataInputStream dis;
+        DataOutputStream dos;
+        Thread.currentThread().setName("Connecting Client " + this.clientsocket);
         
         // Send/Receive gameplay packets in a loop
         try {
