@@ -1,6 +1,7 @@
 import N64.N64ROM;
 import N64.N64Server;
 import NetLib.ClientTimeoutException;
+import NetLib.PacketFlag;
 import NetLib.S64Packet;
 import NetLib.UDPHandler;
 import java.io.IOException;
@@ -99,9 +100,6 @@ public class ClientConnectionThread extends Thread {
         // If the server already exists, this will update it instead
         server = new N64Server(this.handler.GetAddress(), publicport, romname, romhash);
         this.servers.put(addrport, server);
-        
-        // Send an ack, and finish
-        this.handler.SendPacket(new S64Packet("ACK", null));
         System.out.println("Client " + addrport + " registered successfully");
     }
     
@@ -109,19 +107,17 @@ public class ClientConnectionThread extends Thread {
         String addrport = this.handler.GetAddress() + ":" + this.handler.GetPort();
         System.out.println("Client " + addrport + " requested server list");
         for (N64Server server : this.servers.values()) {
-            this.handler.SendPacket(new S64Packet("SERVER", server.toByteArray(this.roms.get(server.GetROMHashStr()) != null)));
+            this.handler.SendPacket(new S64Packet("SERVER", server.toByteArray(this.roms.get(server.GetROMHashStr()) != null), PacketFlag.FLAG_UNRELIABLE.GetInt()));
             Thread.sleep(10);
         }
-        this.handler.SendPacket(new S64Packet("DONELISTING", null));
+        this.handler.SendPacket(new S64Packet("DONELISTING", null, PacketFlag.FLAG_UNRELIABLE.GetInt()));
         System.out.println("Client " + addrport + " got server list");
     }
     
     private void HandleServerHeartbeat() throws IOException, ClientTimeoutException {
         N64Server server =  this.servers.get(this.handler.GetAddress() + ":" + this.handler.GetPort());
-        if (server != null) {
+        if (server != null)
             server.UpdateLastInteractionTime();
-            this.handler.SendPacket(new S64Packet("ACK", null));
-        }
     }
     
     /*

@@ -8,8 +8,8 @@ import java.util.LinkedList;
 
 public class UDPHandler {
     
-    private final int TIME_RESEND   = 1000;
-    private final int MAX_RESEND    = 5;
+    public static final int TIME_RESEND = 1000;
+    public static final int MAX_RESEND  = 5;
     
     String address;
     int port;
@@ -122,7 +122,7 @@ public class UDPHandler {
         }
     }
     
-    public S64Packet ReadS64Packet(byte[] data) throws IOException {
+    public S64Packet ReadS64Packet(byte[] data) throws IOException, ClientTimeoutException {
         S64Packet pkt;
         if (!S64Packet.IsS64PacketHeader(data))
             return null;
@@ -134,6 +134,8 @@ public class UDPHandler {
             for (S64Packet pkt2ack : this.acksleft_tx_s64)
                 if (pkt.IsAcked(pkt2ack.GetSequenceNumber()))
                     found_nlp.add(pkt2ack);
+            for (S64Packet pkt2ack : found_nlp)
+                System.out.println("Got ack for " + pkt2ack.GetSequenceNumber());
             this.acksleft_tx_s64.removeAll(found_nlp);
             
             // Increment the sequence number to the packet's highest value
@@ -152,11 +154,15 @@ public class UDPHandler {
                     this.acksleft_rx_s64.removeFirst();
                 this.acksleft_rx_s64.addLast(pkt);
             }
+            
+            // If the packet wants an explicit ack, send it
+            if ((pkt.GetFlags() & PacketFlag.FLAG_EXPLICITACK.GetInt()) != 0)
+                this.SendPacket(new S64Packet("ACK", null, PacketFlag.FLAG_UNRELIABLE.GetInt()));
         }
         return pkt;
     }
 
-    public NetLibPacket ReadNetLibPacket(byte[] data) throws IOException {
+    public NetLibPacket ReadNetLibPacket(byte[] data) throws IOException, ClientTimeoutException {
         NetLibPacket pkt;
         if (!NetLibPacket.IsNetLibPacketHeader(data))
             return null;
@@ -182,11 +188,15 @@ public class UDPHandler {
                     this.acksleft_rx_nlp.removeFirst();
                 this.acksleft_rx_nlp.addLast(pkt);
             }
+            
+            // If the packet wants an explicit ack, send it
+            if ((pkt.GetFlags() & PacketFlag.FLAG_EXPLICITACK.GetInt()) != 0)
+                this.SendPacket(new NetLibPacket(0, null, PacketFlag.FLAG_UNRELIABLE.GetInt()));
         }
         return pkt;
     }
     
-    public void SendMissingPackets() throws IOException, ClientTimeoutException {
+    public void ResendMissingPackets() throws IOException, ClientTimeoutException {
         for (S64Packet pkt2ack : this.acksleft_tx_s64)
             if (pkt2ack.GetSendTime() > TIME_RESEND)
                 this.SendPacket(pkt2ack);

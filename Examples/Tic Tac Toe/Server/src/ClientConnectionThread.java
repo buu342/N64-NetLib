@@ -55,26 +55,27 @@ public class ClientConnectionThread implements Runnable {
             try {
                 byte[] data = this.msgqueue.poll();
                 if (data != null) {
-                    if (this.handler.IsS64Packet(data)) {
-                        this.HandleS64Packets(this.handler.ReadS64Packet(data));
-                    } else if (this.handler.IsNetLibPacket(data)) {
-                        this.HandleNetLibPackets(this.handler.ReadNetLibPacket(data));
-                    } else {
-                        System.err.println("Received unknown data from client " + this.address + ":" + this.port);
-                    }
+                    //if (this.handler.IsS64Packet(data)) {
+                    //    this.HandleS64Packets(this.handler.ReadS64Packet(data));
+                    //} else if (this.handler.IsNetLibPacket(data)) {
+                    //    this.HandleNetLibPackets(this.handler.ReadNetLibPacket(data));
+                    //} else {
+                    //    System.err.println("Received unknown data from client " + this.address + ":" + this.port);
+                    //}
                 } else {
                     Thread.sleep(10);
                 }
-            } catch (ClientTimeoutException e) {
-                return;
-            } catch (ClientDisconnectException e) {
-                return;
+            //} catch (ClientTimeoutException e) {
+            //    return;
+            //} catch (ClientDisconnectException e) {
+            //    return;
             } catch (Exception e) {
                 e.printStackTrace();
             }
         }
     }
     
+    /*
     private void HandleS64Packets(S64Packet pkt) throws IOException {
         if (pkt == null)
             return;
@@ -155,7 +156,7 @@ public class ClientConnectionThread implements Runnable {
             this.handler.SendPacketWaitAck(pkt, this.msgqueue);
         else
             target.SendMessage(who, pkt);
-    }
+    }*/
 
     /*
     public void run() {

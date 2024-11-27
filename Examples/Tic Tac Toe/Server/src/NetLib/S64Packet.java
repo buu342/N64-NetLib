@@ -7,42 +7,69 @@ import java.nio.charset.StandardCharsets;
 
 public class S64Packet {
     
-    private static final String PACKET_HEADER = "S64";
-    private static final int PACKET_VERSION = 1;
-    public static final int PACKET_MAXSIZE = 4096;
+    private static final String PACKET_HEADER  = "S64";
+    private static final int    PACKET_VERSION = 1;
+    public static final int     PACKET_MAXSIZE = 4096;
+    public static final int     PACKET_MAXACK  = 0xFFFF;
 
     private int version;
+    private int flags;
     private String type;
     private short seqnum;
     private short ack;
     private short ackbitfield;
     private short size;
     private byte data[];
+    private long sendtime;
+    private int attempts;
     
-    private S64Packet(int version, String type, byte data[], short seqnum, short ack, short ackbitfield) {
+    private S64Packet(int version, int flags, String type, byte data[], short seqnum, short ack, short ackbitfield) {
         this.version = version;
+        this.flags = flags;
         this.type = type;
+        this.sendtime = 0;
         this.data = data;
-        this.seqnum = seqnum;
-        this.ack = ack;
-        this.ackbitfield = ackbitfield;
         if (data != null)
             this.size = (short)data.length;
         else
             this.size = 0;
+        this.seqnum = seqnum;
+        this.ack = ack;
+        this.ackbitfield = ackbitfield;;
+        this.sendtime = 0;
+        this.attempts = 0;
+    }
+    
+    public S64Packet(String type, byte data[], int flags) {
+        this.version = PACKET_VERSION;
+        this.type = type;
+        this.data = data;
+        if (data != null)
+            this.size = (short)data.length;
+        else
+            this.size = 0;
+        this.seqnum = 0;
+        this.ack = 0;
+        this.ackbitfield = 0;
+        this.flags = flags;
+        this.sendtime = 0;
+        this.attempts = 0;
     }
     
     public S64Packet(String type, byte data[]) {
         this.version = PACKET_VERSION;
         this.type = type;
         this.data = data;
-        this.seqnum = 0;
-        this.ack = 0;
-        this.ackbitfield = 0;
         if (data != null)
             this.size = (short)data.length;
         else
             this.size = 0;
+        this.seqnum = 0;
+        this.ack = 0;
+        this.ackbitfield = 0;
+        this.flags = 0;
+        this.sendtime = 0;
+        this.attempts = 0;
     }
     
     public String toString() {
@@ -56,6 +83,10 @@ public class S64Packet {
             for (int i=0; i<this.data.length; i++)
                 mystr += this.data[i] + " ";
         return mystr;
+    }
+    
+    public static boolean SequenceGreaterThan(int s1, int s2) {
+        return ((s1 > s2) && (s1 - s2 <= ((PACKET_MAXACK/2)+1))) || ((s1 < s2) && (s2 - s1 > ((PACKET_MAXACK/2)+1)));
     }
     
     private static boolean CheckCString(byte[] data, String str) {
@@ -82,6 +113,7 @@ public class S64Packet {
         int version;
         int typesize;
         int size;
+        int flags;
         short seqnum;
         short ack;
         short ackbitfield;
@@ -95,6 +127,7 @@ public class S64Packet {
             return null;
         }
         version = dis.read();
+        flags = dis.read();
 
         // Get other data
         seqnum = getShort(dis.readNBytes(2));
@@ -111,7 +144,7 @@ public class S64Packet {
         else
             data = null;
         dis.close();
-        return new S64Packet(version, type, data, seqnum, ack, ackbitfield);
+        return new S64Packet(version, flags, type, data, seqnum, ack, ackbitfield);
     }
     
     public byte[] GetBytes() throws IOException {
@@ -119,6 +152,7 @@ public class S64Packet {
         ByteBuffer buf = ByteBuffer.allocate(PACKET_MAXSIZE);
         buf.put(PACKET_HEADER.getBytes(StandardCharsets.US_ASCII), 0, PACKET_HEADER.length());
         buf.put((byte)this.version);
+        buf.put((byte)this.flags);
         buf.putShort(this.seqnum);
         buf.putShort(this.ack);
         buf.putShort(this.ackbitfield);
@@ -153,6 +187,32 @@ public class S64Packet {
         return this.seqnum;
     }
     
+    public boolean IsAcked(short number) {
+        int diff;
+        if (this.ack == number)
+            return true;
+        diff = this.ack - number;
+        if (diff < 0)
+            diff += PACKET_MAXACK;
+        return ((this.ackbitfield & (1 << diff)) != 0);
+    }
+    
+    public int GetFlags() {
+        return this.flags;
+    }
+    
+    public long GetSendTime() {
+        return System.currentTimeMillis() - this.sendtime;
+    }
+    
+    public int GetSendAttempts() {
+        return this.attempts;
+    }
+    
+    public void EnableFlags(int flags) {
+        this.flags |= flags;
+    }
+    
     public void SetSequenceNumber(short seqnum) {
         this.seqnum = seqnum;
     }
@@ -163,5 +223,10 @@ public class S64Packet {
     
     public void SetAckBitfield(short ackbitfield) {
         this.ackbitfield = ackbitfield;
+    }
+    
+    public void UpdateSendAttempt() {
+        this.attempts++;
+        this.sendtime = System.currentTimeMillis();
     }
 }

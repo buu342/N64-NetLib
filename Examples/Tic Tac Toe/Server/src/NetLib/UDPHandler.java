@@ -5,33 +5,40 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.util.LinkedList;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class UDPHandler {
     
-    private final int TIME_TIMEOUT  = 30000;
-    private final int TIME_ACKRETRY = 5000;
+    public static final int TIME_RESEND   = 1000;
+    public static final int MAX_RESEND    = 5;
     
     String address;
     int port;
     DatagramSocket socket;
-    int localseqnum; // Java doesn't support unsigned shorts, so we'll have to mimic them with ints
-    int remoteseqnum;
-    int ackbitfield;
-    LinkedList<Integer> acksleft;
+    int localseqnum_s64; // Java doesn't support unsigned shorts, so we'll have to mimic them with ints
+    int remoteseqnum_s64;
+    int ackbitfield_s64;
+    LinkedList<S64Packet> acksleft_rx_s64;
+    LinkedList<S64Packet> acksleft_tx_s64;
+    int localseqnum_nlp; // Java doesn't support unsigned shorts, so we'll have to mimic them with ints
+    int remoteseqnum_nlp;
+    int ackbitfield_nlp;
+    LinkedList<NetLibPacket> acksleft_rx_nlp;
+    LinkedList<NetLibPacket> acksleft_tx_nlp;
     
     public UDPHandler(DatagramSocket socket, String address, int port) {
         this.socket = socket;
         this.address = address;
         this.port = port;
-        this.localseqnum = 0;
-        this.remoteseqnum = 0;
-        this.ackbitfield = 0;
-        this.acksleft = new LinkedList<>();
-    }
-
-    boolean ShortGreaterThan(int s1, int s2) {
-        return ((s1 > s2) && (s1 - s2 <= 32768)) || ((s1 < s2) && (s2 - s1 > 32768));
+        this.localseqnum_s64 = 0;
+        this.remoteseqnum_s64 = 0;
+        this.ackbitfield_s64 = 0;
+        this.acksleft_rx_s64 = new LinkedList<>();
+        this.acksleft_tx_s64 = new LinkedList<>();
+        this.localseqnum_nlp = 0;
+        this.remoteseqnum_nlp = 0;
+        this.ackbitfield_nlp = 0;
+        this.acksleft_rx_nlp = new LinkedList<>();
+        this.acksleft_tx_nlp = new LinkedList<>();
     }
     
     public String GetAddress() {
@@ -50,138 +57,152 @@ public class UDPHandler {
         return NetLibPacket.IsNetLibPacketHeader(data);
     }
     
-    public void SendPacket(S64Packet pkt) throws IOException {
+    public void SendPacket(S64Packet pkt) throws IOException, ClientTimeoutException {
         byte[] data;
         DatagramPacket out;
         short ackbitfield = 0;
         
+        // Check for timeouts
+        pkt.UpdateSendAttempt();
+        if (pkt.GetSendAttempts() > MAX_RESEND)
+            throw new ClientTimeoutException(this.address);
+        
         // Set the sequence data
-        pkt.SetSequenceNumber((short)this.localseqnum);
-        pkt.SetAck((short)this.remoteseqnum);
-        for (Integer ack : this.acksleft)
-            if (ShortGreaterThan(this.remoteseqnum, ack.intValue()))
-                ackbitfield |= 1 << ((this.remoteseqnum - ack.intValue()) - 1);
+        pkt.SetSequenceNumber((short)this.localseqnum_s64);
+        pkt.SetAck((short)this.remoteseqnum_s64);
+        for (S64Packet pkt2ack : this.acksleft_rx_s64)
+            if (S64Packet.SequenceGreaterThan(this.remoteseqnum_s64, pkt2ack.GetSequenceNumber()))
+                ackbitfield |= 1 << ((this.remoteseqnum_s64 - pkt2ack.GetSequenceNumber()) - 1);
         pkt.SetAckBitfield(ackbitfield);
         
         // Send the packet
         data = pkt.GetBytes();
-        out= new DatagramPacket(data, data.length, InetAddress.getByName(this.address), this.port);
+        out = new DatagramPacket(data, data.length, InetAddress.getByName(this.address), this.port);
         this.socket.send(out);
         
-        // Increase the local sequence number. We want a short, so we have to modulus it by the max 16 bit value
-        this.localseqnum = (this.localseqnum + 1) % (0xFFFF + 1);
+        // Add it to our list of packets that need an ack
+        if ((pkt.GetFlags() & PacketFlag.FLAG_UNRELIABLE.GetInt()) == 0 && pkt.GetSendAttempts() == 1) {
+            this.acksleft_tx_s64.add(pkt);
+        
+            // Increase the local sequence number
+            this.localseqnum_s64 = (this.localseqnum_s64 + 1) % (S64Packet.PACKET_MAXACK + 1);
+        }
     }
     
-    public void SendPacket(NetLibPacket pkt) throws IOException {
+    public void SendPacket(NetLibPacket pkt) throws IOException, ClientTimeoutException {
         byte[] data;
         DatagramPacket out;
         short ackbitfield = 0;
         
+        // Check for timeouts
+        pkt.UpdateSendAttempt();
+        if (pkt.GetSendAttempts() > MAX_RESEND)
+            throw new ClientTimeoutException(this.address);
+        
         // Set the sequence data
-        pkt.SetSequenceNumber((short)this.localseqnum);
-        pkt.SetAck((short)this.remoteseqnum);
-        for (Integer ack : this.acksleft)
-            if (ShortGreaterThan(this.remoteseqnum, ack.intValue()))
-                ackbitfield |= 1 << ((this.remoteseqnum - ack.intValue()) - 1);
+        pkt.UpdateSendAttempt();
+        pkt.SetSequenceNumber((short)this.localseqnum_nlp);
+        pkt.SetAck((short)this.remoteseqnum_nlp);
+        for (NetLibPacket pkt2ack : this.acksleft_rx_nlp)
+            if (NetLibPacket.SequenceGreaterThan(this.remoteseqnum_nlp, pkt2ack.GetSequenceNumber()))
+                ackbitfield |= 1 << ((this.remoteseqnum_nlp - pkt2ack.GetSequenceNumber()) - 1);
         pkt.SetAckBitfield(ackbitfield);
         
         // Send the packet
         data = pkt.GetBytes();
-        out= new DatagramPacket(data, data.length, InetAddress.getByName(this.address), this.port);
+        out = new DatagramPacket(data, data.length, InetAddress.getByName(this.address), this.port);
         this.socket.send(out);
         
-        // TODO: Resend missing packets. Timeout if we received no ack for 16 packets
+        // Add it to our list of packets that need an ack
+        if ((pkt.GetFlags() & PacketFlag.FLAG_UNRELIABLE.GetInt()) == 0 && pkt.GetSendAttempts() == 1) {
+            this.acksleft_tx_nlp.add(pkt);
         
-        // Increase the local sequence number. We want a short, so we have to modulus it by the max 16 bit value
-        this.localseqnum = (this.localseqnum + 1) % (0xFFFF + 1);
-    }
-    
-    public void SendPacketWaitAck(S64Packet pkt, ConcurrentLinkedQueue<byte[]> msgqueue) throws IOException, InterruptedException, ClientTimeoutException {
-        long packettime = 0;
-        while (true) {
-            S64Packet ack;
-            byte[] response;
-            this.SendPacket(pkt);
-            packettime = System.currentTimeMillis();
-            
-            // Wait for a response
-            response = msgqueue.poll();
-            while (response == null) {
-                Thread.sleep(10);
-                if ((System.currentTimeMillis() - packettime) > TIME_ACKRETRY)
-                    break;
-                if ((System.currentTimeMillis() - packettime) > TIME_TIMEOUT)
-                    throw new ClientTimeoutException(this.address + ":" + this.port);
-                response = msgqueue.poll();
-            }
-            if (response == null || !this.IsS64Packet(response))
-                continue;
-            
-            // If we got an ack, we're done
-            ack = this.ReadS64Packet(response);
-            if (ack != null && ack.GetType().equals("ACK"))
-                return;
+            // Increase the local sequence number
+            this.localseqnum_nlp = (this.localseqnum_nlp + 1) % (NetLibPacket.PACKET_MAXACK + 1);
         }
     }
     
-    public void SendPacketWaitAck(NetLibPacket pkt, ConcurrentLinkedQueue<byte[]> msgqueue) throws IOException, InterruptedException, ClientTimeoutException {
-        long packettime = 0;
-        while (true) {
-            NetLibPacket ack;
-            byte[] response;
-            this.SendPacket(pkt);
-            packettime = System.currentTimeMillis();
-            
-            // Wait for a response
-            response = msgqueue.poll();
-            while (response == null) {
-                Thread.sleep(10);
-                if ((System.currentTimeMillis() - packettime) > TIME_ACKRETRY)
-                    break;
-                if ((System.currentTimeMillis() - packettime) > TIME_TIMEOUT)
-                    throw new ClientTimeoutException(this.address + ":" + this.port);
-                response = msgqueue.poll();
-            }
-            if (response == null || !this.IsS64Packet(response))
-                continue;
-            
-            // If we got an ack, we're done
-            ack = this.ReadNetLibPacket(response);
-            if (ack != null && ack.GetType() == 0)
-                return;
-        }
-    }
-    
-    public S64Packet ReadS64Packet(byte[] data) throws IOException {
+    public S64Packet ReadS64Packet(byte[] data) throws IOException, ClientTimeoutException {
         S64Packet pkt;
         if (!S64Packet.IsS64PacketHeader(data))
             return null;
         pkt = S64Packet.ReadPacket(data);
         if (pkt != null) {
-            if (ShortGreaterThan(pkt.GetSequenceNumber(), this.remoteseqnum)) {
-                this.remoteseqnum = pkt.GetSequenceNumber();
+            LinkedList<S64Packet> found_nlp = new LinkedList<S64Packet>();
+            
+            // Go through transmitted packets and remove all which were acknowledged in the one we received
+            for (S64Packet pkt2ack : this.acksleft_tx_s64)
+                if (pkt.IsAcked(pkt2ack.GetSequenceNumber()))
+                    found_nlp.add(pkt2ack);
+            for (S64Packet pkt2ack : found_nlp)
+                System.out.println("Got ack for " + pkt2ack.GetSequenceNumber());
+            this.acksleft_tx_s64.removeAll(found_nlp);
+            
+            // Increment the sequence number to the packet's highest value
+            if (S64Packet.SequenceGreaterThan(pkt.GetSequenceNumber(), this.remoteseqnum_nlp))
+                this.remoteseqnum_nlp = pkt.GetSequenceNumber();
+            
+            // Handle reliable packets
+            if ((pkt.GetFlags() & PacketFlag.FLAG_UNRELIABLE.GetInt()) == 0) {
+                
+                // Increment the sequence number to the packet's highest value
+                if (S64Packet.SequenceGreaterThan(pkt.GetSequenceNumber(), this.remoteseqnum_s64))
+                    this.remoteseqnum_s64 = pkt.GetSequenceNumber();
+                
+                // Update our received packet list
+                if (this.acksleft_rx_s64.size() > 17)
+                    this.acksleft_rx_s64.removeFirst();
+                this.acksleft_rx_s64.addLast(pkt);
             }
-            if (this.acksleft.size() > 17)
-                this.acksleft.removeFirst();
-            this.acksleft.addLast(Integer.valueOf(pkt.GetSequenceNumber()));
+            
+            // If the packet wants an explicit ack, send it
+            if ((pkt.GetFlags() & PacketFlag.FLAG_EXPLICITACK.GetInt()) != 0)
+                this.SendPacket(new S64Packet("ACK", null, PacketFlag.FLAG_UNRELIABLE.GetInt()));
         }
         return pkt;
     }
 
-    public NetLibPacket ReadNetLibPacket(byte[] data) throws IOException {
+    public NetLibPacket ReadNetLibPacket(byte[] data) throws IOException, ClientTimeoutException {
         NetLibPacket pkt;
         if (!NetLibPacket.IsNetLibPacketHeader(data))
             return null;
         pkt = NetLibPacket.ReadPacket(data);
         if (pkt != null) {
-            if (ShortGreaterThan(pkt.GetSequenceNumber(), this.remoteseqnum)) {
-                this.remoteseqnum = pkt.GetSequenceNumber();
+            LinkedList<NetLibPacket> found_nlp = new LinkedList<NetLibPacket>();
+            
+            // Go through transmitted packets and remove all which were acknowledged in the one we received
+            for (NetLibPacket pkt2ack : this.acksleft_tx_nlp)
+                if (pkt.IsAcked(pkt2ack.GetSequenceNumber()))
+                    found_nlp.add(pkt2ack);
+            this.acksleft_tx_nlp.removeAll(found_nlp);
+            
+            // Handle reliable packets
+            if ((pkt.GetFlags() & PacketFlag.FLAG_UNRELIABLE.GetInt()) == 0) {
+                
+                // Increment the sequence number to the packet's highest value
+                if (NetLibPacket.SequenceGreaterThan(pkt.GetSequenceNumber(), this.remoteseqnum_nlp))
+                    this.remoteseqnum_nlp = pkt.GetSequenceNumber();
+                
+                // Update our received packet list
+                if (this.acksleft_rx_nlp.size() > 17)
+                    this.acksleft_rx_nlp.removeFirst();
+                this.acksleft_rx_nlp.addLast(pkt);
             }
-            if (this.acksleft.size() > 17)
-                this.acksleft.removeFirst();
-            this.acksleft.addLast(Integer.valueOf(pkt.GetSequenceNumber()));
+            
+            // If the packet wants an explicit ack, send it
+            if ((pkt.GetFlags() & PacketFlag.FLAG_EXPLICITACK.GetInt()) != 0)
+                this.SendPacket(new NetLibPacket(0, null, PacketFlag.FLAG_UNRELIABLE.GetInt()));
         }
         return pkt;
+    }
+    
+    public void ResendMissingPackets() throws IOException, ClientTimeoutException {
+        for (S64Packet pkt2ack : this.acksleft_tx_s64)
+            if (pkt2ack.GetSendTime() > TIME_RESEND)
+                this.SendPacket(pkt2ack);
+        for (NetLibPacket pkt2ack : this.acksleft_tx_nlp)
+            if (pkt2ack.GetSendTime() > TIME_RESEND)
+                this.SendPacket(pkt2ack);
     }
 
 }

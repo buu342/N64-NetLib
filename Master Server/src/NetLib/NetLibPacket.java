@@ -46,6 +46,26 @@ public class NetLibPacket {
         this.attempts = 0;
     }
     
+    public NetLibPacket(int type, byte data[], int flags) {
+        this.version = PACKET_VERSION;
+        this.type = type;
+        this.flags = flags;
+        this.recipients = 0;
+        this.data = data;
+        if (data != null)
+            this.size = (short)data.length;
+        else
+            this.size = 0;
+        if (this.size > PACKET_MAXSIZE)
+            System.err.println("Packet size exceeds N64 library's capacity!");
+        this.seqnum = 0;
+        this.ack = 0;
+        this.ackbitfield = 0;
+        this.sender = 0;
+        this.sendtime = 0;
+        this.attempts = 0;
+    }
+    
     public NetLibPacket(int type, byte data[]) {
         this.version = PACKET_VERSION;
         this.type = type;
@@ -112,7 +132,6 @@ public class NetLibPacket {
                 ((arr[2] & 0xFF) << 8 ) | 
                 ((arr[3] & 0xFF) << 0 );
     }
-
     
     static public NetLibPacket ReadPacket(byte[] pktdata) throws IOException {
         int version, type, flags, recipients;
