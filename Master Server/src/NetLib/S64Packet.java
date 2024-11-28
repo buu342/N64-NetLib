@@ -7,10 +7,10 @@ import java.nio.charset.StandardCharsets;
 
 public class S64Packet {
     
-    private static final String PACKET_HEADER  = "S64";
-    private static final int    PACKET_VERSION = 1;
-    public static final int     PACKET_MAXSIZE = 4096;
-    public static final int     PACKET_MAXACK  = 0xFFFF;
+    private static final String PACKET_HEADER     = "S64";
+    private static final int    PACKET_VERSION    = 1;
+    public static final int     PACKET_MAXSIZE    = 4096;
+    private static final int    PACKET_MAXSEQNUM  = 0xFFFF;
 
     private int version;
     private int flags;
@@ -86,7 +86,18 @@ public class S64Packet {
     }
     
     public static boolean SequenceGreaterThan(int s1, int s2) {
-        return ((s1 > s2) && (s1 - s2 <= ((PACKET_MAXACK/2)+1))) || ((s1 < s2) && (s2 - s1 > ((PACKET_MAXACK/2)+1)));
+        return ((s1 > s2) && (s1 - s2 <= ((PACKET_MAXSEQNUM/2)+1))) || ((s1 < s2) && (s2 - s1 > ((PACKET_MAXSEQNUM/2)+1)));
+    }
+    
+    public static int SequenceIncrement(int seq) {
+        return (seq + 1) % (PACKET_MAXSEQNUM + 1);
+    }
+    
+    public static int SequenceDelta(int s1, int s2) {
+        int delta = (s1 - s2);
+        if (delta < 0)
+            delta += PACKET_MAXSEQNUM+1;
+        return delta;
     }
     
     private static boolean CheckCString(byte[] data, String str) {
@@ -188,13 +199,9 @@ public class S64Packet {
     }
     
     public boolean IsAcked(short number) {
-        int diff;
         if (this.ack == number)
             return true;
-        diff = this.ack - number;
-        if (diff < 0)
-            diff += PACKET_MAXACK;
-        return ((this.ackbitfield & (1 << diff)) != 0);
+        return ((this.ackbitfield & (1 << SequenceDelta(this.ack, number))) != 0);
     }
     
     public int GetFlags() {

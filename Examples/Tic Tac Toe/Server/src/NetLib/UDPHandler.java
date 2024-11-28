@@ -19,7 +19,7 @@ public class UDPHandler {
     int ackbitfield_s64;
     LinkedList<S64Packet> acksleft_rx_s64;
     LinkedList<S64Packet> acksleft_tx_s64;
-    int localseqnum_nlp; // Java doesn't support unsigned shorts, so we'll have to mimic them with ints
+    int localseqnum_nlp;
     int remoteseqnum_nlp;
     int ackbitfield_nlp;
     LinkedList<NetLibPacket> acksleft_rx_nlp;
@@ -72,7 +72,7 @@ public class UDPHandler {
         pkt.SetAck((short)this.remoteseqnum_s64);
         for (S64Packet pkt2ack : this.acksleft_rx_s64)
             if (S64Packet.SequenceGreaterThan(this.remoteseqnum_s64, pkt2ack.GetSequenceNumber()))
-                ackbitfield |= 1 << ((this.remoteseqnum_s64 - pkt2ack.GetSequenceNumber()) - 1);
+                ackbitfield |= 1 << S64Packet.SequenceDelta(this.remoteseqnum_nlp, pkt2ack.GetSequenceNumber());
         pkt.SetAckBitfield(ackbitfield);
         
         // Send the packet
@@ -85,7 +85,7 @@ public class UDPHandler {
             this.acksleft_tx_s64.add(pkt);
         
             // Increase the local sequence number
-            this.localseqnum_s64 = (this.localseqnum_s64 + 1) % (S64Packet.PACKET_MAXACK + 1);
+            this.localseqnum_s64 = S64Packet.SequenceIncrement(this.localseqnum_s64);
         }
     }
     
@@ -105,7 +105,7 @@ public class UDPHandler {
         pkt.SetAck((short)this.remoteseqnum_nlp);
         for (NetLibPacket pkt2ack : this.acksleft_rx_nlp)
             if (NetLibPacket.SequenceGreaterThan(this.remoteseqnum_nlp, pkt2ack.GetSequenceNumber()))
-                ackbitfield |= 1 << ((this.remoteseqnum_nlp - pkt2ack.GetSequenceNumber()) - 1);
+                ackbitfield |= 1 << NetLibPacket.SequenceDelta(this.remoteseqnum_nlp, pkt2ack.GetSequenceNumber());
         pkt.SetAckBitfield(ackbitfield);
         
         // Send the packet
@@ -118,7 +118,7 @@ public class UDPHandler {
             this.acksleft_tx_nlp.add(pkt);
         
             // Increase the local sequence number
-            this.localseqnum_nlp = (this.localseqnum_nlp + 1) % (NetLibPacket.PACKET_MAXACK + 1);
+            this.localseqnum_nlp = NetLibPacket.SequenceIncrement(this.localseqnum_nlp);
         }
     }
     
@@ -134,8 +134,6 @@ public class UDPHandler {
             for (S64Packet pkt2ack : this.acksleft_tx_s64)
                 if (pkt.IsAcked(pkt2ack.GetSequenceNumber()))
                     found_nlp.add(pkt2ack);
-            for (S64Packet pkt2ack : found_nlp)
-                System.out.println("Got ack for " + pkt2ack.GetSequenceNumber());
             this.acksleft_tx_s64.removeAll(found_nlp);
             
             // Increment the sequence number to the packet's highest value
