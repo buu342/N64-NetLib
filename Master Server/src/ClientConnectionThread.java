@@ -35,12 +35,11 @@ public class ClientConnectionThread extends Thread {
                 // Check packets that came from a user (by reading the message queue)
                 byte[] data = this.msgqueue.poll();
                 if (data != null) {
-                    if (!S64Packet.IsS64PacketHeader(data)) {
-                        System.err.println("Received data which isn't an S64Packet from " + this.handler.GetAddress() + ":" + this.handler.GetPort());
-                        continue;
-                    }
                     S64Packet pkt = this.handler.ReadS64Packet(data);
-                  
+                    if (pkt == null)
+                        continue;
+                    
+                    // Handle each packet type
                     if (pkt.GetType().equals("REGISTER")) {
                         this.RegisterServer(pkt.GetData());
                         break;

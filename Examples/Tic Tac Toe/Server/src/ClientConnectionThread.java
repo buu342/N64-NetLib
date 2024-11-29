@@ -1,11 +1,12 @@
 import java.net.DatagramSocket;
 import java.net.Socket;
 
-import NetLib.ClientDisconnectException;
 import NetLib.ClientTimeoutException;
 import NetLib.NetLibPacket;
+import NetLib.PacketFlag;
 import NetLib.S64Packet;
 import NetLib.UDPHandler;
+import TicTacToe.ClientDisconnectException;
 import TicTacToe.PacketIDs;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -55,39 +56,41 @@ public class ClientConnectionThread implements Runnable {
             try {
                 byte[] data = this.msgqueue.poll();
                 if (data != null) {
-                    //if (this.handler.IsS64Packet(data)) {
-                    //    this.HandleS64Packets(this.handler.ReadS64Packet(data));
-                    //} else if (this.handler.IsNetLibPacket(data)) {
-                    //    this.HandleNetLibPackets(this.handler.ReadNetLibPacket(data));
-                    //} else {
-                    //    System.err.println("Received unknown data from client " + this.address + ":" + this.port);
-                    //}
+                    if (S64Packet.IsS64PacketHeader(data)) {
+                        this.HandleS64Packets(this.handler.ReadS64Packet(data));
+                    } else if (NetLibPacket.IsNetLibPacketHeader(data)) {
+                        this.HandleNetLibPackets(this.handler.ReadNetLibPacket(data));
+                    } else {
+                        System.err.println("Received unknown data from client " + this.address + ":" + this.port);
+                    }
                 } else {
+                    this.handler.ResendMissingPackets();
                     Thread.sleep(10);
                 }
-            //} catch (ClientTimeoutException e) {
-            //    return;
-            //} catch (ClientDisconnectException e) {
-            //    return;
+            } catch (ClientTimeoutException e) {
+                e.printStackTrace();
+                return;
+            } catch (ClientDisconnectException e) {
+                e.printStackTrace();
+                return;
             } catch (Exception e) {
                 e.printStackTrace();
             }
         }
     }
     
-    /*
-    private void HandleS64Packets(S64Packet pkt) throws IOException {
+    private void HandleS64Packets(S64Packet pkt) throws IOException, ClientTimeoutException {
         if (pkt == null)
             return;
         if (pkt.GetType().equals("DISCOVER")) {
             String identifier = new String(pkt.GetData(), StandardCharsets.UTF_8);
-            this.handler.SendPacket(new S64Packet("DISCOVER", TicTacToeServer.ToByteArray_Client(identifier)));
+            this.handler.SendPacket(new S64Packet("DISCOVER", TicTacToeServer.ToByteArray_Client(identifier), PacketFlag.FLAG_UNRELIABLE.GetInt()));
             System.out.println("Client " + this.address + ":" + this.port + " discovered server");
         }
     }
     
     private void HandleNetLibPackets(NetLibPacket pkt) throws IOException, ClientDisconnectException, InterruptedException, ClientTimeoutException {
-        if (pkt == null)
+        /*if (pkt == null)
             return;
         switch (this.clientstate)
         {
@@ -129,9 +132,10 @@ public class ClientConnectionThread implements Runnable {
                 Thread.currentThread().setName("Client " + this.player.GetNumber());
                 break;
             }
-        }
+        }*/
     }
-    
+
+    /*
     private void SendServerFullPacket() throws IOException, InterruptedException, ClientTimeoutException {
         this.handler.SendPacketWaitAck(new NetLibPacket(PacketIDs.PACKETID_SERVERFULL.GetInt(), null), this.msgqueue);
     }

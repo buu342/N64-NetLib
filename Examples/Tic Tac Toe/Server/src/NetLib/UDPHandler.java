@@ -122,18 +122,23 @@ public class UDPHandler {
         if (pkt != null) {
             LinkedList<S64Packet> found_nlp = new LinkedList<S64Packet>();
             
+            // If a packet with this sequence number already exists in our RX list, ignore this packet
+            for (S64Packet rxpkt : this.acksleft_rx_s64)
+                if (rxpkt.GetSequenceNumber() == pkt.GetSequenceNumber())
+                    return null;
+            
             // Go through transmitted packets and remove all which were acknowledged in the one we received
             for (S64Packet pkt2ack : this.acksleft_tx_s64)
                 if (pkt.IsAcked(pkt2ack.GetSequenceNumber()))
                     found_nlp.add(pkt2ack);
             this.acksleft_tx_s64.removeAll(found_nlp);
             
+            // Increment the sequence number to the packet's highest value
+            if (S64Packet.SequenceGreaterThan(pkt.GetSequenceNumber(), this.remoteseqnum_s64))
+                this.remoteseqnum_s64 = pkt.GetSequenceNumber();
+            
             // Handle reliable packets
             if ((pkt.GetFlags() & PacketFlag.FLAG_UNRELIABLE.GetInt()) == 0) {
-                
-                // Increment the sequence number to the packet's highest value
-                if (S64Packet.SequenceGreaterThan(pkt.GetSequenceNumber(), this.remoteseqnum_s64))
-                    this.remoteseqnum_s64 = pkt.GetSequenceNumber();
                 
                 // Update our received packet list
                 if (this.acksleft_rx_s64.size() > 17)
@@ -156,18 +161,23 @@ public class UDPHandler {
         if (pkt != null) {
             LinkedList<NetLibPacket> found_nlp = new LinkedList<NetLibPacket>();
             
+            // If a packet with this sequence number already exists in our RX list, ignore this packet
+            for (NetLibPacket rxpkt : this.acksleft_rx_nlp)
+                if (rxpkt.GetSequenceNumber() == pkt.GetSequenceNumber())
+                    return null;
+            
             // Go through transmitted packets and remove all which were acknowledged in the one we received
             for (NetLibPacket pkt2ack : this.acksleft_tx_nlp)
                 if (pkt.IsAcked(pkt2ack.GetSequenceNumber()))
                     found_nlp.add(pkt2ack);
             this.acksleft_tx_nlp.removeAll(found_nlp);
             
+            // Increment the sequence number to the packet's highest value
+            if (NetLibPacket.SequenceGreaterThan(pkt.GetSequenceNumber(), this.remoteseqnum_nlp))
+                this.remoteseqnum_nlp = pkt.GetSequenceNumber();
+            
             // Handle reliable packets
             if ((pkt.GetFlags() & PacketFlag.FLAG_UNRELIABLE.GetInt()) == 0) {
-                
-                // Increment the sequence number to the packet's highest value
-                if (NetLibPacket.SequenceGreaterThan(pkt.GetSequenceNumber(), this.remoteseqnum_nlp))
-                    this.remoteseqnum_nlp = pkt.GetSequenceNumber();
                 
                 // Update our received packet list
                 if (this.acksleft_rx_nlp.size() > 17)

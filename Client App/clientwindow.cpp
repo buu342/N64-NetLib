@@ -616,14 +616,8 @@ void* ServerConnectionThread::Entry()
         NetLibPacket* pkt = NULL;
 
         // Check for messages from the main thread (which are relayed from USB)
-        global_msgqueue_serverthread.ReceiveTimeout(0, pkt);
-        while (pkt != NULL)
-        {
+        while (global_msgqueue_serverthread.ReceiveTimeout(0, pkt) == wxMSGQUEUE_NO_ERROR)
             handler->SendPacket(pkt);
-            delete pkt;
-            pkt = NULL;
-            global_msgqueue_serverthread.ReceiveTimeout(0, pkt);
-        }
 
         // Check for packets from the server and upload it to USB
         socket->Read(buff, 4096);
@@ -631,11 +625,7 @@ void* ServerConnectionThread::Entry()
         {
             pkt = handler->ReadNetLibPacket(buff);
             if (pkt != NULL)
-            {
                 this->TransferPacket(pkt);
-                delete pkt;
-                pkt = NULL;
-            }
             socket->Read(buff, 4096);
         }
         wxMilliSleep(10);
@@ -658,7 +648,7 @@ void ServerConnectionThread::TransferPacket(NetLibPacket* pkt)
         return;
     wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
     evt.SetInt(TEVENT_NETPACKET_SERVER_TO_USB);
-    evt.SetPayload<NetLibPacket*>(pkt);
+    evt.SetPayload<NetLibPacket*>(NetLibPacket::FromBytes(pkt->GetAsBytes()));
     wxQueueEvent(this->m_Window, evt.Clone());
 }
 

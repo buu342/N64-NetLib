@@ -34,20 +34,20 @@ public class MasterConnectionThread implements Runnable {
         
         // Send the register packet to the master server
         try {
+            this.handler.SendPacket(new S64Packet("REGISTER", TicTacToeServer.ToByteArray_Master(), PacketFlag.FLAG_EXPLICITACK.GetInt()));
             while (true) {
-                byte[] reply;
-                this.handler.SendPacket(new S64Packet("REGISTER", TicTacToeServer.ToByteArray_Master(), PacketFlag.FLAG_EXPLICITACK.GetInt()));
-                reply = this.msgqueue.poll();
+                S64Packet pkt;
+                byte[] reply = null;
                 while (reply == null) {
                     Thread.sleep(UDPHandler.TIME_RESEND);
-                    this.handler.ResendMissingPackets();
                     reply = this.msgqueue.poll();
+                    if (reply == null)
+                        this.handler.ResendMissingPackets();
                 }
-                if (!S64Packet.IsS64PacketHeader(reply)) {
-                    System.err.println("Got bad reply from master server");
+                pkt = this.handler.ReadS64Packet(reply);
+                if (pkt == null)
                     continue;
-                }
-                if (this.handler.ReadS64Packet(reply).GetType().equals("ACK"))
+                if (pkt.GetType().equals("ACK"))
                     break;
             }
             System.out.println("Register successful.");
@@ -60,20 +60,20 @@ public class MasterConnectionThread implements Runnable {
         while (true) {
             try {
                 Thread.sleep(TIME_HEARTBEAT);
+                this.handler.SendPacket(new S64Packet("HEARTBEAT", TicTacToeServer.ToByteArray_Master(), PacketFlag.FLAG_EXPLICITACK.GetInt()));
                 while (true) {
-                    byte[] reply;
-                    this.handler.SendPacket(new S64Packet("HEARTBEAT", TicTacToeServer.ToByteArray_Master(), PacketFlag.FLAG_EXPLICITACK.GetInt()));
-                    reply = this.msgqueue.poll();
+                    S64Packet pkt;
+                    byte[] reply = null;
                     while (reply == null) {
                         Thread.sleep(UDPHandler.TIME_RESEND);
-                        this.handler.ResendMissingPackets();
                         reply = this.msgqueue.poll();
+                        if (reply == null)
+                            this.handler.ResendMissingPackets();
                     }
-                    if (!S64Packet.IsS64PacketHeader(reply)) {
-                        System.err.println("Got bad reply from master server");
+                    pkt = this.handler.ReadS64Packet(reply);
+                    if (pkt == null)
                         continue;
-                    }
-                    if (this.handler.ReadS64Packet(reply).GetType().equals("ACK"))
+                    if (pkt.GetType().equals("ACK"))
                         break;
                 }
             } catch (ClientTimeoutException e) {

@@ -373,6 +373,8 @@ void* ServerFinderThread::Entry()
         {
             if (pkt->GetType() == "LIST")
                 handler->SendPacket(pkt);
+            else
+                printf("Client sent packet of unknown type\n");
         }
 
         // Check for packets from the master server / servers we pinged

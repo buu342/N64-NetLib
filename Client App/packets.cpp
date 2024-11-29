@@ -146,6 +146,17 @@ S64Packet* UDPHandler::ReadS64Packet(uint8_t* data)
     if (pkt != NULL)
     {
         std::deque<S64Packet*>::iterator it;
+            
+        // If a packet with this sequence number already exists in our RX list, ignore this packet
+        for (S64Packet* rxpkt : this->m_AcksLeft_RX_S64)
+        {
+            if (rxpkt->GetSequenceNumber() == pkt->GetSequenceNumber())
+            {
+                if ((pkt->GetFlags() & FLAG_EXPLICITACK) != 0)
+                    this->SendPacket(new S64Packet("ACK", 0, NULL, FLAG_UNRELIABLE));
+                return NULL;
+            }
+        }
 
         // Go through transmitted packets and remove all which were acknowledged in the one we received
         it = this->m_AcksLeft_TX_S64.begin();
@@ -160,14 +171,14 @@ S64Packet* UDPHandler::ReadS64Packet(uint8_t* data)
             else
                 ++it;
         }
+
+        // Increment the sequence number to the packet's highest value
+        if (sequence_greaterthan(pkt->GetSequenceNumber(), this->m_RemoteSeqNum_S64))
+            this->m_RemoteSeqNum_S64 = pkt->GetSequenceNumber();
             
         // Handle reliable packets
         if ((pkt->GetFlags() & FLAG_UNRELIABLE) == 0)
         {
-            // Increment the sequence number to the packet's highest value
-            if (sequence_greaterthan(pkt->GetSequenceNumber(), this->m_RemoteSeqNum_S64))
-                this->m_RemoteSeqNum_S64 = pkt->GetSequenceNumber();
-            
             // Update our received packet list
             if (this->m_AcksLeft_RX_S64.size() > 17)
             {
@@ -229,6 +240,17 @@ NetLibPacket* UDPHandler::ReadNetLibPacket(uint8_t* data)
     if (pkt != NULL)
     {
         std::deque<NetLibPacket*>::iterator it;
+            
+        // If a packet with this sequence number already exists in our RX list, ignore this packet
+        for (NetLibPacket* rxpkt : this->m_AcksLeft_RX_NLP)
+        {
+            if (rxpkt->GetSequenceNumber() == pkt->GetSequenceNumber())
+            {
+                if ((pkt->GetFlags() & FLAG_EXPLICITACK) != 0)
+                    this->SendPacket(new NetLibPacket(0, 0, NULL, FLAG_UNRELIABLE));
+                return NULL;
+            }
+        }
 
         // Go through transmitted packets and remove all which were acknowledged in the one we received
         it = this->m_AcksLeft_TX_NLP.begin();
@@ -243,15 +265,14 @@ NetLibPacket* UDPHandler::ReadNetLibPacket(uint8_t* data)
             else
                 ++it;
         }
+        
+        // Increment the sequence number to the packet's highest value
+        if (sequence_greaterthan(pkt->GetSequenceNumber(), this->m_RemoteSeqNum_NLP))
+            this->m_RemoteSeqNum_NLP = pkt->GetSequenceNumber();
             
         // Handle reliable packets
         if ((pkt->GetFlags() & FLAG_UNRELIABLE) == 0)
         {
-            
-            // Increment the sequence number to the packet's highest value
-            if (sequence_greaterthan(pkt->GetSequenceNumber(), this->m_RemoteSeqNum_NLP))
-                this->m_RemoteSeqNum_NLP = pkt->GetSequenceNumber();
-            
             // Update our received packet list
             if (this->m_AcksLeft_RX_NLP.size() > 17)
             {
