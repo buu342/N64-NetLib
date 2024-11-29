@@ -49,14 +49,6 @@ public class UDPHandler {
         return this.port;
     }
     
-    public boolean IsS64Packet(byte[] data) {
-        return S64Packet.IsS64PacketHeader(data);
-    }
-    
-    public boolean IsNetLibPacket(byte[] data) {
-        return NetLibPacket.IsNetLibPacketHeader(data);
-    }
-    
     public void SendPacket(S64Packet pkt) throws IOException, ClientTimeoutException {
         byte[] data;
         DatagramPacket out;
@@ -135,10 +127,6 @@ public class UDPHandler {
                 if (pkt.IsAcked(pkt2ack.GetSequenceNumber()))
                     found_nlp.add(pkt2ack);
             this.acksleft_tx_s64.removeAll(found_nlp);
-            
-            // Increment the sequence number to the packet's highest value
-            if (S64Packet.SequenceGreaterThan(pkt.GetSequenceNumber(), this.remoteseqnum_nlp))
-                this.remoteseqnum_nlp = pkt.GetSequenceNumber();
             
             // Handle reliable packets
             if ((pkt.GetFlags() & PacketFlag.FLAG_UNRELIABLE.GetInt()) == 0) {

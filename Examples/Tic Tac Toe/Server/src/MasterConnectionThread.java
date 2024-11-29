@@ -43,7 +43,7 @@ public class MasterConnectionThread implements Runnable {
                     this.handler.ResendMissingPackets();
                     reply = this.msgqueue.poll();
                 }
-                if (!this.handler.IsS64Packet(reply)) {
+                if (!S64Packet.IsS64PacketHeader(reply)) {
                     System.err.println("Got bad reply from master server");
                     continue;
                 }
@@ -69,7 +69,7 @@ public class MasterConnectionThread implements Runnable {
                         this.handler.ResendMissingPackets();
                         reply = this.msgqueue.poll();
                     }
-                    if (!this.handler.IsS64Packet(reply)) {
+                    if (!S64Packet.IsS64PacketHeader(reply)) {
                         System.err.println("Got bad reply from master server");
                         continue;
                     }

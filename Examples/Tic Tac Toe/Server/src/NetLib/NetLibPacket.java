@@ -10,7 +10,7 @@ public class NetLibPacket {
     private static final int    PACKET_VERSION    = 1;
     private static final String PACKET_HEADER     = "NLP";
     private static final int    PACKET_MAXSIZE    = 4096;
-    private  static final int   PACKET_MAXSEQNUM  = 10;
+    private  static final int   PACKET_MAXSEQNUM  = 0xFFFF;
     
     
     private int version;

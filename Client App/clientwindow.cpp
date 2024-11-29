@@ -605,47 +605,45 @@ ServerConnectionThread::~ServerConnectionThread()
 
 void* ServerConnectionThread::Entry()
 {
-    /*
-    wxIPV4address addr;
-    addr.Hostname(this->m_Window->GetAddress());
-    addr.Service(this->m_Window->GetPort());
+    uint8_t* buff = (uint8_t*)malloc(4096);
+    wxDatagramSocket* socket = this->m_Window->GetSocket();
+    UDPHandler* handler = new UDPHandler(socket, this->m_Window->GetAddress(), this->m_Window->GetPort());
 
-    // Attempt to connect the socket
-    this->m_Socket = new wxSocketClient(wxSOCKET_BLOCK | wxSOCKET_WAITALL);
-    this->m_Socket->SetTimeout(10);
-    this->m_Socket->Connect(addr);
-    if (!this->m_Socket->IsConnected())
-    {
-        this->m_Socket->Close();
-        this->WriteConsoleError("Server socket failed to connect.\n");
-        this->NotifyDeath();
-        return NULL;
-    }
-    this->WriteConsole("Socket connected!\n");
-    // TODO: Figure out why console writing isn't working here
-
-    // Relay packets 
-    while (!TestDestroy() && this->m_Socket->IsConnected())
+    // Handle packets
+    this->WriteConsole("Establishing connection to server once ROM is ready.\n");
+    while (!TestDestroy())
     {
         NetLibPacket* pkt = NULL;
-        if (global_msgqueue_serverthread.ReceiveTimeout(0, pkt) == wxMSGQUEUE_NO_ERROR)
+
+        // Check for messages from the main thread (which are relayed from USB)
+        global_msgqueue_serverthread.ReceiveTimeout(0, pkt);
+        while (pkt != NULL)
         {
-            pkt->SendPacket(this->m_Socket);
+            handler->SendPacket(pkt);
             delete pkt;
+            pkt = NULL;
+            global_msgqueue_serverthread.ReceiveTimeout(0, pkt);
         }
-        else
+
+        // Check for packets from the server and upload it to USB
+        socket->Read(buff, 4096);
+        while (socket->LastReadCount() > 0)
         {
-            if (this->m_Socket->IsData())
-                pkt = NetLibPacket::ReadPacket(this->m_Socket);
+            pkt = handler->ReadNetLibPacket(buff);
             if (pkt != NULL)
+            {
                 this->TransferPacket(pkt);
-            else if (this->m_Socket->LastCount() == 0)
-                wxMilliSleep(10);
+                delete pkt;
+                pkt = NULL;
+            }
+            socket->Read(buff, 4096);
         }
+        wxMilliSleep(10);
     }
+    delete handler;
+    free(buff);
     this->WriteConsoleError("Server Disconnected.\n");
     this->NotifyDeath();
-    */
     return NULL;
 }
 

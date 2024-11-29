@@ -366,19 +366,13 @@ void* ServerFinderThread::Entry()
     UDPHandler* handler = new UDPHandler(sock, this->m_Window->GetAddress(), this->m_Window->GetPort());
     while (!TestDestroy())
     {
-        S64Packet* pkt;
+        S64Packet* pkt = NULL;
 
         // Check for messages from the main thread
-        global_msgqueue_serverthread.ReceiveTimeout(0, pkt);
-        while (pkt != NULL)
+        while (global_msgqueue_serverthread.ReceiveTimeout(0, pkt) == wxMSGQUEUE_NO_ERROR)
         {
             if (pkt->GetType() == "LIST")
                 handler->SendPacket(pkt);
-
-            // Get the next packet (you must set NULL because ReceiveTimeout won't do it for you)
-            delete pkt;
-            pkt = NULL;
-            global_msgqueue_serverthread.ReceiveTimeout(0, pkt);
         }
 
         // Check for packets from the master server / servers we pinged
@@ -399,13 +393,12 @@ void* ServerFinderThread::Entry()
                     this->DiscoveredServer(&serversleft, pkt);
                 else
                     printf("Unexpected packet type received\n");
-                delete pkt;
-                pkt = NULL;
             }
             sock->Read(buff, 4096);
         }
         wxMilliSleep(10);
     }
+    free(buff);
     return NULL;
 }
 
@@ -453,9 +446,7 @@ FoundServer ServerFinderThread::ParsePacket_Server(wxDatagramSocket* socket, S64
     // Create the UDP handler and send the ping packet
     server.handler = new UDPHandler(socket, server.fulladdress);
     serveraddr = server.fulladdress.ToUTF8();
-    ping = new S64Packet("DISCOVER", serveraddr.length(), (uint8_t*)serveraddr.data());
-    server.handler->SendPacket(ping);
-    delete ping;
+    server.handler->SendPacket(new S64Packet("DISCOVER", serveraddr.length(), (uint8_t*)serveraddr.data()));
 
     // Done
     return server;

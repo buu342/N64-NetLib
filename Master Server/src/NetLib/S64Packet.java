@@ -12,6 +12,7 @@ public class S64Packet {
     public static final int     PACKET_MAXSIZE    = 4096;
     private static final int    PACKET_MAXSEQNUM  = 0xFFFF;
 
+    
     private int version;
     private int flags;
     private String type;
@@ -182,6 +183,10 @@ public class S64Packet {
         return this.version;
     }
     
+    public int GetFlags() {
+        return this.flags;
+    }
+    
     public String GetType() {
         return this.type;
     }
@@ -202,10 +207,6 @@ public class S64Packet {
         if (this.ack == number)
             return true;
         return ((this.ackbitfield & (1 << SequenceDelta(this.ack, number))) != 0);
-    }
-    
-    public int GetFlags() {
-        return this.flags;
     }
     
     public long GetSendTime() {
