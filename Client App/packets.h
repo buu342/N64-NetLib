@@ -16,7 +16,14 @@ typedef enum {
     FLAG_EXPLICITACK = 0x02,
 } PacketFlag;
 
-class ClientTimeoutException : public std::exception {};
+class ClientTimeoutException : public std::exception
+{
+    private:
+        wxString m_Message;
+    public:
+        ClientTimeoutException(wxString msg) {this->m_Message = msg;}
+        wxString what() {return this->m_Message;}
+};
 
 class UDPHandler
 {

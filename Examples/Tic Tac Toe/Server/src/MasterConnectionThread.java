@@ -6,7 +6,7 @@ import NetLib.PacketFlag;
 import NetLib.S64Packet;
 import NetLib.UDPHandler;
 
-public class MasterConnectionThread implements Runnable {
+public class MasterConnectionThread extends Thread {
 
     private static final int TIME_HEARTBEAT = 1000*60*5;
 
@@ -30,6 +30,7 @@ public class MasterConnectionThread implements Runnable {
     }
     
     public void run() {
+        Thread.currentThread().setName("Master Server Connection");
         this.handler = new UDPHandler(this.socket, this.address, this.port);
         
         // Send the register packet to the master server

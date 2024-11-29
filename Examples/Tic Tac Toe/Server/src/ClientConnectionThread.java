@@ -15,7 +15,7 @@ import java.net.SocketException;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-public class ClientConnectionThread implements Runnable {
+public class ClientConnectionThread extends Thread {
 
     private static final int HEARTBEAT_INTERVAL = 5000;
     private static final int HEARTBEAT_WAIT = 5000;
@@ -50,6 +50,7 @@ public class ClientConnectionThread implements Runnable {
     }
 
     public void run() {
+        Thread.currentThread().setName("Client " + this.address + ":" + this.port);
         this.handler = new UDPHandler(this.socket, this.address, this.port);
         
         while (true) {

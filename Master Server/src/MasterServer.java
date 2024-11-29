@@ -54,7 +54,6 @@ public class MasterServer {
                 udppkt = new DatagramPacket(data, data.length);
                 ds.receive(udppkt);
                 clientaddr = udppkt.getAddress().getHostAddress() + ":" + udppkt.getPort();
-                t = connectiontable.get(clientaddr);
                 
                 // Check for dead servers
                 for (Entry<String, N64Server> entry : servertable.entrySet()) {
@@ -64,20 +63,21 @@ public class MasterServer {
                     }
                 }
                 
+                // Clean up the connection table of dead clients
+                for (Entry<String, ClientConnectionThread> entry : connectiontable.entrySet())
+                    if (!entry.getValue().isAlive())
+                        connectiontable.remove(entry.getKey());
+                
                 // Create a thread for this client if it doesn't exist
-                if (t == null || !t.isAlive()) {
+                t = connectiontable.get(clientaddr);
+                if (t == null) {
                     t = new ClientConnectionThread(servertable, romtable, ds, udppkt.getAddress().getHostAddress(), udppkt.getPort());
-                    new Thread(t).start();
+                    t.start();
                     connectiontable.put(clientaddr, t);
                 }
                 
                 // Send the packet to this client thread
                 t.SendMessage(data, udppkt.getLength());
-                
-                // Clean up the connection table of dead clients
-                for (Entry<String, ClientConnectionThread> entry : connectiontable.entrySet())
-                    if (!entry.getValue().isAlive())
-                        connectiontable.remove(entry.getKey());
             } catch (Exception e) {
                 System.err.println("Error during client connection.");
                 e.printStackTrace();

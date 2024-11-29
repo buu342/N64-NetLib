@@ -366,39 +366,48 @@ void* ServerFinderThread::Entry()
     UDPHandler* handler = new UDPHandler(sock, this->m_Window->GetAddress(), this->m_Window->GetPort());
     while (!TestDestroy())
     {
-        S64Packet* pkt = NULL;
-
-        // Check for messages from the main thread
-        while (global_msgqueue_serverthread.ReceiveTimeout(0, pkt) == wxMSGQUEUE_NO_ERROR)
+        try 
         {
-            if (pkt->GetType() == "LIST")
-                handler->SendPacket(pkt);
-            else
-                printf("Client sent packet of unknown type\n");
-        }
+            S64Packet* pkt = NULL;
 
-        // Check for packets from the master server / servers we pinged
-        sock->Read(buff, 4096);
-        while (sock->LastReadCount() > 0)
-        {
-            pkt = handler->ReadS64Packet(buff);
-            if (pkt != NULL)
+            // Check for messages from the main thread
+            while (global_msgqueue_serverthread.ReceiveTimeout(0, pkt) == wxMSGQUEUE_NO_ERROR)
             {
-                if (!strncmp(pkt->GetType(), "SERVER", 6))
-                {
-                    FoundServer server = this->ParsePacket_Server(handler->GetSocket(), pkt);
-                    serversleft[server.fulladdress] = std::make_pair(server, wxGetLocalTimeMillis());
-                }
-                else if (!strncmp(pkt->GetType(), "DONELISTING", 11))
-                    printf("Master server finished sending server list\n");
-                else if (!strncmp(pkt->GetType(), "DISCOVER", 8))
-                    this->DiscoveredServer(&serversleft, pkt);
+                if (pkt->GetType() == "LIST")
+                    handler->SendPacket(pkt);
                 else
-                    printf("Unexpected packet type received\n");
+                    printf("Client sent packet of unknown type\n");
             }
+            handler->ResendMissingPackets();
+
+            // Check for packets from the master server / servers we pinged
             sock->Read(buff, 4096);
+            while (sock->LastReadCount() > 0)
+            {
+                pkt = handler->ReadS64Packet(buff);
+                if (pkt != NULL)
+                {
+                    if (!strncmp(pkt->GetType(), "SERVER", 6))
+                    {
+                        FoundServer server = this->ParsePacket_Server(handler->GetSocket(), pkt);
+                        serversleft[server.fulladdress] = std::make_pair(server, wxGetLocalTimeMillis());
+                    }
+                    else if (!strncmp(pkt->GetType(), "DONELISTING", 11))
+                        printf("Master server finished sending server list\n");
+                    else if (!strncmp(pkt->GetType(), "DISCOVER", 8))
+                        this->DiscoveredServer(&serversleft, pkt);
+                    else
+                        printf("Unexpected packet type received\n");
+                }
+                sock->Read(buff, 4096);
+            }
+            wxMilliSleep(10);
         }
-        wxMilliSleep(10);
+        catch (ClientTimeoutException e)
+        {
+            printf("%s timeout\n", static_cast<const char*>(e.what().c_str()));
+            break;
+        }
     }
     free(buff);
     return NULL;

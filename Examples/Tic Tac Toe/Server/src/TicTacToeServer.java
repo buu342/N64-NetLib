@@ -8,6 +8,8 @@ import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.security.MessageDigest;
 import java.util.Hashtable;
+import java.util.Map.Entry;
+
 import com.dosse.upnp.UPnP;
 
 import NetLib.S64Packet;
@@ -83,7 +85,7 @@ public class TicTacToeServer {
             System.out.println("Registering to master server");
             try {
                 master = new MasterConnectionThread(ds, masteraddress, masterport);
-                new Thread(master).start();
+                master.start();
             } catch (Exception e) {
                 System.err.println("Unable to register to master server");
                 e.printStackTrace();
@@ -112,11 +114,16 @@ public class TicTacToeServer {
                     continue;
                 }
                 
+                // Clean up the connection table of dead clients
+                for (Entry<String, ClientConnectionThread> entry : connectiontable.entrySet())
+                    if (!entry.getValue().isAlive())
+                        connectiontable.remove(entry.getKey());
+                
                 // If they aren't, handle a client packet
                 t = connectiontable.get(clientaddr);
                 if (t == null) {
                     t = new ClientConnectionThread(ds, udppkt.getAddress().getHostAddress(), udppkt.getPort(), game);
-                    new Thread(t).start();
+                    t.start();
                     connectiontable.put(clientaddr, t);
                 }
                 t.SendMessage(data, udppkt.getLength());

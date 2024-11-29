@@ -110,7 +110,7 @@ void UDPHandler::SendPacket(S64Packet* pkt)
     // Check for timeouts
     pkt->UpdateSendAttempt();
     if (pkt->GetSendAttempts() > MAX_RESENDCOUNT)
-        throw ClientTimeoutException();
+        throw ClientTimeoutException(wxString::Format("%s:%d", this->m_Address, this->m_Port));
     
     // Set the sequence data
     pkt->SetSequenceNumber(this->m_LocalSeqNum_S64);
@@ -204,7 +204,7 @@ void UDPHandler::SendPacket(NetLibPacket* pkt)
     // Check for timeouts
     pkt->UpdateSendAttempt();
     if (pkt->GetSendAttempts() > MAX_RESENDCOUNT)
-        throw ClientTimeoutException();
+        throw ClientTimeoutException(wxString::Format("%s:%d", this->m_Address, this->m_Port));
     
     // Set the sequence data
     pkt->SetSequenceNumber(this->m_LocalSeqNum_NLP);
