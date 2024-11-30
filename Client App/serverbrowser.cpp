@@ -297,6 +297,7 @@ void ServerBrowser::ConnectMaster()
     }
 
     // Send a message to the finder thread that we wanna connect to the master server
+    printf("Requesting server list from Master Server\n");
     global_msgqueue_serverthread.Post(new S64Packet("LIST", 0, NULL));
 }
 
@@ -403,12 +404,31 @@ void* ServerFinderThread::Entry()
             }
             wxMilliSleep(10);
         }
-        catch (ClientTimeoutException e)
+        catch (ClientTimeoutException& e)
         {
-            printf("%s timeout\n", static_cast<const char*>(e.what().c_str()));
-            break;
+            wxString fulladdr = wxString::Format("%s:%d", handler->GetAddress(), handler->GetPort());
+            if (e.what() == fulladdr)
+            {
+                printf("Master server timed out\n");
+                break;
+            }
+            else
+            {
+                if (serversleft.find(fulladdr) != serversleft.end())
+                {
+                    std::pair<FoundServer, wxLongLong> found = serversleft[fulladdr];
+                    printf("Server %s timed out\n", static_cast<const char*>(fulladdr.c_str()));
+                    delete found.first.handler;
+                    serversleft.erase(fulladdr);
+                }
+            }
         }
     }
+
+    // Cleanup
+    for (std::pair<wxString, std::pair<FoundServer, wxLongLong>> it : serversleft)
+        delete it.second.first.handler;
+    delete handler;
     free(buff);
     return NULL;
 }
@@ -419,7 +439,6 @@ FoundServer ServerFinderThread::ParsePacket_Server(wxDatagramSocket* socket, S64
     uint32_t read32;
     uint8_t* buf = pkt->GetData();
     uint32_t buffoffset = 0;
-    S64Packet* ping;
     FoundServer server;
     wxCharBuffer serveraddr;
 
@@ -457,8 +476,8 @@ FoundServer ServerFinderThread::ParsePacket_Server(wxDatagramSocket* socket, S64
     // Create the UDP handler and send the ping packet
     server.handler = new UDPHandler(socket, server.fulladdress);
     serveraddr = server.fulladdress.ToUTF8();
-    server.handler->SendPacket(new S64Packet("DISCOVER", serveraddr.length(), (uint8_t*)serveraddr.data()));
-
+    server.handler->SendPacket(new S64Packet("DISCOVER", serveraddr.length(), (uint8_t*)serveraddr.data(), FLAG_UNRELIABLE));
+    
     // Done
     return server;
 }
@@ -504,6 +523,7 @@ void ServerFinderThread::DiscoveredServer(std::unordered_map<wxString, std::pair
 
         // Calculate the ping
         server->ping = wxGetLocalTimeMillis() - found.second;
+        printf("Discovered %s in %lldms\n", static_cast<const char*>(fulladdress.c_str()), server->ping.GetValue());
 
         // Copy the server data
         server_copy->fulladdress = server->fulladdress;
@@ -528,6 +548,8 @@ void ServerFinderThread::DiscoveredServer(std::unordered_map<wxString, std::pair
 
 void ServerFinderThread::NotifyMainOfDeath()
 {
+    if (this->m_Window == NULL)
+        return;
     wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
     evt.SetInt(TEVENT_THREADENDED);
     wxQueueEvent(this->m_Window, evt.Clone());

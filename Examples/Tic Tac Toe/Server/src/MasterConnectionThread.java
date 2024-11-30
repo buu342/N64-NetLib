@@ -8,7 +8,7 @@ import NetLib.UDPHandler;
 
 public class MasterConnectionThread extends Thread {
 
-    private static final int TIME_HEARTBEAT = 1000*60*5;
+    private static final int TIME_HEARTBEAT = 1000*60*3;
 
     String address;
     int port;

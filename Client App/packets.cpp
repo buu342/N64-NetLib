@@ -300,6 +300,10 @@ void UDPHandler::ResendMissingPackets()
 }
 
 
+/*=============================================================
+
+=============================================================*/
+
 S64Packet::S64Packet(uint8_t version, uint8_t flags, wxString type, uint16_t size, uint8_t* data, uint16_t seqnum, uint16_t acknum, uint16_t ackbitfield)
 {
     this->m_Version = version;
@@ -565,6 +569,10 @@ void S64Packet::UpdateSendAttempt()
     this->m_SendTime = wxGetLocalTimeMillis();
 }
 
+
+/*=============================================================
+
+=============================================================*/
 
 NetLibPacket::NetLibPacket(uint8_t version, uint8_t type, uint8_t flags, uint32_t recipients, uint16_t size, uint8_t* data, uint16_t seqnum, uint16_t acknum, uint16_t ackbitfield)
 {

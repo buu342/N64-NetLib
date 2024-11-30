@@ -19,10 +19,10 @@ typedef enum {
 class ClientTimeoutException : public std::exception
 {
     private:
-        wxString m_Message;
+        wxString m_Address;
     public:
-        ClientTimeoutException(wxString msg) {this->m_Message = msg;}
-        wxString what() {return this->m_Message;}
+        ClientTimeoutException(wxString address) {this->m_Address = address;}
+        wxString what() {return this->m_Address;}
 };
 
 class UDPHandler

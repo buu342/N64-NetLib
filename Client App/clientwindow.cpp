@@ -613,27 +613,33 @@ void* ServerConnectionThread::Entry()
     this->WriteConsole("Establishing connection to server once ROM is ready.\n");
     while (!TestDestroy())
     {
-        NetLibPacket* pkt = NULL;
-
-        // Check for messages from the main thread (which are relayed from USB)
-        while (global_msgqueue_serverthread.ReceiveTimeout(0, pkt) == wxMSGQUEUE_NO_ERROR)
-            handler->SendPacket(pkt);
-
-        // Check for packets from the server and upload it to USB
-        socket->Read(buff, 4096);
-        while (socket->LastReadCount() > 0)
+        try
         {
-            pkt = handler->ReadNetLibPacket(buff);
-            if (pkt != NULL)
-                this->TransferPacket(pkt);
+            NetLibPacket* pkt = NULL;
+
+            // Check for messages from the main thread (which are relayed from USB)
+            while (global_msgqueue_serverthread.ReceiveTimeout(0, pkt) == wxMSGQUEUE_NO_ERROR)
+                handler->SendPacket(pkt);
+
+            // Check for packets from the server and upload it to USB
             socket->Read(buff, 4096);
+            while (socket->LastReadCount() > 0)
+            {
+                pkt = handler->ReadNetLibPacket(buff);
+                if (pkt != NULL)
+                    this->TransferPacket(pkt);
+                socket->Read(buff, 4096);
+            }
+            wxMilliSleep(10);
         }
-        wxMilliSleep(10);
+        catch (ClientTimeoutException& e)
+        {
+            this->WriteConsoleError("Server timed out.\n");
+            break;
+        }
     }
     delete handler;
     free(buff);
-    this->WriteConsoleError("Server Disconnected.\n");
-    this->NotifyDeath();
     return NULL;
 }
 
