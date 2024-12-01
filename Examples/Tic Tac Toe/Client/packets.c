@@ -16,10 +16,10 @@ void netcallback_boardcompleted(size_t size);
 
 void netcallback_initall()
 {
+    netlib_register(PACKETID_ACKBEAT, &netcallback_heartbeat);
     netlib_register(PACKETID_PLAYERINFO, &netcallback_playerinfo);
     netlib_register(PACKETID_PLAYERDISCONNECT, &netcallback_disconnect);
     netlib_register(PACKETID_SERVERFULL, &netcallback_serverfull);
-    netlib_register(PACKETID_HEARTBEAT, &netcallback_heartbeat);
     netlib_register(PACKETID_PLAYERREADY, &netcallback_playerready);
     netlib_register(PACKETID_GAMESTATECHANGE, &netcallback_gamestate);
     netlib_register(PACKETID_PLAYERTURN, &netcallback_playerturn);
@@ -60,7 +60,7 @@ void netcallback_serverfull(size_t size)
 
 void netcallback_heartbeat(size_t size)
 {
-    netlib_start(PACKETID_HEARTBEAT);
+    netlib_start(PACKETID_ACKBEAT);
     netlib_sendtoserver();
 }
 

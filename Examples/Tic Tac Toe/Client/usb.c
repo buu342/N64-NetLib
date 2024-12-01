@@ -436,6 +436,9 @@ static char usb_timeout_check(u32 start_ticks, u32 duration)
 
 char usb_initialize(void)
 {
+    if (usb_cart != CART_NONE)
+        return;
+
     // Initialize the debug related globals
     usb_buffer = (u8*)OS_DCACHE_ROUNDUP_ADDR(usb_buffer_align);
     memset(usb_buffer, 0, BUFFER_SIZE);
