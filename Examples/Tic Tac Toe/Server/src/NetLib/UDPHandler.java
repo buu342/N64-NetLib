@@ -92,7 +92,6 @@ public class UDPHandler {
             throw new ClientTimeoutException(this.address);
         
         // Set the sequence data
-        pkt.UpdateSendAttempt();
         pkt.SetSequenceNumber((short)this.localseqnum_nlp);
         pkt.SetAck((short)this.remoteseqnum_nlp);
         for (NetLibPacket pkt2ack : this.acksleft_rx_nlp)

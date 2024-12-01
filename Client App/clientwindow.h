@@ -81,6 +81,7 @@ class DeviceThread : public wxThread
 {
     private:
         ClientWindow* m_Window;
+        bool m_FirstPrint;
 
     protected:
 

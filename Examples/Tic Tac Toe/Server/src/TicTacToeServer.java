@@ -39,7 +39,7 @@ public class TicTacToeServer {
         // Check for program arguments
         ReadArguments(args);
         
-        // If the name or rom arguments are invalid, exit
+        // If the name or ROM arguments are invalid, exit
         if (servername.equals("") || romname.equals("")) {
             ShowHelp();
             System.exit(1);

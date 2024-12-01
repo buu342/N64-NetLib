@@ -241,6 +241,7 @@ int ClientWindow::GetPort()
 DeviceThread::DeviceThread(ClientWindow* win)
 {
     this->m_Window = win;
+    this->m_FirstPrint = TRUE;
     global_msgqueue_usbthread.Clear();
     device_initialize();
 }
@@ -381,7 +382,6 @@ void* DeviceThread::Entry()
 void DeviceThread::ParseUSB_TextPacket(uint8_t* buff, uint32_t size)
 {
     char* text;
-    static bool firstprint = TRUE;
     text = (char*)malloc(size+1);
     if (text == NULL)
     {
@@ -390,9 +390,9 @@ void DeviceThread::ParseUSB_TextPacket(uint8_t* buff, uint32_t size)
     }
     memset(text, 0, size+1);
     strncpy(text, (char*)buff, size);
-    if (firstprint)
+    if (this->m_FirstPrint)
     {
-        firstprint = false;
+        this->m_FirstPrint = false;
         this->ClearConsole();
     }
     this->WriteConsole(wxString(text));
@@ -403,6 +403,11 @@ void DeviceThread::ParseUSB_NetLibPacket(uint8_t* buff)
 {
     NetLibPacket* pkt = NetLibPacket::FromBytes((uint8_t*)buff);
     wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
+    if (pkt == NULL)
+    {
+        this->WriteConsoleError("\nGot a bad NetLib Packet\n");
+        return;
+    }
     evt.SetInt(TEVENT_NETPACKET_USB_TO_SERVER);
     evt.SetPayload<NetLibPacket*>(pkt);
     wxQueueEvent(this->m_Window, evt.Clone());

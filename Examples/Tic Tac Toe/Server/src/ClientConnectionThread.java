@@ -12,7 +12,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class ClientConnectionThread extends Thread {
 
-    private static final int HEARTBEAT_INTERVAL = 5000;
+    private static final int HEARTBEAT_INTERVAL = 500;
     
     private static final int CLIENTSTATE_UNCONNECTED = 0;
     private static final int CLIENTSTATE_CONNECTED = 1;
@@ -31,6 +31,7 @@ public class ClientConnectionThread extends Thread {
         this.socket = socket;
         this.address = address;
         this.port = port;
+        this.game = game;
         this.handler = null;
         this.player = null;
         this.clientstate = CLIENTSTATE_UNCONNECTED;
@@ -66,27 +67,28 @@ public class ClientConnectionThread extends Thread {
                     }
                 } else {
                     this.handler.ResendMissingPackets();
+                    if (this.clientstate == CLIENTSTATE_CONNECTED && System.currentTimeMillis() - this.lastmessage > HEARTBEAT_INTERVAL)
+                        this.SendHeartbeatPacket();
                     Thread.sleep(10);
                 }
-            } catch (ClientTimeoutException e) {
-                e.printStackTrace();
-                return;
-            } catch (ClientDisconnectException e) {
-                
-                // Notify other players of the disconnect
-                for (TicTacToe.Player ply : this.game.GetPlayers()) {
-                    if (ply != null && ply.GetNumber() != this.player.GetNumber()) {
-                        try {
-                            this.SendPlayerDisconnectPacket(ply, this.player);
-                        } catch (Exception e2) {
-                            e2.printStackTrace();
+            } catch (ClientDisconnectException | ClientTimeoutException e) {
+                if (this.clientstate == CLIENTSTATE_CONNECTED)
+                {
+                    // Notify other players of the disconnect
+                    for (TicTacToe.Player ply : this.game.GetPlayers()) {
+                        if (ply != null && ply.GetNumber() != this.player.GetNumber()) {
+                            try {
+                                this.SendPlayerDisconnectPacket(ply, this.player);
+                            } catch (Exception e2) {
+                                e2.printStackTrace();
+                            }
                         }
                     }
+    
+                    // Kill this thread
+                    System.out.println("Player " + this.player.GetNumber() + " disconnected");
+                    game.DisconnectPlayer(this.player);
                 }
-
-                // Kill this thread
-                System.out.println("Player " + this.player.GetNumber() + " disconnected");
-                game.DisconnectPlayer(this.player);
                 return;
             } catch (Exception e) {
                 e.printStackTrace();
@@ -95,6 +97,8 @@ public class ClientConnectionThread extends Thread {
     }
     
     private void HandleS64Packets(S64Packet pkt) throws IOException, ClientTimeoutException {
+        if (pkt == null)
+            return;
         if (pkt.GetType().equals("DISCOVER")) {
             String identifier = new String(pkt.GetData(), StandardCharsets.UTF_8);
             this.handler.SendPacket(new S64Packet("DISCOVER", TicTacToeServer.ToByteArray_Client(identifier), PacketFlag.FLAG_UNRELIABLE.GetInt()));
@@ -103,12 +107,14 @@ public class ClientConnectionThread extends Thread {
     }
     
     private void HandleNetLibPackets(NetLibPacket pkt) throws IOException, ClientDisconnectException, InterruptedException, ClientTimeoutException {
+        if (pkt == null)
+            return;
         switch (this.clientstate) {
             // First, we have to receive a client connection request packet
             // This tells us that the player has the game booted on the N64,
             // and that they're ready to be assigned player data
             // as well as to receive information about other connected players
-            case CLIENTSTATE_UNCONNECTED: {
+            case CLIENTSTATE_UNCONNECTED:
                 if (pkt.GetType() != PacketIDs.PACKETID_CLIENTCONNECT.GetInt()) {
                     System.err.println("Expected client connect packet, got " + pkt.GetType() + ". Disconnecting");
                     throw new ClientDisconnectException(this.handler.GetAddress() + this.handler.GetPort());
@@ -136,11 +142,13 @@ public class ClientConnectionThread extends Thread {
                 // Done with the initial handshake, now we can go into the gameplay packet loop
                 System.out.println("Player " + this.player.GetNumber() + " has joined the game");
                 
+                // Client successfully connected!
                 this.clientstate = CLIENTSTATE_CONNECTED;
                 Thread.currentThread().setName("Client " + this.player.GetNumber());
                 break;
-            }
-            case CLIENTSTATE_CONNECTED: {
+            case CLIENTSTATE_CONNECTED:
+                // Now that the player is connected, all we gotta do is act as a packet relayer to the game thread and other clients
+                
                 // Relay packets to other clients or the server
                 if (pkt.GetRecipients() != 0) {
                     for (TicTacToe.Player ply : this.game.GetPlayers())
@@ -157,12 +165,7 @@ public class ClientConnectionThread extends Thread {
                     this.handler.SendPacket(pkt);
                     pkt = this.player.GetMessages().poll();
                 }
-                
-                // Handle heartbeats
-                if (System.currentTimeMillis() - this.lastmessage > HEARTBEAT_INTERVAL)
-                    this.SendHeartbeatPacket();
                 break;
-            }
         }
     }
 

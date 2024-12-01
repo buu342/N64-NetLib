@@ -21,7 +21,7 @@
 
 inline bool sequence_greaterthan(uint16_t s1, uint16_t s2)
 {
-    return ((s1 > s2) && (s1 - s2 <= ((MAX_SEQUENCENUM/2)+1)) || ((s1 < s2) && (s2 - s1 > ((MAX_SEQUENCENUM/2)+1))));
+    return ((s1 > s2) && (s1 - s2 <= ((MAX_SEQUENCENUM/2)+1))) || ((s1 < s2) && (s2 - s1 > ((MAX_SEQUENCENUM/2)+1)));
 }
 
 inline bool sequence_delta(uint32_t s1, uint32_t s2)
@@ -783,7 +783,7 @@ uint8_t* NetLibPacket::GetAsBytes()
 uint16_t NetLibPacket::GetAsBytes_Size()
 {
     return sizeof(NETLIBPACKET_HEADER) + sizeof(this->m_Version) +
-        this->m_Type + this->m_Flags +
+        sizeof(this->m_Type) + sizeof(this->m_Flags) +
         sizeof(this->m_SequenceNum) + sizeof(this->m_Ack) + sizeof(this->m_AckBitField) +
         sizeof(this->m_Recipients) +
         sizeof(this->m_Size) + this->m_Size;
