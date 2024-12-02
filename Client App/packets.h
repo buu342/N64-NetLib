@@ -145,4 +145,5 @@ class NetLibPacket
         void SetAck(uint16_t acknum);
         void SetAckBitfield(uint16_t bitfield);
         void UpdateSendAttempt();
+        wxString AsString();
 };

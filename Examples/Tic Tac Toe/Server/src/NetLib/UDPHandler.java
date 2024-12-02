@@ -121,14 +121,8 @@ public class UDPHandler {
         if (pkt.GetType() != 0) {
             if (pkt.GetSendAttempts() > 1)
                 System.out.print("Re");
-            System.out.println("Sent packet of type "+pkt.GetType()+", seq "+pkt.GetSequenceNumber());
-            if (pkt.GetSize() > 0)
-            {
-                System.out.print("    ");
-                for (int i=0; i<pkt.GetSize(); i++)
-                    System.out.print(String.format("%02X", pkt.GetData()[i]));
-                System.out.println();
-            }
+            System.out.print("Sent ");
+            System.out.println(pkt);
         }
     }
     
@@ -184,6 +178,9 @@ public class UDPHandler {
                 if (rxpkt.GetSequenceNumber() == pkt.GetSequenceNumber())
                     return null;
             
+            if (pkt.GetType() != 0)
+                System.out.println("Received " + pkt);
+            
             // Go through transmitted packets and remove all which were acknowledged in the one we received
             for (NetLibPacket pkt2ack : this.acksleft_tx_nlp)
                 if (pkt.IsAcked(pkt2ack.GetSequenceNumber()))
@@ -206,17 +203,6 @@ public class UDPHandler {
             // If the packet wants an explicit ack, send it
             if ((pkt.GetFlags() & PacketFlag.FLAG_EXPLICITACK.GetInt()) != 0)
                 this.SendPacket(new NetLibPacket(0, null, PacketFlag.FLAG_UNRELIABLE.GetInt()));
-            
-            if (pkt.GetType() != 0) {
-                System.out.println("Received packet of type "+pkt.GetType()+", seq "+pkt.GetSequenceNumber());
-                if (pkt.GetSize() > 0)
-                {
-                    System.out.print("    ");
-                    for (int i=0; i<pkt.GetSize(); i++)
-                        System.out.print(String.format("%02X", pkt.GetData()[i]));
-                    System.out.println();
-                }
-            }
         }
         return pkt;
     }
