@@ -8,6 +8,7 @@ import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.security.MessageDigest;
 import java.util.Hashtable;
+import java.util.Iterator;
 import java.util.Map.Entry;
 
 import com.dosse.upnp.UPnP;
@@ -103,6 +104,7 @@ public class TicTacToeServer {
             try {
                 String clientaddr;
                 ClientConnectionThread t;
+                Iterator<Entry<String, ClientConnectionThread>> it;
                 udppkt = new DatagramPacket(data, data.length);
                 ds.receive(udppkt);
                 clientaddr = udppkt.getAddress().getHostAddress() + ":" + udppkt.getPort();
@@ -115,9 +117,12 @@ public class TicTacToeServer {
                 }
                 
                 // Clean up the connection table of dead clients
-                for (Entry<String, ClientConnectionThread> entry : connectiontable.entrySet())
+                it = connectiontable.entrySet().iterator();
+                while (it.hasNext()) {
+                    Entry<String, ClientConnectionThread> entry = it.next();
                     if (!entry.getValue().isAlive())
-                        connectiontable.remove(entry.getKey());
+                        it.remove();
+                }
                 
                 // If they aren't, handle a client packet
                 t = connectiontable.get(clientaddr);

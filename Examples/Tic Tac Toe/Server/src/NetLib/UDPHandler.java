@@ -60,12 +60,15 @@ public class UDPHandler {
             throw new ClientTimeoutException(this.address);
         
         // Set the sequence data
-        pkt.SetSequenceNumber((short)this.localseqnum_s64);
-        pkt.SetAck((short)this.remoteseqnum_s64);
-        for (S64Packet pkt2ack : this.acksleft_rx_s64)
-            if (S64Packet.SequenceGreaterThan(this.remoteseqnum_s64, pkt2ack.GetSequenceNumber()))
-                ackbitfield |= 1 << S64Packet.SequenceDelta(this.remoteseqnum_nlp, pkt2ack.GetSequenceNumber());
-        pkt.SetAckBitfield(ackbitfield);
+        if (pkt.GetSendAttempts() == 1)
+        {
+            pkt.SetSequenceNumber((short)this.localseqnum_s64);
+            pkt.SetAck((short)this.remoteseqnum_s64);
+            for (S64Packet pkt2ack : this.acksleft_rx_s64)
+                if (S64Packet.SequenceGreaterThan(this.remoteseqnum_s64, pkt2ack.GetSequenceNumber()))
+                    ackbitfield |= 1 << (NetLibPacket.SequenceDelta(this.remoteseqnum_s64, pkt2ack.GetSequenceNumber()) - 1);
+            pkt.SetAckBitfield(ackbitfield);
+        }
         
         // Send the packet
         data = pkt.GetBytes();
@@ -92,12 +95,15 @@ public class UDPHandler {
             throw new ClientTimeoutException(this.address);
         
         // Set the sequence data
-        pkt.SetSequenceNumber((short)this.localseqnum_nlp);
-        pkt.SetAck((short)this.remoteseqnum_nlp);
-        for (NetLibPacket pkt2ack : this.acksleft_rx_nlp)
-            if (NetLibPacket.SequenceGreaterThan(this.remoteseqnum_nlp, pkt2ack.GetSequenceNumber()))
-                ackbitfield |= 1 << NetLibPacket.SequenceDelta(this.remoteseqnum_nlp, pkt2ack.GetSequenceNumber());
-        pkt.SetAckBitfield(ackbitfield);
+        if (pkt.GetSendAttempts() == 1)
+        {
+            pkt.SetSequenceNumber((short)this.localseqnum_nlp);
+            pkt.SetAck((short)this.remoteseqnum_nlp);
+            for (NetLibPacket pkt2ack : this.acksleft_rx_nlp)
+                if (NetLibPacket.SequenceGreaterThan(this.remoteseqnum_nlp, pkt2ack.GetSequenceNumber()))
+                    ackbitfield |= 1 << (NetLibPacket.SequenceDelta(this.remoteseqnum_nlp, pkt2ack.GetSequenceNumber()) - 1);
+            pkt.SetAckBitfield(ackbitfield);
+        }
         
         // Send the packet
         data = pkt.GetBytes();
@@ -110,6 +116,19 @@ public class UDPHandler {
         
             // Increase the local sequence number
             this.localseqnum_nlp = NetLibPacket.SequenceIncrement(this.localseqnum_nlp);
+        }
+        
+        if (pkt.GetType() != 0) {
+            if (pkt.GetSendAttempts() > 1)
+                System.out.print("Re");
+            System.out.println("Sent packet of type "+pkt.GetType()+", seq "+pkt.GetSequenceNumber());
+            if (pkt.GetSize() > 0)
+            {
+                System.out.print("    ");
+                for (int i=0; i<pkt.GetSize(); i++)
+                    System.out.print(String.format("%02X", pkt.GetData()[i]));
+                System.out.println();
+            }
         }
     }
     
@@ -187,6 +206,17 @@ public class UDPHandler {
             // If the packet wants an explicit ack, send it
             if ((pkt.GetFlags() & PacketFlag.FLAG_EXPLICITACK.GetInt()) != 0)
                 this.SendPacket(new NetLibPacket(0, null, PacketFlag.FLAG_UNRELIABLE.GetInt()));
+            
+            if (pkt.GetType() != 0) {
+                System.out.println("Received packet of type "+pkt.GetType()+", seq "+pkt.GetSequenceNumber());
+                if (pkt.GetSize() > 0)
+                {
+                    System.out.print("    ");
+                    for (int i=0; i<pkt.GetSize(); i++)
+                        System.out.print(String.format("%02X", pkt.GetData()[i]));
+                    System.out.println();
+                }
+            }
         }
         return pkt;
     }

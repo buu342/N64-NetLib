@@ -64,7 +64,7 @@ public class UDPHandler {
         pkt.SetAck((short)this.remoteseqnum_s64);
         for (S64Packet pkt2ack : this.acksleft_rx_s64)
             if (S64Packet.SequenceGreaterThan(this.remoteseqnum_s64, pkt2ack.GetSequenceNumber()))
-                ackbitfield |= 1 << S64Packet.SequenceDelta(this.remoteseqnum_nlp, pkt2ack.GetSequenceNumber());
+                ackbitfield |= 1 << (NetLibPacket.SequenceDelta(this.remoteseqnum_s64, pkt2ack.GetSequenceNumber()) - 1);
         pkt.SetAckBitfield(ackbitfield);
         
         // Send the packet
@@ -96,7 +96,7 @@ public class UDPHandler {
         pkt.SetAck((short)this.remoteseqnum_nlp);
         for (NetLibPacket pkt2ack : this.acksleft_rx_nlp)
             if (NetLibPacket.SequenceGreaterThan(this.remoteseqnum_nlp, pkt2ack.GetSequenceNumber()))
-                ackbitfield |= 1 << NetLibPacket.SequenceDelta(this.remoteseqnum_nlp, pkt2ack.GetSequenceNumber());
+                ackbitfield |= 1 << (NetLibPacket.SequenceDelta(this.remoteseqnum_nlp, pkt2ack.GetSequenceNumber()) - 1);
         pkt.SetAckBitfield(ackbitfield);
         
         // Send the packet
@@ -122,13 +122,9 @@ public class UDPHandler {
             LinkedList<S64Packet> found_nlp = new LinkedList<S64Packet>();
             
             // If a packet with this sequence number already exists in our RX list, ignore this packet
-            for (S64Packet rxpkt : this.acksleft_rx_s64) {
-                if (rxpkt.GetSequenceNumber() == pkt.GetSequenceNumber()) {
-                    if ((pkt.GetFlags() & PacketFlag.FLAG_EXPLICITACK.GetInt()) != 0)
-                        this.SendPacket(new S64Packet("ACK", null, PacketFlag.FLAG_UNRELIABLE.GetInt()));
+            for (S64Packet rxpkt : this.acksleft_rx_s64)
+                if (rxpkt.GetSequenceNumber() == pkt.GetSequenceNumber())
                     return null;
-                }
-            }
             
             // Go through transmitted packets and remove all which were acknowledged in the one we received
             for (S64Packet pkt2ack : this.acksleft_tx_s64)
@@ -165,13 +161,9 @@ public class UDPHandler {
             LinkedList<NetLibPacket> found_nlp = new LinkedList<NetLibPacket>();
             
             // If a packet with this sequence number already exists in our RX list, ignore this packet
-            for (NetLibPacket rxpkt : this.acksleft_rx_nlp) {
-                if (rxpkt.GetSequenceNumber() == pkt.GetSequenceNumber()) {
-                    if ((pkt.GetFlags() & PacketFlag.FLAG_EXPLICITACK.GetInt()) != 0)
-                        this.SendPacket(new NetLibPacket(0, null, PacketFlag.FLAG_UNRELIABLE.GetInt()));
+            for (NetLibPacket rxpkt : this.acksleft_rx_nlp)
+                if (rxpkt.GetSequenceNumber() == pkt.GetSequenceNumber())
                     return null;
-                }
-            }
             
             // Go through transmitted packets and remove all which were acknowledged in the one we received
             for (NetLibPacket pkt2ack : this.acksleft_tx_nlp)

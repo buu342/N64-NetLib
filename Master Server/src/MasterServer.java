@@ -3,6 +3,7 @@ import java.net.DatagramSocket;
 import java.io.File;
 import java.io.IOException;
 import java.util.Hashtable;
+import java.util.Iterator;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -49,6 +50,8 @@ public class MasterServer {
             try {
                 String clientaddr;
                 ClientConnectionThread t;
+                Iterator<Entry<String, N64Server>> it_s;
+                Iterator<Entry<String, ClientConnectionThread>> it_c;
                 
                 // Receive packets
                 udppkt = new DatagramPacket(data, data.length);
@@ -56,17 +59,22 @@ public class MasterServer {
                 clientaddr = udppkt.getAddress().getHostAddress() + ":" + udppkt.getPort();
                 
                 // Check for dead servers
-                for (Entry<String, N64Server> entry : servertable.entrySet()) {
+                it_s = servertable.entrySet().iterator();
+                while (it_s.hasNext()) {
+                    Entry<String, N64Server> entry = it_s.next();
                     if (System.currentTimeMillis() - entry.getValue().GetLastInteractionTime() > TIME_KEEPSERVERS) {
+                        it_s.remove();
                         System.err.println("No interactions from "+entry.getKey()+". Removing from registry.");
-                        servertable.remove(entry.getKey());
                     }
                 }
                 
                 // Clean up the connection table of dead clients
-                for (Entry<String, ClientConnectionThread> entry : connectiontable.entrySet())
+                it_c = connectiontable.entrySet().iterator();
+                while (it_c.hasNext()) {
+                    Entry<String, ClientConnectionThread> entry = it_c.next();
                     if (!entry.getValue().isAlive())
-                        connectiontable.remove(entry.getKey());
+                        it_c.remove();
+                }
                 
                 // Create a thread for this client if it doesn't exist
                 t = connectiontable.get(clientaddr);

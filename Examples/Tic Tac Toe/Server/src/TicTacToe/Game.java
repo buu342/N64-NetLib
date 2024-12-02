@@ -37,7 +37,7 @@ public class Game implements Runnable  {
                     if (this.PlayerCount() < 2) {
                         player1_ready = false;
                         player2_ready = false;
-                        Thread.sleep(1000);
+                        Thread.sleep(10);
                         continue;
                     }
                     

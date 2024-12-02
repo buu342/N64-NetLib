@@ -227,7 +227,7 @@ public class NetLibPacket {
     public boolean IsAcked(short number) {
         if (this.ack == number)
             return true;
-        return ((this.ackbitfield & (1 << SequenceDelta(this.ack, number))) != 0);
+        return ((this.ackbitfield & (1 << (SequenceDelta(this.ack, number) - 1))) != 0);
     }
     
     public int GetSender() {

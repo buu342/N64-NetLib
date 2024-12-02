@@ -113,12 +113,15 @@ void UDPHandler::SendPacket(S64Packet* pkt)
         throw ClientTimeoutException(wxString::Format("%s:%d", this->m_Address, this->m_Port));
     
     // Set the sequence data
-    pkt->SetSequenceNumber(this->m_LocalSeqNum_S64);
-    pkt->SetAck(this->m_RemoteSeqNum_S64);
-    for (S64Packet* pkt2ack : this->m_AcksLeft_RX_S64)
-        if (sequence_greaterthan(this->m_RemoteSeqNum_S64, pkt2ack->GetSequenceNumber()))
-            ackbitfield |= 1 << sequence_delta(this->m_RemoteSeqNum_S64, pkt2ack->GetSequenceNumber());
-    pkt->SetAckBitfield(ackbitfield);
+    if (pkt->GetSendAttempts() == 1)
+    {
+        pkt->SetSequenceNumber(this->m_LocalSeqNum_S64);
+        pkt->SetAck(this->m_RemoteSeqNum_S64);
+        for (S64Packet* pkt2ack : this->m_AcksLeft_RX_S64)
+            if (sequence_greaterthan(this->m_RemoteSeqNum_S64, pkt2ack->GetSequenceNumber()))
+                ackbitfield |= 1 << (sequence_delta(this->m_RemoteSeqNum_S64, pkt2ack->GetSequenceNumber()) - 1);
+        pkt->SetAckBitfield(ackbitfield);
+    }
 
     // Send the packet
     data = pkt->GetAsBytes();
@@ -207,12 +210,15 @@ void UDPHandler::SendPacket(NetLibPacket* pkt)
         throw ClientTimeoutException(wxString::Format("%s:%d", this->m_Address, this->m_Port));
     
     // Set the sequence data
-    pkt->SetSequenceNumber(this->m_LocalSeqNum_NLP);
-    pkt->SetAck(this->m_RemoteSeqNum_NLP);
-    for (NetLibPacket* pkt2ack : this->m_AcksLeft_RX_NLP)
-        if (sequence_greaterthan(this->m_RemoteSeqNum_NLP, pkt2ack->GetSequenceNumber()))
-            ackbitfield |= 1 << sequence_delta(this->m_RemoteSeqNum_NLP, pkt2ack->GetSequenceNumber());
-    pkt->SetAckBitfield(ackbitfield);
+    if (pkt->GetSendAttempts() == 1)
+    {
+        pkt->SetSequenceNumber(this->m_LocalSeqNum_NLP);
+        pkt->SetAck(this->m_RemoteSeqNum_NLP);
+        for (NetLibPacket* pkt2ack : this->m_AcksLeft_RX_NLP)
+            if (sequence_greaterthan(this->m_RemoteSeqNum_NLP, pkt2ack->GetSequenceNumber()))
+                ackbitfield |= 1 << (sequence_delta(this->m_RemoteSeqNum_NLP, pkt2ack->GetSequenceNumber()) - 1);
+        pkt->SetAckBitfield(ackbitfield);
+    }
 
     // Send the packet
     data = pkt->GetAsBytes();
@@ -225,6 +231,20 @@ void UDPHandler::SendPacket(NetLibPacket* pkt)
     {
         this->m_AcksLeft_TX_NLP.push_back(pkt);
         this->m_LocalSeqNum_NLP = sequence_increment(this->m_LocalSeqNum_NLP);
+    }
+
+    if (pkt->GetType() != 0)
+    {
+        if (pkt->GetSendAttempts() > 1)
+            printf("Re");
+        printf("Sent packet of type %d, seq %d\n", pkt->GetType(), pkt->GetSequenceNumber());
+        if (pkt->GetSize() > 0)
+        {
+            printf("    ");
+            for (int i=0; i<pkt->GetSize(); i++)
+                printf("%02x", pkt->GetData()[i]);
+            printf("\n");
+        }
     }
 
     // Cleanup
@@ -285,6 +305,18 @@ NetLibPacket* UDPHandler::ReadNetLibPacket(uint8_t* data)
         // If the packet wants an explicit ack, send it
         if ((pkt->GetFlags() & FLAG_EXPLICITACK) != 0)
             this->SendPacket(new NetLibPacket(0, 0, NULL, FLAG_UNRELIABLE));
+
+        if (pkt->GetType() != 0)
+        {
+            printf("Received packet of type %d, seq %d\n", pkt->GetType(), pkt->GetSequenceNumber());
+            if (pkt->GetSize() > 0)
+            {
+                printf("    ");
+                for (int i=0; i<pkt->GetSize(); i++)
+                    printf("%02x", pkt->GetData()[i]);
+                printf("\n");
+            }
+        }
     }
     return pkt;
 }
@@ -470,7 +502,7 @@ bool S64Packet::IsAcked(uint16_t number)
 {
     if (this->m_Ack == number)
         return true;
-    return ((this->m_AckBitField & (1 << sequence_delta(this->m_Ack, number))) != 0);
+    return ((this->m_AckBitField & (1 << (sequence_delta(this->m_Ack, number) - 1))) != 0);
 }
 
 uint8_t* S64Packet::GetAsBytes()
@@ -713,7 +745,7 @@ bool NetLibPacket::IsAcked(uint16_t number)
 {
     if (this->m_Ack == number)
         return true;
-    return ((this->m_AckBitField & (1 << sequence_delta(this->m_Ack, number))) != 0);
+    return ((this->m_AckBitField & (1 << (sequence_delta(this->m_Ack, number) - 1))) != 0);
 }
 
 uint16_t NetLibPacket::GetSize()

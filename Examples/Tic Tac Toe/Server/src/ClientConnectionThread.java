@@ -147,7 +147,7 @@ public class ClientConnectionThread extends Thread {
                 Thread.currentThread().setName("Client " + this.player.GetNumber());
                 break;
             case CLIENTSTATE_CONNECTED:
-                // Now that the player is connected, all we gotta do is act as a packet relayer to the game thread and other clients
+                // Now that the player is connected, all we gotta do is act as a packet relayer to the game thread and other client threads
                 
                 // Relay packets to other clients or the server
                 if (pkt.GetRecipients() != 0) {
