@@ -11,6 +11,8 @@ public class UDPHandler {
     public static final int TIME_RESEND   = 1000;
     public static final int MAX_RESEND    = 5;
     
+    private static final boolean DEBUGPRINTS = false;
+    
     String address;
     int port;
     DatagramSocket socket;
@@ -60,12 +62,14 @@ public class UDPHandler {
             throw new ClientTimeoutException(this.address);
         
         // Set the sequence data
-        pkt.SetSequenceNumber((short)this.localseqnum_s64);
-        pkt.SetAck((short)this.remoteseqnum_s64);
-        for (S64Packet pkt2ack : this.acksleft_rx_s64)
-            if (S64Packet.SequenceGreaterThan(this.remoteseqnum_s64, pkt2ack.GetSequenceNumber()))
-                ackbitfield |= 1 << (NetLibPacket.SequenceDelta(this.remoteseqnum_s64, pkt2ack.GetSequenceNumber()) - 1);
-        pkt.SetAckBitfield(ackbitfield);
+        if (pkt.GetSendAttempts() == 1) {
+            pkt.SetSequenceNumber((short)this.localseqnum_s64);
+            pkt.SetAck((short)this.remoteseqnum_s64);
+            for (S64Packet pkt2ack : this.acksleft_rx_s64)
+                if (S64Packet.SequenceGreaterThan(this.remoteseqnum_s64, pkt2ack.GetSequenceNumber()))
+                    ackbitfield |= 1 << (NetLibPacket.SequenceDelta(this.remoteseqnum_s64, pkt2ack.GetSequenceNumber()) - 1);
+            pkt.SetAckBitfield(ackbitfield);
+        }
         
         // Send the packet
         data = pkt.GetBytes();
@@ -92,12 +96,14 @@ public class UDPHandler {
             throw new ClientTimeoutException(this.address);
         
         // Set the sequence data
-        pkt.SetSequenceNumber((short)this.localseqnum_nlp);
-        pkt.SetAck((short)this.remoteseqnum_nlp);
-        for (NetLibPacket pkt2ack : this.acksleft_rx_nlp)
-            if (NetLibPacket.SequenceGreaterThan(this.remoteseqnum_nlp, pkt2ack.GetSequenceNumber()))
-                ackbitfield |= 1 << (NetLibPacket.SequenceDelta(this.remoteseqnum_nlp, pkt2ack.GetSequenceNumber()) - 1);
-        pkt.SetAckBitfield(ackbitfield);
+        if (pkt.GetSendAttempts() == 1) {
+            pkt.SetSequenceNumber((short)this.localseqnum_nlp);
+            pkt.SetAck((short)this.remoteseqnum_nlp);
+            for (NetLibPacket pkt2ack : this.acksleft_rx_nlp)
+                if (NetLibPacket.SequenceGreaterThan(this.remoteseqnum_nlp, pkt2ack.GetSequenceNumber()))
+                    ackbitfield |= 1 << (NetLibPacket.SequenceDelta(this.remoteseqnum_nlp, pkt2ack.GetSequenceNumber()) - 1);
+            pkt.SetAckBitfield(ackbitfield);
+        }
         
         // Send the packet
         data = pkt.GetBytes();
@@ -110,6 +116,16 @@ public class UDPHandler {
         
             // Increase the local sequence number
             this.localseqnum_nlp = NetLibPacket.SequenceIncrement(this.localseqnum_nlp);
+        }
+        
+        // Debug print for developers
+        if (DEBUGPRINTS) {
+            if (pkt.GetType() != 0) {
+                if (pkt.GetSendAttempts() > 1)
+                    System.out.print("Re");
+                System.out.print("Sent ");
+                System.out.println(pkt);
+            }
         }
     }
     
@@ -164,6 +180,12 @@ public class UDPHandler {
             for (NetLibPacket rxpkt : this.acksleft_rx_nlp)
                 if (rxpkt.GetSequenceNumber() == pkt.GetSequenceNumber())
                     return null;
+
+            // Debug print for developers
+            if (DEBUGPRINTS) {
+                if (pkt.GetType() != 0)
+                    System.out.println("Received " + pkt);
+            }
             
             // Go through transmitted packets and remove all which were acknowledged in the one we received
             for (NetLibPacket pkt2ack : this.acksleft_tx_nlp)

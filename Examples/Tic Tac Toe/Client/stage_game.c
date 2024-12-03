@@ -38,8 +38,6 @@ static vu8 global_selectiony;
 static vs8 global_opponentx;
 static vs8 global_opponenty;
 
-static u8 aa = 0;
-
 
 /*==============================
     stage_game_init
@@ -299,7 +297,7 @@ void stage_game_draw(void)
 
     // Initialize the RCP and framebuffer
     rcp_init();
-    fb_clear(aa++, 0, 0);
+    fb_clear(0, 0, 0);
     
     // Render the board
     board_render();

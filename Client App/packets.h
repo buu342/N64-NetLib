@@ -140,10 +140,10 @@ class NetLibPacket
         uint16_t   GetAsBytes_Size();
         wxLongLong GetSendTime();
         uint8_t    GetSendAttempts();
+        wxString AsString();
         void EnableFlags(uint8_t flags);
         void SetSequenceNumber(uint16_t seqnum);
         void SetAck(uint16_t acknum);
         void SetAckBitfield(uint16_t bitfield);
         void UpdateSendAttempt();
-        wxString AsString();
 };

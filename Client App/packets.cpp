@@ -4,6 +4,8 @@
 #include <wx/buffer.h>
 #include <wx/tokenzr.h>
 
+#define DEBUGPRINTS 0
+
 #define MAX_PACKETSIZE   4096
 #define MAX_RESENDCOUNT  5
 #define MAX_SEQUENCENUM  0xFFFF
@@ -37,6 +39,25 @@ inline uint32_t sequence_increment(uint32_t seqnum)
     return (seqnum + 1) % (MAX_SEQUENCENUM + 1);
 }
 
+wxString getbits(size_t size, void* num)
+{
+    wxString ret = "";
+    uint8_t* bp = (uint8_t*) num;
+    for (int i = size-1; i >= 0; i--)
+    {
+        for (int j = 7; j >= 0; j--)
+        {
+            uint8_t byte = (bp[i] >> j) & 1;
+            ret += wxString::Format("%u", byte);
+        }
+    }
+    return ret;
+}
+
+
+/*=============================================================
+
+=============================================================*/
 
 UDPHandler::UDPHandler(wxDatagramSocket* socket, wxString address, int port)
 {
@@ -233,12 +254,15 @@ void UDPHandler::SendPacket(NetLibPacket* pkt)
         this->m_LocalSeqNum_NLP = sequence_increment(this->m_LocalSeqNum_NLP);
     }
 
-    if (pkt->GetType() != 0)
-    {
-        if (pkt->GetSendAttempts() > 1)
-            printf("Re");
-        printf("Sent %s\n", static_cast<const char*>(pkt->AsString().c_str()));
-    }
+    // Debug prints for developers
+    #if DEBUGPRINTS
+        if (pkt->GetType() != 0)
+        {
+            if (pkt->GetSendAttempts() > 1)
+                printf("Re");
+            printf("Sent %s\n", static_cast<const char*>(pkt->AsString().c_str()));
+        }
+    #endif
 
     // Cleanup
     free(data);
@@ -295,7 +319,11 @@ NetLibPacket* UDPHandler::ReadNetLibPacket(uint8_t* data)
             this->m_AcksLeft_RX_NLP.push_back(pkt);
         }
 
-        printf("Received %s\n", static_cast<const char*>(pkt->AsString().c_str()));
+        // Debug prints for developers
+        #if DEBUGPRINTS
+            if (pkt->GetType() != 0)
+                printf("Received %s\n", static_cast<const char*>(pkt->AsString().c_str()));
+        #endif
         
         // If the packet wants an explicit ack, send it
         if ((pkt->GetFlags() & FLAG_EXPLICITACK) != 0)
@@ -642,43 +670,6 @@ bool NetLibPacket::IsNetLibPacket(uint8_t* bytes)
     return !strncmp((const char*)bytes, NETLIBPACKET_HEADER, strlen(NETLIBPACKET_HEADER));
 }
 
-// Assumes little endian
-wxString getbits(size_t const size, void const * const ptr)
-{
-    wxString aa = "";
-    unsigned char *b = (unsigned char*) ptr;
-    unsigned char byte;
-    int i, j;
-    
-    for (i = size-1; i >= 0; i--) {
-        for (j = 7; j >= 0; j--) {
-            byte = (b[i] >> j) & 1;
-            aa += wxString::Format("%u", byte);
-        }
-    }
-    return aa;
-}
-
-wxString NetLibPacket::AsString()
-{
-    wxString mystr = "NetLib Packet\n";
-    mystr += wxString("    Version: ") + wxString::Format("%d", this->m_Version) + wxString("\n");
-    mystr += wxString("    Type: ") + wxString::Format("%d", this->m_Type) + wxString("\n");
-    mystr += wxString("    Sequence Number: ") + wxString::Format("%d", this->m_SequenceNum) + wxString("\n");
-    mystr += wxString("    Ack: ") + wxString::Format("%d", this->m_Ack) + wxString("\n");
-    mystr += wxString("    AckField: ") + getbits(2, &this->m_AckBitField) + wxString("\n");
-    mystr += wxString("    Recipients: ") + getbits(4, &this->m_Recipients) + wxString("\n");
-    mystr += wxString("    Data size: ") + wxString::Format("%d", this->m_Size) + wxString("\n");
-    if (this->m_Size > 0)
-    {
-        mystr += wxString("    Data: \n");
-        mystr += wxString("        ");
-        for (int i=0; i<this->m_Size; i++)
-            mystr += wxString::Format("%02x ", this->m_Data[i]);
-    }
-    return mystr;
-}
-
 NetLibPacket* NetLibPacket::FromBytes(uint8_t* bytes)
 {
     uint8_t  version, type, flags;
@@ -849,6 +840,26 @@ wxLongLong NetLibPacket::GetSendTime()
 uint8_t NetLibPacket::GetSendAttempts()
 {
     return this->m_SendAttempts;
+}
+
+wxString NetLibPacket::AsString()
+{
+    wxString mystr = "NetLib Packet\n";
+    mystr += wxString("    Version: ") + wxString::Format("%d", this->m_Version) + wxString("\n");
+    mystr += wxString("    Type: ") + wxString::Format("%d", this->m_Type) + wxString("\n");
+    mystr += wxString("    Sequence Number: ") + wxString::Format("%d", this->m_SequenceNum) + wxString("\n");
+    mystr += wxString("    Ack: ") + wxString::Format("%d", this->m_Ack) + wxString("\n");
+    mystr += wxString("    AckField: ") + getbits(2, &this->m_AckBitField) + wxString("\n");
+    mystr += wxString("    Recipients: ") + getbits(4, &this->m_Recipients) + wxString("\n");
+    mystr += wxString("    Data size: ") + wxString::Format("%d", this->m_Size) + wxString("\n");
+    if (this->m_Size > 0)
+    {
+        mystr += wxString("    Data: \n");
+        mystr += wxString("        ");
+        for (int i=0; i<this->m_Size; i++)
+            mystr += wxString::Format("%02x ", this->m_Data[i]);
+    }
+    return mystr;
 }
 
 void NetLibPacket::EnableFlags(uint8_t flags)

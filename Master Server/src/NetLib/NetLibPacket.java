@@ -90,15 +90,19 @@ public class NetLibPacket {
         String mystr = "NetLib Packet\n";
         mystr += "    Version: " + this.version + "\n";
         mystr += "    Type: " + this.type + "\n";
+        mystr += "    Sequence Number: " + this.seqnum + "\n";
+        mystr += "    Ack: " + this.ack + "\n";
+        mystr += "    AckField: " + Integer.toBinaryString(this.ackbitfield) + "\n";
         mystr += "    Recipients: " + Integer.toBinaryString(this.recipients) + "\n";
         if (this.sender != 0)
             mystr += "    Sender: " + this.sender + "\n";
         mystr += "    Data size: " + this.size + "\n";
-        mystr += "    Data: \n";
-        mystr += "        ";
-        if (this.data != null)
+        if (this.size > 0) {
+            mystr += "    Data: \n";
+            mystr += "        ";
             for (int i=0; i<this.data.length; i++)
                 mystr += this.data[i] + " ";
+        }
         return mystr;
     }
     
