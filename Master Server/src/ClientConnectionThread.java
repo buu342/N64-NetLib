@@ -4,14 +4,23 @@ import NetLib.ClientTimeoutException;
 import NetLib.PacketFlag;
 import NetLib.S64Packet;
 import NetLib.UDPHandler;
+
+import java.io.BufferedInputStream;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.DatagramSocket;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class ClientConnectionThread extends Thread {
+    
+    private static final int FILECHUNKSIZE = 2048;
 
+    private File romtodownload;
+    private int romchunkcount;
     private UDPHandler handler;
     private ConcurrentHashMap<String, N64ROM> roms;
     private ConcurrentHashMap<String, N64Server> servers;
@@ -21,6 +30,8 @@ public class ClientConnectionThread extends Thread {
         this.servers = servers;
         this.roms = roms;
         this.handler = new UDPHandler(socket, addr, port);
+        this.romtodownload = null;
+        this.romchunkcount = 0;
     }
     
     public void SendMessage(byte data[], int size) {
@@ -47,7 +58,12 @@ public class ClientConnectionThread extends Thread {
                         this.ListServers();
                         break;
                     } else if (pkt.GetType().equals("DOWNLOAD")) {
-                        //this.DownloadROM(pkt.GetData());
+                        this.DownloadROM(pkt.GetData());
+                        continue;
+                    } else if (pkt.GetType().equals("FILEDATA")) {
+                        this.SendROMChunk(pkt.GetData());
+                        continue;
+                    } else if (pkt.GetType().equals("FILEDONE")) {
                         break;
                     } else if (pkt.GetType().equals("HEARTBEAT")) {
                         this.HandleServerHeartbeat();
@@ -119,19 +135,15 @@ public class ClientConnectionThread extends Thread {
             server.UpdateLastInteractionTime();
     }
     
-    /*
     private void DownloadROM(byte[] data) throws Exception, IOException {
-        int size, readcount;
+        int size;
         byte[] hash;
         N64ROM rom;
         String romhashstr;
         File romfile;
-        byte[] buffer = new byte[8192];
         ByteBuffer bb = ByteBuffer.wrap(data);
-        DataOutputStream dos = new DataOutputStream(this.clientsocket.getOutputStream());
-        BufferedInputStream bis;
-        
-        System.out.println("Client " + this.clientsocket + " wants to download ROM");
+        String addrport = this.handler.GetAddress() + ":" + this.handler.GetPort();
+        System.out.println("Client " + addrport + " wants to download ROM");
         
         // Get the hash size
         size = bb.getInt();
@@ -144,50 +156,69 @@ public class ClientConnectionThread extends Thread {
         // Find the hash in our ROM list
         romhashstr = N64ROM.BytesToHash(hash);
         rom = this.roms.get(romhashstr);
-        if (rom == null)
-        {
+        if (rom == null) {
             System.err.println("    Client requested non-existent ROM");
-            dos.writeInt(0);
-            dos.flush();
-            dos.close();
+            this.handler.SendPacket(new S64Packet("DOWNLOAD", null, PacketFlag.FLAG_UNRELIABLE.GetInt()));
             return;
         }
         
         // If the file doesn't exist any longer, delete it from our ROM list
         romfile = new File(rom.GetPath());
-        if (!romfile.exists())
-        {
+        if (!romfile.exists()) {
             System.err.println("    Client requested since-removed ROM");
             this.roms.remove(romhashstr);
-            dos.writeInt(0);
-            dos.flush();
-            dos.close();
+            this.handler.SendPacket(new S64Packet("DOWNLOAD", null, PacketFlag.FLAG_UNRELIABLE.GetInt()));
             return;
         }
         
         // If the hash changed, update the hash and stop
-        if (Arrays.equals(N64ROM.GetROMHash(romfile), hash) == false)
-        {
+        if (Arrays.equals(N64ROM.GetROMHash(romfile), hash) == false) {
             System.err.println("    Client requested since-changed ROM");
             rom = new N64ROM(romfile);
             this.roms.remove(romhashstr);
             this.roms.put(rom.GetHashString(), rom);
-            dos.writeInt(0);
-            dos.flush();
-            dos.close();
+            this.handler.SendPacket(new S64Packet("DOWNLOAD", null, PacketFlag.FLAG_UNRELIABLE.GetInt()));
+            return;
+        }
+        
+        // Send file data
+        this.romtodownload = romfile;
+        this.romchunkcount = (int)Math.ceil(((float)rom.GetSize())/FILECHUNKSIZE);
+        bb = ByteBuffer.allocate(8);
+        bb.putInt(rom.GetSize());
+        bb.putInt(FILECHUNKSIZE);
+        this.handler.SendPacket(new S64Packet("DOWNLOAD", bb.array(), PacketFlag.FLAG_UNRELIABLE.GetInt()));
+    }
+    
+    private void SendROMChunk(byte[] data) throws IOException, ClientTimeoutException, InterruptedException {
+        int readcount;
+        int requestedchunk;
+        byte[] buffer = new byte[FILECHUNKSIZE];
+        BufferedInputStream bis;
+        ByteBuffer bb = ByteBuffer.wrap(data);
+        
+        // If we don't have a ROM to download, notify the client
+        if (this.romtodownload == null) {
+            this.handler.SendPacket(new S64Packet("FILEDATA", null, PacketFlag.FLAG_UNRELIABLE.GetInt()));
+            return;
+        }
+        
+        // Check if the client requested a valid chunk
+        requestedchunk = bb.getInt();
+        if (requestedchunk < 0 || requestedchunk > this.romchunkcount){
+            this.handler.SendPacket(new S64Packet("FILEDATA", null, PacketFlag.FLAG_UNRELIABLE.GetInt()));
             return;
         }
         
         // Transfer the ROM
-        dos.writeInt(rom.GetSize());
-        bis = new BufferedInputStream(new FileInputStream(romfile));
-        while ((readcount = bis.read(buffer)) > 0)
-            dos.write(buffer, 0, readcount);
-        dos.flush();
-        
-        // Cleanup
+        bis = new BufferedInputStream(new FileInputStream(this.romtodownload));
+        bis.skip(requestedchunk*FILECHUNKSIZE);
+        readcount = bis.read(buffer);
+        bb = ByteBuffer.allocate(readcount + 4 + 4);
+        bb.putInt(requestedchunk);
+        bb.putInt(readcount);
+        bb.put(buffer, 0, readcount);
+        this.handler.SendPacket(new S64Packet("FILEDATA", bb.array(), PacketFlag.FLAG_UNRELIABLE.GetInt()));
         bis.close();
-        dos.close();
     }
-    */
 }
