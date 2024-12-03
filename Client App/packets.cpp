@@ -14,19 +14,13 @@
 #define TIME_TIMEOUT   1000*30
 #define TIME_ACKRETRY  1000*5
 
-#define S64PACKET_HEADER "S64"
-#define S64PACKET_VERSION 1
 
-#define NETLIBPACKET_HEADER "NLP"
-#define NETLIBPACKET_VERSION 1
-
-
-inline bool sequence_greaterthan(uint16_t s1, uint16_t s2)
+static inline bool sequence_greaterthan(uint16_t s1, uint16_t s2)
 {
     return ((s1 > s2) && (s1 - s2 <= ((MAX_SEQUENCENUM/2)+1))) || ((s1 < s2) && (s2 - s1 > ((MAX_SEQUENCENUM/2)+1)));
 }
 
-inline int sequence_delta(uint32_t s1, uint32_t s2)
+static inline int sequence_delta(uint32_t s1, uint32_t s2)
 {
     int delta = (s1 - s2);
     if (delta < 0)
@@ -34,12 +28,12 @@ inline int sequence_delta(uint32_t s1, uint32_t s2)
     return delta;
 }
 
-inline uint32_t sequence_increment(uint32_t seqnum)
+static inline uint32_t sequence_increment(uint32_t seqnum)
 {
     return (seqnum + 1) % (MAX_SEQUENCENUM + 1);
 }
 
-wxString getbits(size_t size, void* num)
+static wxString getbits(size_t size, void* num)
 {
     wxString ret = "";
     uint8_t* bp = (uint8_t*) num;
@@ -54,6 +48,16 @@ wxString getbits(size_t size, void* num)
     return ret;
 }
 
+static AbstractPacket* MakeAck_S64Packet()
+{
+    return new S64Packet("ACK", 0, NULL, FLAG_UNRELIABLE);
+}
+
+static AbstractPacket* MakeAck_NetLibPacket()
+{
+    return new NetLibPacket(0, 0, NULL, FLAG_UNRELIABLE);
+}
+
 
 /*=============================================================
 
@@ -64,16 +68,11 @@ UDPHandler::UDPHandler(wxDatagramSocket* socket, wxString address, int port)
     this->m_Socket = socket;
     this->m_Address = address;
     this->m_Port = port;
-    this->m_LocalSeqNum_S64 = 0;
-    this->m_RemoteSeqNum_S64 = 0;
-    this->m_AckBitfield_S64 = 0;
-    this->m_AcksLeft_RX_S64 = std::deque<S64Packet*>();
-    this->m_AcksLeft_TX_S64 = std::deque<S64Packet*>();
-    this->m_LocalSeqNum_NLP = 0;
-    this->m_RemoteSeqNum_NLP = 0;
-    this->m_AckBitfield_NLP = 0;
-    this->m_AcksLeft_RX_NLP = std::deque<NetLibPacket*>();
-    this->m_AcksLeft_TX_NLP = std::deque<NetLibPacket*>();
+    this->m_LocalSeqNum = 0;
+    this->m_RemoteSeqNum = 0;
+    this->m_AckBitfield = 0;
+    this->m_AcksLeft_RX = std::deque<AbstractPacket*>();
+    this->m_AcksLeft_TX = std::deque<AbstractPacket*>();
 }
 
 UDPHandler::UDPHandler(wxDatagramSocket* socket, wxString fulladdress)
@@ -83,27 +82,18 @@ UDPHandler::UDPHandler(wxDatagramSocket* socket, wxString fulladdress)
     if (tokenizer.HasMoreTokens())
         tokenizer.GetNextToken().ToInt(&this->m_Port);
     this->m_Socket = socket;
-    this->m_LocalSeqNum_S64 = 0;
-    this->m_RemoteSeqNum_S64 = 0;
-    this->m_AckBitfield_S64 = 0;
-    this->m_AcksLeft_RX_S64 = std::deque<S64Packet*>();
-    this->m_AcksLeft_TX_S64 = std::deque<S64Packet*>();
-    this->m_LocalSeqNum_NLP = 0;
-    this->m_RemoteSeqNum_NLP = 0;
-    this->m_AckBitfield_NLP = 0;
-    this->m_AcksLeft_RX_NLP = std::deque<NetLibPacket*>();
-    this->m_AcksLeft_TX_NLP = std::deque<NetLibPacket*>();
+    this->m_LocalSeqNum = 0;
+    this->m_RemoteSeqNum = 0;
+    this->m_AckBitfield = 0;
+    this->m_AcksLeft_RX = std::deque<AbstractPacket*>();
+    this->m_AcksLeft_TX = std::deque<AbstractPacket*>();
 }
 
 UDPHandler::~UDPHandler()
 {
-    for (S64Packet* pkt : this->m_AcksLeft_RX_S64)
+    for (AbstractPacket* pkt : this->m_AcksLeft_RX)
         free(pkt);
-    for (S64Packet* pkt : this->m_AcksLeft_TX_S64)
-        free(pkt);
-    for (NetLibPacket* pkt : this->m_AcksLeft_RX_NLP)
-        free(pkt);
-    for (NetLibPacket* pkt : this->m_AcksLeft_TX_NLP)
+    for (AbstractPacket* pkt : this->m_AcksLeft_TX)
         free(pkt);
 }
 
@@ -122,7 +112,7 @@ wxDatagramSocket* UDPHandler::GetSocket()
     return this->m_Socket;
 }
 
-void UDPHandler::SendPacket(S64Packet* pkt)
+void UDPHandler::SendPacket(AbstractPacket* pkt)
 {
     uint8_t* data;
     uint16_t ackbitfield = 0;
@@ -136,11 +126,11 @@ void UDPHandler::SendPacket(S64Packet* pkt)
     // Set the sequence data
     if (pkt->GetSendAttempts() == 1)
     {
-        pkt->SetSequenceNumber(this->m_LocalSeqNum_S64);
-        pkt->SetAck(this->m_RemoteSeqNum_S64);
-        for (S64Packet* pkt2ack : this->m_AcksLeft_RX_S64)
-            if (sequence_greaterthan(this->m_RemoteSeqNum_S64, pkt2ack->GetSequenceNumber()))
-                ackbitfield |= 1 << (sequence_delta(this->m_RemoteSeqNum_S64, pkt2ack->GetSequenceNumber()) - 1);
+        pkt->SetSequenceNumber(this->m_LocalSeqNum);
+        pkt->SetAck(this->m_RemoteSeqNum);
+        for (AbstractPacket* pkt2ack : this->m_AcksLeft_RX)
+            if (sequence_greaterthan(this->m_RemoteSeqNum, pkt2ack->GetSequenceNumber()))
+                ackbitfield |= 1 << (sequence_delta(this->m_RemoteSeqNum, pkt2ack->GetSequenceNumber()) - 1);
         pkt->SetAckBitfield(ackbitfield);
     }
 
@@ -153,110 +143,13 @@ void UDPHandler::SendPacket(S64Packet* pkt)
     // Add it to our list of packets that need an ack
     if ((pkt->GetFlags() & FLAG_UNRELIABLE) == 0 && pkt->GetSendAttempts() == 1)
     {
-        this->m_AcksLeft_TX_S64.push_back(pkt);
-        this->m_LocalSeqNum_S64 = sequence_increment(this->m_LocalSeqNum_S64);
-    }
-
-    // Cleanup
-    free(data);
-}
-
-S64Packet* UDPHandler::ReadS64Packet(uint8_t* data)
-{
-    S64Packet* pkt;
-    if (!S64Packet::IsS64Packet(data))
-        return NULL;
-    pkt = S64Packet::FromBytes(data);
-    if (pkt != NULL)
-    {
-        std::deque<S64Packet*>::iterator it;
-            
-        // If a packet with this sequence number already exists in our RX list, ignore this packet
-        for (S64Packet* rxpkt : this->m_AcksLeft_RX_S64)
-        {
-            if (rxpkt->GetSequenceNumber() == pkt->GetSequenceNumber())
-            {
-                if ((pkt->GetFlags() & FLAG_EXPLICITACK) != 0)
-                    this->SendPacket(new S64Packet("ACK", 0, NULL, FLAG_UNRELIABLE));
-                return NULL;
-            }
-        }
-
-        // Go through transmitted packets and remove all which were acknowledged in the one we received
-        it = this->m_AcksLeft_TX_S64.begin();
-        while (it != this->m_AcksLeft_TX_S64.end())
-        {
-            S64Packet* pkt2ack = *it;
-            if (pkt->IsAcked(pkt2ack->GetSequenceNumber()))
-            {
-                delete pkt2ack;
-                it = this->m_AcksLeft_TX_S64.erase(it);
-            }
-            else
-                ++it;
-        }
-
-        // Increment the sequence number to the packet's highest value
-        if (sequence_greaterthan(pkt->GetSequenceNumber(), this->m_RemoteSeqNum_S64))
-            this->m_RemoteSeqNum_S64 = pkt->GetSequenceNumber();
-            
-        // Handle reliable packets
-        if ((pkt->GetFlags() & FLAG_UNRELIABLE) == 0)
-        {
-            // Update our received packet list
-            if (this->m_AcksLeft_RX_S64.size() > 17)
-            {
-                delete this->m_AcksLeft_RX_S64.front();
-                this->m_AcksLeft_RX_S64.pop_front();
-            }
-            this->m_AcksLeft_RX_S64.push_back(pkt);
-        }
-        
-        // If the packet wants an explicit ack, send it
-        if ((pkt->GetFlags() & FLAG_EXPLICITACK) != 0)
-            this->SendPacket(new S64Packet("ACK", 0, NULL, FLAG_UNRELIABLE));
-    }
-    return pkt;
-}
-
-void UDPHandler::SendPacket(NetLibPacket* pkt)
-{
-    uint8_t* data;
-    uint16_t ackbitfield = 0;
-    wxIPV4address address;
-        
-    // Check for timeouts
-    pkt->UpdateSendAttempt();
-    if (pkt->GetSendAttempts() > MAX_RESENDCOUNT)
-        throw ClientTimeoutException(wxString::Format("%s:%d", this->m_Address, this->m_Port));
-    
-    // Set the sequence data
-    if (pkt->GetSendAttempts() == 1)
-    {
-        pkt->SetSequenceNumber(this->m_LocalSeqNum_NLP);
-        pkt->SetAck(this->m_RemoteSeqNum_NLP);
-        for (NetLibPacket* pkt2ack : this->m_AcksLeft_RX_NLP)
-            if (sequence_greaterthan(this->m_RemoteSeqNum_NLP, pkt2ack->GetSequenceNumber()))
-                ackbitfield |= 1 << (sequence_delta(this->m_RemoteSeqNum_NLP, pkt2ack->GetSequenceNumber()) - 1);
-        pkt->SetAckBitfield(ackbitfield);
-    }
-
-    // Send the packet
-    data = pkt->GetAsBytes();
-    address.Hostname(this->m_Address);
-    address.Service(this->m_Port);
-    this->m_Socket->SendTo(address, data, pkt->GetAsBytes_Size());
-    
-    // Add it to our list of packets that need an ack
-    if ((pkt->GetFlags() & FLAG_UNRELIABLE) == 0 && pkt->GetSendAttempts() == 1)
-    {
-        this->m_AcksLeft_TX_NLP.push_back(pkt);
-        this->m_LocalSeqNum_NLP = sequence_increment(this->m_LocalSeqNum_NLP);
+        this->m_AcksLeft_TX.push_back(pkt);
+        this->m_LocalSeqNum = sequence_increment(this->m_LocalSeqNum);
     }
 
     // Debug prints for developers
     #if DEBUGPRINTS
-        if (pkt->GetType() != 0)
+        if (!pkt->IsAckBeat())
         {
             if (pkt->GetSendAttempts() > 1)
                 printf("Re");
@@ -268,76 +161,104 @@ void UDPHandler::SendPacket(NetLibPacket* pkt)
     free(data);
 }
 
+bool UDPHandler::HandlePacketSequence(AbstractPacket* pkt, AbstractPacket* (*ackmaker)())
+{
+    std::deque<AbstractPacket*>::iterator it;
+            
+    // If a packet with this sequence number already exists in our RX list, ignore this packet
+    for (AbstractPacket* rxpkt : this->m_AcksLeft_RX)
+    {
+        if (rxpkt->GetSequenceNumber() == pkt->GetSequenceNumber())
+        {
+            if ((pkt->GetFlags() & FLAG_EXPLICITACK) != 0)
+                this->SendPacket(ackmaker());
+            delete pkt;
+            return false;
+        }
+    }
+
+    // Go through transmitted packets and remove all which were acknowledged in the one we received
+    it = this->m_AcksLeft_TX.begin();
+    while (it != this->m_AcksLeft_TX.end())
+    {
+        AbstractPacket* pkt2ack = *it;
+        if (pkt->IsAcked(pkt2ack->GetSequenceNumber()))
+        {
+            delete pkt2ack;
+            it = this->m_AcksLeft_TX.erase(it);
+        }
+        else
+            ++it;
+    }
+
+    // Increment the sequence number to the packet's highest value
+    if (sequence_greaterthan(pkt->GetSequenceNumber(), this->m_RemoteSeqNum))
+        this->m_RemoteSeqNum = pkt->GetSequenceNumber();
+        
+    // Handle reliable packets
+    if ((pkt->GetFlags() & FLAG_UNRELIABLE) == 0)
+    {
+        // Update our received packet list
+        if (this->m_AcksLeft_RX.size() > 17)
+        {
+            delete this->m_AcksLeft_RX.front();
+            this->m_AcksLeft_RX.pop_front();
+        }
+        this->m_AcksLeft_RX.push_back(pkt);
+    }
+    
+    // If the packet wants an explicit ack, send it
+    if ((pkt->GetFlags() & FLAG_EXPLICITACK) != 0)
+        this->SendPacket(ackmaker());
+
+    return true;
+}
+
+S64Packet* UDPHandler::ReadS64Packet(uint8_t* data)
+{
+    S64Packet* pkt;
+    if (!S64Packet::IsS64Packet(data))
+        return NULL;
+    pkt = S64Packet::FromBytes(data);
+
+    // Handle sequence numbers
+    if (pkt == NULL || !HandlePacketSequence(pkt, &MakeAck_S64Packet))
+        return NULL;
+
+    // Debug prints for developers
+    #if DEBUGPRINTS
+        if (pkt->GetType() != 0)
+            printf("Received %s\n", static_cast<const char*>(pkt->AsString().c_str()));
+    #endif
+
+    // Done
+    return pkt;
+}
+
 NetLibPacket* UDPHandler::ReadNetLibPacket(uint8_t* data)
 {
     NetLibPacket* pkt;
     if (!NetLibPacket::IsNetLibPacket(data))
         return NULL;
     pkt = NetLibPacket::FromBytes(data);
-    if (pkt != NULL)
-    {
-        std::deque<NetLibPacket*>::iterator it;
-            
-        // If a packet with this sequence number already exists in our RX list, ignore this packet
-        for (NetLibPacket* rxpkt : this->m_AcksLeft_RX_NLP)
-        {
-            if (rxpkt->GetSequenceNumber() == pkt->GetSequenceNumber())
-            {
-                if ((pkt->GetFlags() & FLAG_EXPLICITACK) != 0)
-                    this->SendPacket(new NetLibPacket(0, 0, NULL, FLAG_UNRELIABLE));
-                return NULL;
-            }
-        }
 
-        // Go through transmitted packets and remove all which were acknowledged in the one we received
-        it = this->m_AcksLeft_TX_NLP.begin();
-        while (it != this->m_AcksLeft_TX_NLP.end())
-        {
-            NetLibPacket* pkt2ack = *it;
-            if (pkt->IsAcked(pkt2ack->GetSequenceNumber()))
-            {
-                delete pkt2ack;
-                it = this->m_AcksLeft_TX_NLP.erase(it);
-            }
-            else
-                ++it;
-        }
-        
-        // Increment the sequence number to the packet's highest value
-        if (sequence_greaterthan(pkt->GetSequenceNumber(), this->m_RemoteSeqNum_NLP))
-            this->m_RemoteSeqNum_NLP = pkt->GetSequenceNumber();
-            
-        // Handle reliable packets
-        if ((pkt->GetFlags() & FLAG_UNRELIABLE) == 0)
-        {
-            // Update our received packet list
-            if (this->m_AcksLeft_RX_NLP.size() > 17)
-            {
-                delete this->m_AcksLeft_RX_NLP.front();
-                this->m_AcksLeft_RX_NLP.pop_front();
-            }
-            this->m_AcksLeft_RX_NLP.push_back(pkt);
-        }
+    // Handle sequence numbers
+    if (pkt == NULL || !HandlePacketSequence(pkt, &MakeAck_NetLibPacket))
+        return NULL;
 
-        // Debug prints for developers
-        #if DEBUGPRINTS
-            if (pkt->GetType() != 0)
-                printf("Received %s\n", static_cast<const char*>(pkt->AsString().c_str()));
-        #endif
-        
-        // If the packet wants an explicit ack, send it
-        if ((pkt->GetFlags() & FLAG_EXPLICITACK) != 0)
-            this->SendPacket(new NetLibPacket(0, 0, NULL, FLAG_UNRELIABLE));
-    }
+    // Debug prints for developers
+    #if DEBUGPRINTS
+        if (pkt->GetType() != 0)
+            printf("Received %s\n", static_cast<const char*>(pkt->AsString().c_str()));
+    #endif
+
+    // Done
     return pkt;
 }
     
 void UDPHandler::ResendMissingPackets()
 {
-    for (S64Packet* pkt2ack : this->m_AcksLeft_TX_S64)
-        if (pkt2ack->GetSendTime() > TIME_RESEND)
-            this->SendPacket(pkt2ack);
-    for (NetLibPacket* pkt2ack : this->m_AcksLeft_TX_NLP)
+    for (AbstractPacket* pkt2ack : this->m_AcksLeft_TX)
         if (pkt2ack->GetSendTime() > TIME_RESEND)
             this->SendPacket(pkt2ack);
 }
@@ -346,12 +267,10 @@ void UDPHandler::ResendMissingPackets()
 /*=============================================================
 
 =============================================================*/
-
-S64Packet::S64Packet(uint8_t version, uint8_t flags, wxString type, uint16_t size, uint8_t* data, uint16_t seqnum, uint16_t acknum, uint16_t ackbitfield)
+AbstractPacket::AbstractPacket(uint8_t version, uint16_t size, uint8_t* data, uint8_t flags, uint16_t seqnum, uint16_t acknum, uint16_t ackbitfield)
 {
     this->m_Version = version;
     this->m_Flags = flags;
-    this->m_Type = type;
     this->m_Size = size;
     if (size > 0)
     {
@@ -367,50 +286,92 @@ S64Packet::S64Packet(uint8_t version, uint8_t flags, wxString type, uint16_t siz
     this->m_SendAttempts = 0;
 }
 
-S64Packet::S64Packet(wxString type, uint16_t size, uint8_t* data, uint8_t flags)
+AbstractPacket::~AbstractPacket()
 {
-    this->m_Version = S64PACKET_VERSION;
-    this->m_Flags = flags;
-    this->m_Type = type;
-    this->m_Size = size;
-    if (size > 0)
-    {
-        this->m_Data = (uint8_t*)malloc(size);
-        memcpy(this->m_Data, data, size);
-    }
-    else
-        this->m_Data = NULL;
-    this->m_SequenceNum = 0;
-    this->m_Ack = 0;
-    this->m_AckBitField = 0;
-    this->m_SendTime = 0;
-    this->m_SendAttempts = 0;
+    if (this->m_Size > 0)
+        free(this->m_Data);
 }
 
-S64Packet::S64Packet(wxString type, uint16_t size, uint8_t* data)
+uint8_t AbstractPacket::GetVersion()
 {
-    this->m_Version = S64PACKET_VERSION;
-    this->m_Flags = 0;
+    return this->m_Version;
+}
+
+uint8_t AbstractPacket::GetFlags()
+{
+    return this->m_Flags;
+}
+
+uint16_t AbstractPacket::GetSize()
+{
+    return this->m_Size;
+}
+
+uint8_t* AbstractPacket::GetData()
+{
+    return this->m_Data;
+}
+
+uint16_t AbstractPacket::GetSequenceNumber()
+{
+    return this->m_SequenceNum;
+}
+
+wxLongLong AbstractPacket::GetSendTime()
+{
+    return wxGetLocalTimeMillis() - this->m_SendTime;
+}
+
+uint8_t AbstractPacket::GetSendAttempts()
+{
+    return this->m_SendAttempts;
+}
+
+bool AbstractPacket::IsAcked(uint16_t number)
+{
+    if (this->m_Ack == number)
+        return true;
+    return ((this->m_AckBitField & (1 << (sequence_delta(this->m_Ack, number) - 1))) != 0);
+}
+
+void AbstractPacket::EnableFlags(uint8_t flags)
+{
+    this->m_Flags = flags;
+}
+
+void AbstractPacket::SetSequenceNumber(uint16_t seqnum)
+{
+    this->m_SequenceNum = seqnum;
+}
+
+void AbstractPacket::SetAck(uint16_t acknum)
+{
+    this->m_Ack = acknum;
+}
+
+void AbstractPacket::SetAckBitfield(uint16_t bitfield)
+{
+    this->m_AckBitField = bitfield;
+}
+
+void AbstractPacket::UpdateSendAttempt()
+{
+    this->m_SendAttempts++;
+    this->m_SendTime = wxGetLocalTimeMillis();
+}
+
+/*=============================================================
+
+=============================================================*/
+
+S64Packet::S64Packet(uint8_t version, wxString type, uint16_t size, uint8_t* data, uint8_t flags, uint16_t seqnum, uint16_t acknum, uint16_t ackbitfield) : AbstractPacket(version, size, data, flags, seqnum, acknum, ackbitfield)
+{
     this->m_Type = type;
-    this->m_Size = size;
-    if (size > 0)
-    {
-        this->m_Data = (uint8_t*)malloc(size);
-        memcpy(this->m_Data, data, size);
-    }
-    else
-        this->m_Data = NULL;
-    this->m_SequenceNum = 0;
-    this->m_Ack = 0;
-    this->m_AckBitField = 0;
-    this->m_SendTime = 0;
-    this->m_SendAttempts = 0;
 }
 
 S64Packet::~S64Packet()
 {
-    if (this->m_Size > 0)
-        free(this->m_Data);
+
 }
 
 bool S64Packet::IsS64Packet(uint8_t* bytes)
@@ -472,48 +433,11 @@ S64Packet* S64Packet::FromBytes(uint8_t* bytes)
     }
 
     // Build the packet object and cleanup
-    ret = new S64Packet(version, flags, wxString(typestr), data_len, data, seqnum, acknum, ackbitfield);
+    ret = new S64Packet(version, wxString(typestr), data_len, data, flags, seqnum, acknum, ackbitfield);
     free(typestr);
     if (data_len > 0)
         free(data);
     return ret;
-}
-
-uint8_t S64Packet::GetVersion()
-{
-    return this->m_Version;
-}
-
-uint8_t S64Packet::GetFlags()
-{
-    return this->m_Flags;
-}
-
-wxString S64Packet::GetType()
-{
-    return this->m_Type;
-}
-
-uint16_t S64Packet::GetSize()
-{
-    return this->m_Size;
-}
-
-uint8_t* S64Packet::GetData()
-{
-    return this->m_Data;
-}
-
-uint16_t S64Packet::GetSequenceNumber()
-{
-    return this->m_SequenceNum;
-}
-
-bool S64Packet::IsAcked(uint16_t number)
-{
-    if (this->m_Ack == number)
-        return true;
-    return ((this->m_AckBitField & (1 << (sequence_delta(this->m_Ack, number) - 1))) != 0);
 }
 
 uint8_t* S64Packet::GetAsBytes()
@@ -576,93 +500,48 @@ uint16_t S64Packet::GetAsBytes_Size()
         sizeof(this->m_Size) + this->m_Size;
 }
 
-wxLongLong S64Packet::GetSendTime()
+bool S64Packet::IsAckBeat()
 {
-    return wxGetLocalTimeMillis() - this->m_SendTime;
+    return this->m_Type == "ACK";
 }
 
-uint8_t S64Packet::GetSendAttempts()
+wxString S64Packet::GetType()
 {
-    return this->m_SendAttempts;
+    return this->m_Type;
 }
 
-void S64Packet::EnableFlags(uint8_t flags)
+wxString S64Packet::AsString()
 {
-    this->m_Flags = flags;
+    wxString mystr = "S64Packet\n";
+    mystr += wxString("    Version: ") + wxString::Format("%d", this->m_Version) + wxString("\n");
+    mystr += wxString("    Type: ") + this->m_Type + wxString("\n");
+    mystr += wxString("    Sequence Number: ") + wxString::Format("%d", this->m_SequenceNum) + wxString("\n");
+    mystr += wxString("    Ack: ") + wxString::Format("%d", this->m_Ack) + wxString("\n");
+    mystr += wxString("    AckField: ") + getbits(2, &this->m_AckBitField) + wxString("\n");
+    mystr += wxString("    Data size: ") + wxString::Format("%d", this->m_Size) + wxString("\n");
+    if (this->m_Size > 0)
+    {
+        mystr += wxString("    Data: \n");
+        mystr += wxString("        ");
+        for (int i=0; i<this->m_Size; i++)
+            mystr += wxString::Format("%02x ", this->m_Data[i]);
+    }
+    return mystr;
 }
-
-void S64Packet::SetSequenceNumber(uint16_t seqnum)
-{
-    this->m_SequenceNum = seqnum;
-}
-
-void S64Packet::SetAck(uint16_t acknum)
-{
-    this->m_Ack = acknum;
-}
-
-void S64Packet::SetAckBitfield(uint16_t bitfield)
-{
-    this->m_AckBitField = bitfield;
-}
-
-void S64Packet::UpdateSendAttempt()
-{
-    this->m_SendAttempts++;
-    this->m_SendTime = wxGetLocalTimeMillis();
-}
-
 
 /*=============================================================
 
 =============================================================*/
 
-NetLibPacket::NetLibPacket(uint8_t version, uint8_t type, uint8_t flags, uint32_t recipients, uint16_t size, uint8_t* data, uint16_t seqnum, uint16_t acknum, uint16_t ackbitfield)
+NetLibPacket::NetLibPacket(uint8_t version, uint8_t type, uint16_t size, uint8_t* data, uint8_t flags, uint32_t recipients, uint16_t seqnum, uint16_t acknum, uint16_t ackbitfield) : AbstractPacket(version, size, data, flags, seqnum, acknum, ackbitfield)
 {
-    this->m_Version = version;
     this->m_Type = type;
-    this->m_Flags = flags;
-    this->m_Size = size;
     this->m_Recipients = recipients;
-    if (size > 0)
-    {
-        this->m_Data = (uint8_t*)malloc(size);
-        memcpy(this->m_Data, data, size);
-    }
-    else
-        this->m_Data = NULL;
-    this->m_SequenceNum = seqnum;
-    this->m_Ack = acknum;
-    this->m_AckBitField = ackbitfield;
-    this->m_SendTime = 0;
-    this->m_SendAttempts = 0;
-}
-
-NetLibPacket::NetLibPacket(uint8_t type, uint16_t size, uint8_t* data, uint8_t flags)
-{
-    this->m_Version = NETLIBPACKET_VERSION;
-    this->m_Type = type;
-    this->m_Flags = flags;
-    this->m_Size = size;
-    this->m_Recipients = 0;
-    if (size > 0)
-    {
-        this->m_Data = (uint8_t*)malloc(size);
-        memcpy(this->m_Data, data, size);
-    }
-    else
-        this->m_Data = NULL;
-    this->m_SequenceNum = 0;
-    this->m_Ack = 0;
-    this->m_AckBitField = 0;
-    this->m_SendTime = 0;
-    this->m_SendAttempts = 0;
 }
 
 NetLibPacket::~NetLibPacket()
 {
-    if (this->m_Size > 0)
-        free(this->m_Data);
+
 }
 
 bool NetLibPacket::IsNetLibPacket(uint8_t* bytes)
@@ -721,52 +600,10 @@ NetLibPacket* NetLibPacket::FromBytes(uint8_t* bytes)
     }
 
     // Build the packet object and cleanup
-    ret = new NetLibPacket(version, type, flags, recipients, data_len, data, seqnum, acknum, ackbitfield);
+    ret = new NetLibPacket(version, type, data_len, data, flags, recipients, seqnum, acknum, ackbitfield);
     if (data_len > 0)
         free(data);
     return ret;
-}
-
-uint8_t NetLibPacket::GetVersion()
-{
-    return this->m_Version;
-}
-
-uint8_t NetLibPacket::GetType()
-{
-    return this->m_Type;
-}
-
-uint8_t NetLibPacket::GetFlags()
-{
-    return this->m_Flags;
-}
-
-uint32_t NetLibPacket::GetRecipients()
-{
-    return this->m_Recipients;
-}
-
-uint16_t NetLibPacket::GetSequenceNumber()
-{
-    return this->m_SequenceNum;
-}
-
-bool NetLibPacket::IsAcked(uint16_t number)
-{
-    if (this->m_Ack == number)
-        return true;
-    return ((this->m_AckBitField & (1 << (sequence_delta(this->m_Ack, number) - 1))) != 0);
-}
-
-uint16_t NetLibPacket::GetSize()
-{
-    return this->m_Size;
-}
-
-uint8_t* NetLibPacket::GetData()
-{
-    return this->m_Data;
 }
 
 uint8_t* NetLibPacket::GetAsBytes()
@@ -832,14 +669,19 @@ uint16_t NetLibPacket::GetAsBytes_Size()
         sizeof(this->m_Size) + this->m_Size;
 }
 
-wxLongLong NetLibPacket::GetSendTime()
+bool NetLibPacket::IsAckBeat()
 {
-    return wxGetLocalTimeMillis() - this->m_SendTime;
+    return this->m_Type == 0;
 }
 
-uint8_t NetLibPacket::GetSendAttempts()
+uint8_t NetLibPacket::GetType()
 {
-    return this->m_SendAttempts;
+    return this->m_Type;
+}
+
+uint32_t NetLibPacket::GetRecipients()
+{
+    return this->m_Recipients;
 }
 
 wxString NetLibPacket::AsString()
@@ -860,30 +702,4 @@ wxString NetLibPacket::AsString()
             mystr += wxString::Format("%02x ", this->m_Data[i]);
     }
     return mystr;
-}
-
-void NetLibPacket::EnableFlags(uint8_t flags)
-{
-    this->m_Flags = flags;
-}
-
-void NetLibPacket::SetSequenceNumber(uint16_t seqnum)
-{
-    this->m_SequenceNum = seqnum;
-}
-
-void NetLibPacket::SetAck(uint16_t acknum)
-{
-    this->m_Ack = acknum;
-}
-
-void NetLibPacket::SetAckBitfield(uint16_t bitfield)
-{
-    this->m_AckBitField = bitfield;
-}
-
-void NetLibPacket::UpdateSendAttempt()
-{
-    this->m_SendAttempts++;
-    this->m_SendTime = wxGetLocalTimeMillis();
 }

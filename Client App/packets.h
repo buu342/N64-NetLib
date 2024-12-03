@@ -6,24 +6,21 @@
 #include <wx/msgqueue.h>
 #include <deque>
 
-class UDPHandler;
-class USBPacket;
-class S64Packet;
-class NetLibPacket;
+#define S64PACKET_HEADER "S64"
+#define S64PACKET_VERSION 1
+
+#define NETLIBPACKET_HEADER "NLP"
+#define NETLIBPACKET_VERSION 1
 
 typedef enum {
     FLAG_UNRELIABLE  = 0x01,
     FLAG_EXPLICITACK = 0x02,
 } PacketFlag;
 
-class ClientTimeoutException : public std::exception
-{
-    private:
-        wxString m_Address;
-    public:
-        ClientTimeoutException(wxString address) {this->m_Address = address;}
-        wxString what() {return this->m_Address;}
-};
+class UDPHandler;
+class AbstractPacket;
+class S64Packet;
+class NetLibPacket;
 
 class UDPHandler
 {
@@ -31,16 +28,13 @@ class UDPHandler
         wxString m_Address;
         int      m_Port;
         wxDatagramSocket* m_Socket;
-        uint16_t m_LocalSeqNum_S64;
-        uint16_t m_RemoteSeqNum_S64;
-        uint16_t m_AckBitfield_S64;
-        std::deque<S64Packet*> m_AcksLeft_RX_S64;
-        std::deque<S64Packet*> m_AcksLeft_TX_S64;
-        uint16_t m_LocalSeqNum_NLP;
-        uint16_t m_RemoteSeqNum_NLP;
-        uint16_t m_AckBitfield_NLP;
-        std::deque<NetLibPacket*> m_AcksLeft_RX_NLP;
-        std::deque<NetLibPacket*> m_AcksLeft_TX_NLP;
+        uint16_t m_LocalSeqNum;
+        uint16_t m_RemoteSeqNum;
+        uint16_t m_AckBitfield;
+        std::deque<AbstractPacket*> m_AcksLeft_RX;
+        std::deque<AbstractPacket*> m_AcksLeft_TX;
+
+        bool HandlePacketSequence(AbstractPacket* pkt, AbstractPacket* (*ackmaker)());
 
     protected:
 
@@ -51,99 +45,111 @@ class UDPHandler
         wxDatagramSocket* GetSocket();
         wxString GetAddress();
         int      GetPort();
-        void SendPacket(S64Packet* pkt);
+        void SendPacket(AbstractPacket* pkt);
         S64Packet* ReadS64Packet(uint8_t* data);
-        void SendPacket(NetLibPacket* pkt);
         NetLibPacket* ReadNetLibPacket(uint8_t* data);
         void ResendMissingPackets();
 };
 
-// Server browser packet
-class S64Packet
+class AbstractPacket
 {
     private:
+
+    protected:
         uint8_t  m_Version;
         uint8_t  m_Flags;
         uint16_t m_SequenceNum;
         uint16_t m_Ack;
         uint16_t m_AckBitField;
-        wxString m_Type;
         uint16_t m_Size;
         uint8_t* m_Data;
         wxLongLong m_SendTime;
         uint8_t    m_SendAttempts;
-        S64Packet(uint8_t version, uint8_t flags, wxString type, uint16_t size, uint8_t* data, uint16_t seqnum, uint16_t acknum, uint16_t ackbitfield);
+
+        AbstractPacket(uint8_t version, uint16_t size, uint8_t* data, uint8_t flags, uint16_t seqnum, uint16_t acknum, uint16_t ackbitfield);
+        AbstractPacket(uint8_t version, uint16_t size, uint8_t* data, uint8_t flags) : AbstractPacket(version, size, data, flags, 0, 0, 0) {};
+        AbstractPacket(uint8_t version, uint16_t size, uint8_t* data) : AbstractPacket(version, size, data, 0, 0, 0, 0) {};
+
+    public:
+        ~AbstractPacket();
+
+        uint8_t    GetVersion();
+        uint8_t    GetFlags();
+        uint16_t   GetSize();
+        uint8_t*   GetData();
+        uint16_t   GetSequenceNumber();
+        bool       IsAcked(uint16_t number);
+        wxLongLong GetSendTime();
+        uint8_t    GetSendAttempts();
+        virtual uint8_t* GetAsBytes() {return NULL;};
+        virtual uint16_t GetAsBytes_Size() {return 0;};
+
+        virtual bool IsAckBeat() {return false;};
+        void EnableFlags(uint8_t flags);
+        void SetSequenceNumber(uint16_t seqnum);
+        void SetAck(uint16_t acknum);
+        void SetAckBitfield(uint16_t bitfield);
+        void UpdateSendAttempt();
+        virtual wxString AsString() {return "";};
+};
+
+// Server browser packet
+class S64Packet : public AbstractPacket
+{
+    private:
+        wxString m_Type;
+
+        S64Packet(uint8_t version, wxString type, uint16_t size, uint8_t* data, uint8_t flags, uint16_t seqnum, uint16_t acknum, uint16_t ackbitfield);
 
     protected:
 
     public:
-        S64Packet(wxString type, uint16_t size, uint8_t* data, uint8_t flags);
-        S64Packet(wxString type, uint16_t size, uint8_t* data);
+        S64Packet(wxString type, uint16_t size, uint8_t* data, uint8_t flags) : S64Packet(S64PACKET_VERSION, type, size, data, flags, 0, 0, 0) {};
+        S64Packet(wxString type, uint16_t size, uint8_t* data) : S64Packet(S64PACKET_VERSION, type, size, data, 0, 0, 0, 0) {};
         ~S64Packet();
 
         static bool IsS64Packet(uint8_t* bytes);
         static S64Packet* FromBytes(uint8_t* bytes);
-
-        uint8_t    GetVersion();
-        uint8_t    GetFlags();
-        wxString   GetType();
-        uint16_t   GetSize();
-        uint8_t*   GetData();
-        uint16_t   GetSequenceNumber();
-        bool       IsAcked(uint16_t number);
         uint8_t*   GetAsBytes();
         uint16_t   GetAsBytes_Size();
-        wxLongLong GetSendTime();
-        uint8_t    GetSendAttempts();
-        void EnableFlags(uint8_t flags);
-        void SetSequenceNumber(uint16_t seqnum);
-        void SetAck(uint16_t acknum);
-        void SetAckBitfield(uint16_t bitfield);
-        void UpdateSendAttempt();
+
+        bool IsAckBeat();
+        wxString GetType();
+        wxString AsString();
 };
 
 // Netlib packet
-class NetLibPacket
+class NetLibPacket : public AbstractPacket
 {
     private:
-        uint8_t  m_Version;
         uint8_t  m_Type;
-        uint8_t  m_Flags;
-        uint16_t m_SequenceNum;
-        uint16_t m_Ack;
-        uint16_t m_AckBitField;
         uint32_t m_Recipients;
-        uint16_t m_Size;
-        uint8_t* m_Data;
-        wxLongLong m_SendTime;
-        uint8_t  m_SendAttempts;
-        NetLibPacket(uint8_t version, uint8_t type, uint8_t flags, uint32_t recipients, uint16_t size, uint8_t* data, uint16_t seqnum, uint16_t acknum, uint16_t ackbitfield);
+
+        NetLibPacket(uint8_t version, uint8_t type, uint16_t size, uint8_t* data, uint8_t flags, uint32_t recipients, uint16_t seqnum, uint16_t acknum, uint16_t ackbitfield);
 
     protected:
 
     public:
-        NetLibPacket(uint8_t type, uint16_t size, uint8_t* data, uint8_t flags);
+        NetLibPacket(uint8_t type, uint16_t size, uint8_t* data, uint8_t flags) : NetLibPacket(NETLIBPACKET_VERSION,  type, size, data, flags, 0, 0, 0, 0) {};
         ~NetLibPacket();
 
         static bool IsNetLibPacket(uint8_t* bytes);
         static NetLibPacket* FromBytes(uint8_t* bytes);
+        uint8_t* GetAsBytes();
+        uint16_t GetAsBytes_Size();
 
-        uint8_t    GetVersion();
-        uint8_t    GetType();
-        uint8_t    GetFlags();
-        uint32_t   GetRecipients();
-        uint16_t   GetSequenceNumber();
-        bool       IsAcked(uint16_t number);
-        uint16_t   GetSize();
-        uint8_t*   GetData();
-        uint8_t*   GetAsBytes();
-        uint16_t   GetAsBytes_Size();
-        wxLongLong GetSendTime();
-        uint8_t    GetSendAttempts();
+        bool IsAckBeat();
+        uint8_t  GetType();
+        uint32_t GetRecipients();
         wxString AsString();
-        void EnableFlags(uint8_t flags);
-        void SetSequenceNumber(uint16_t seqnum);
-        void SetAck(uint16_t acknum);
-        void SetAckBitfield(uint16_t bitfield);
-        void UpdateSendAttempt();
+};
+
+class ClientTimeoutException : public std::exception
+{
+    private:
+        wxString m_Address;
+
+    public:
+        ClientTimeoutException(wxString address) {this->m_Address = address;}
+        wxString what() {return this->m_Address;}
 };
