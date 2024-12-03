@@ -5,109 +5,41 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 
-public class S64Packet {
+public class S64Packet extends AbstractPacket {
     
     private static final String PACKET_HEADER     = "S64";
     private static final int    PACKET_VERSION    = 1;
-    public static final int     PACKET_MAXSIZE    = 4096;
-    private static final int    PACKET_MAXSEQNUM  = 0xFFFF;
 
-    private int version;
-    private int flags;
     private String type;
-    private short seqnum;
-    private short ack;
-    private short ackbitfield;
-    private short size;
-    private byte data[];
-    private long sendtime;
-    private int attempts;
     
-    private S64Packet(int version, int flags, String type, byte data[], short seqnum, short ack, short ackbitfield) {
-        this.version = version;
-        this.flags = flags;
+    private S64Packet(int version, String type, byte data[], int flags, short seqnum, short ack, short ackbitfield) {
+        super(version, data, flags, seqnum, ack, ackbitfield);
         this.type = type;
-        this.sendtime = 0;
-        this.data = data;
-        if (data != null)
-            this.size = (short)data.length;
-        else
-            this.size = 0;
-        this.seqnum = seqnum;
-        this.ack = ack;
-        this.ackbitfield = ackbitfield;;
-        this.sendtime = 0;
-        this.attempts = 0;
     }
     
     public S64Packet(String type, byte data[], int flags) {
-        this.version = PACKET_VERSION;
-        this.type = type;
-        this.data = data;
-        if (data != null)
-            this.size = (short)data.length;
-        else
-            this.size = 0;
-        this.seqnum = 0;
-        this.ack = 0;
-        this.ackbitfield = 0;
-        this.flags = flags;
-        this.sendtime = 0;
-        this.attempts = 0;
+        this(PACKET_VERSION, type, data, flags, (short)0, (short)0, (short)0);
     }
     
     public S64Packet(String type, byte data[]) {
-        this.version = PACKET_VERSION;
-        this.type = type;
-        this.data = data;
-        if (data != null)
-            this.size = (short)data.length;
-        else
-            this.size = 0;
-        this.seqnum = 0;
-        this.ack = 0;
-        this.ackbitfield = 0;
-        this.flags = 0;
-        this.sendtime = 0;
-        this.attempts = 0;
+        this(PACKET_VERSION, type, data, 0, (short)0, (short)0, (short)0);
     }
     
     public String toString() {
-        String mystr = "NetLib Packet\n";
+        String mystr = "S64Packet Packet\n";
         mystr += "    Version: " + this.version + "\n";
         mystr += "    Type: " + this.type + "\n";
+        mystr += "    Sequence Number: " + this.seqnum + "\n";
+        mystr += "    Ack: " + this.ack + "\n";
+        mystr += "    AckField: " + Integer.toBinaryString(this.ackbitfield) + "\n";
         mystr += "    Data size: " + this.size + "\n";
-        mystr += "    Data: \n";
-        mystr += "        ";
-        if (this.data != null)
+        if (this.size > 0) {
+            mystr += "    Data: \n";
+            mystr += "        ";
             for (int i=0; i<this.data.length; i++)
                 mystr += this.data[i] + " ";
-        return mystr;
-    }
-    
-    public static boolean SequenceGreaterThan(int s1, int s2) {
-        return ((s1 > s2) && (s1 - s2 <= ((PACKET_MAXSEQNUM/2)+1))) || ((s1 < s2) && (s2 - s1 > ((PACKET_MAXSEQNUM/2)+1)));
-    }
-    
-    public static int SequenceIncrement(int seq) {
-        return (seq + 1) % (PACKET_MAXSEQNUM + 1);
-    }
-    
-    public static int SequenceDelta(int s1, int s2) {
-        int delta = (s1 - s2);
-        if (delta < 0)
-            delta += PACKET_MAXSEQNUM+1;
-        return delta;
-    }
-    
-    private static boolean CheckCString(byte[] data, String str) {
-        int max = Math.min(str.length(), data.length);
-        for (int i=0; i<max; i++) {
-            char readbyte = (char) (((int) data[i]) & 0xFF);
-            if (readbyte != str.charAt(i))
-                return false;
         }
-        return true;
+        return mystr;
     }
     
     static public boolean IsS64PacketHeader(byte[] data) {
@@ -116,8 +48,8 @@ public class S64Packet {
         return false;
     }
     
-    static short getShort(byte[] arr) {
-        return (short) ((0xff & arr[0]) << 8 | (0xff & arr[1]));
+    public boolean IsAckBeat() {
+        return this.type == "ACK";
     }
 
     static public S64Packet ReadPacket(byte[] pktdata) throws IOException {
@@ -155,7 +87,7 @@ public class S64Packet {
         else
             data = null;
         dis.close();
-        return new S64Packet(version, flags, type, data, seqnum, ack, ackbitfield);
+        return new S64Packet(version, type, data, flags, seqnum, ack, ackbitfield);
     }
     
     public byte[] GetBytes() throws IOException {
@@ -178,62 +110,7 @@ public class S64Packet {
         return out;
     }
     
-    public int GetVersion() {
-        return this.version;
-    }
-    
     public String GetType() {
         return this.type;
-    }
-    
-    public int GetSize() {
-        return this.size;
-    }
-    
-    public byte[] GetData() {
-        return this.data;
-    }
-    
-    public short GetSequenceNumber() {
-        return this.seqnum;
-    }
-    
-    public boolean IsAcked(short number) {
-        if (this.ack == number)
-            return true;
-        return ((this.ackbitfield & (1 << (SequenceDelta(this.ack, number) - 1))) != 0);
-    }
-    
-    public int GetFlags() {
-        return this.flags;
-    }
-    
-    public long GetSendTime() {
-        return System.currentTimeMillis() - this.sendtime;
-    }
-    
-    public int GetSendAttempts() {
-        return this.attempts;
-    }
-    
-    public void EnableFlags(int flags) {
-        this.flags |= flags;
-    }
-    
-    public void SetSequenceNumber(short seqnum) {
-        this.seqnum = seqnum;
-    }
-    
-    public void SetAck(short ack) {
-        this.ack = ack;
-    }
-    
-    public void SetAckBitfield(short ackbitfield) {
-        this.ackbitfield = ackbitfield;
-    }
-    
-    public void UpdateSendAttempt() {
-        this.attempts++;
-        this.sendtime = System.currentTimeMillis();
     }
 }
