@@ -21,8 +21,8 @@ typedef enum {
     TEVENT_NETPACKET_SERVER_TO_USB,
 } ThreadEventType;
 
-wxMessageQueue<NetLibPacket*> global_msgqueue_usbthread;
-wxMessageQueue<NetLibPacket*> global_msgqueue_serverthread;
+static wxMessageQueue<NetLibPacket*> global_msgqueue_usbthread;
+static wxMessageQueue<NetLibPacket*> global_msgqueue_serverthread;
 
 ClientWindow::ClientWindow( wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style ) : wxFrame( parent, id, title, pos, size, style )
 {
@@ -91,12 +91,7 @@ ClientWindow::~ClientWindow()
 void ClientWindow::BeginWorking()
 {
     this->m_DeviceThread = new DeviceThread(this);
-    if (this->m_DeviceThread->Create() != wxTHREAD_NO_ERROR)
-    {
-        delete this->m_DeviceThread;
-        this->m_DeviceThread = NULL;
-    }
-    else if (this->m_DeviceThread->Run() != wxTHREAD_NO_ERROR)
+    if (this->m_DeviceThread->Run() != wxTHREAD_NO_ERROR)
     {
         delete this->m_DeviceThread;
         this->m_DeviceThread = NULL;
@@ -105,12 +100,7 @@ void ClientWindow::BeginWorking()
     if (this->GetAddress() != "")
     {
         this->m_ServerThread = new ServerConnectionThread(this);
-        if (this->m_ServerThread->Create() != wxTHREAD_NO_ERROR)
-        {
-            delete this->m_ServerThread;
-            this->m_ServerThread = NULL;
-        }
-        else if (this->m_ServerThread->Run() != wxTHREAD_NO_ERROR)
+        if (this->m_ServerThread->Run() != wxTHREAD_NO_ERROR)
         {
             delete this->m_ServerThread;
             this->m_ServerThread = NULL;
@@ -208,6 +198,10 @@ void ClientWindow::SetROM(wxString rom)
     this->m_ROMPath = rom;
 }
 
+void ClientWindow::SetSocket(wxDatagramSocket* socket)
+{
+    this->m_Socket = socket;
+}
 
 void ClientWindow::SetAddress(wxString addr)
 {
@@ -222,6 +216,11 @@ void ClientWindow::SetPortNumber(int port)
 wxString ClientWindow::GetROM()
 {
     return this->m_ROMPath;
+}
+
+wxDatagramSocket* ClientWindow::GetSocket()
+{
+    return this->m_Socket;
 }
 
 wxString ClientWindow::GetAddress()
@@ -242,6 +241,7 @@ int ClientWindow::GetPort()
 DeviceThread::DeviceThread(ClientWindow* win)
 {
     this->m_Window = win;
+    this->m_FirstPrint = TRUE;
     global_msgqueue_usbthread.Clear();
     device_initialize();
 }
@@ -367,7 +367,7 @@ void* DeviceThread::Entry()
             NetLibPacket* pkt;
             if (global_msgqueue_usbthread.ReceiveTimeout(0, pkt) == wxMSGQUEUE_NO_ERROR)
             {
-                char* pktasbytes = pkt->GetAsBytes();
+                uint8_t* pktasbytes = pkt->GetAsBytes();
                 device_senddata(DATATYPE_NETPACKET, (byte*)pkt->GetAsBytes(), (uint32_t)pkt->GetAsBytes_Size());
                 free(pktasbytes);
                 delete pkt;
@@ -382,7 +382,6 @@ void* DeviceThread::Entry()
 void DeviceThread::ParseUSB_TextPacket(uint8_t* buff, uint32_t size)
 {
     char* text;
-    static bool firstprint = TRUE;
     text = (char*)malloc(size+1);
     if (text == NULL)
     {
@@ -391,9 +390,9 @@ void DeviceThread::ParseUSB_TextPacket(uint8_t* buff, uint32_t size)
     }
     memset(text, 0, size+1);
     strncpy(text, (char*)buff, size);
-    if (firstprint)
+    if (this->m_FirstPrint)
     {
-        firstprint = false;
+        this->m_FirstPrint = false;
         this->ClearConsole();
     }
     this->WriteConsole(wxString(text));
@@ -402,8 +401,13 @@ void DeviceThread::ParseUSB_TextPacket(uint8_t* buff, uint32_t size)
 
 void DeviceThread::ParseUSB_NetLibPacket(uint8_t* buff)
 {
-    NetLibPacket* pkt = NetLibPacket::FromBytes((char*)buff);
+    NetLibPacket* pkt = NetLibPacket::FromBytes((uint8_t*)buff);
     wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
+    if (pkt == NULL)
+    {
+        this->WriteConsoleError("\nGot a bad NetLib Packet\n");
+        return;
+    }
     evt.SetInt(TEVENT_NETPACKET_USB_TO_SERVER);
     evt.SetPayload<NetLibPacket*>(pkt);
     wxQueueEvent(this->m_Window, evt.Clone());
@@ -500,14 +504,8 @@ void DeviceThread::SetMainWindow(ClientWindow* win)
 void DeviceThread::UploadROM(wxString path)
 {
     UploadThread* dev = new UploadThread(this->m_Window, path);
-    if (dev->Create() != wxTHREAD_NO_ERROR)
-    {
+    if (dev->Run() != wxTHREAD_NO_ERROR)
         delete dev;
-    }
-    else if (dev->Run() != wxTHREAD_NO_ERROR)
-    {
-        delete dev;
-    }
 }
 
 void DeviceThread::NotifyDeath()
@@ -607,52 +605,46 @@ ServerConnectionThread::ServerConnectionThread(ClientWindow* win)
 
 ServerConnectionThread::~ServerConnectionThread()
 {
-    if (this->m_Socket->IsConnected())
-        this->m_Socket->Close();
     this->NotifyDeath();
 }
 
 void* ServerConnectionThread::Entry()
 {
-    wxIPV4address addr;
-    addr.Hostname(this->m_Window->GetAddress());
-    addr.Service(this->m_Window->GetPort());
+    uint8_t* buff = (uint8_t*)malloc(4096);
+    wxDatagramSocket* socket = this->m_Window->GetSocket();
+    UDPHandler* handler = new UDPHandler(socket, this->m_Window->GetAddress(), this->m_Window->GetPort());
 
-    // Attempt to connect the socket
-    this->m_Socket = new wxSocketClient(wxSOCKET_BLOCK | wxSOCKET_WAITALL);
-    this->m_Socket->SetTimeout(10);
-    this->m_Socket->Connect(addr);
-    if (!this->m_Socket->IsConnected())
+    // Handle packets
+    this->WriteConsole("Establishing connection to server once ROM is ready.\n");
+    while (!TestDestroy())
     {
-        this->m_Socket->Close();
-        this->WriteConsoleError("Server socket failed to connect.\n");
-        this->NotifyDeath();
-        return NULL;
-    }
-    this->WriteConsole("Socket connected!\n");
-    // TODO: Figure out why console writing isn't working here
-
-    // Relay packets 
-    while (!TestDestroy() && this->m_Socket->IsConnected())
-    {
-        NetLibPacket* pkt = NULL;
-        if (global_msgqueue_serverthread.ReceiveTimeout(0, pkt) == wxMSGQUEUE_NO_ERROR)
+        try
         {
-            pkt->SendPacket(this->m_Socket);
-            delete pkt;
+            NetLibPacket* pkt = NULL;
+
+            // Check for messages from the main thread (which are relayed from USB)
+            while (global_msgqueue_serverthread.ReceiveTimeout(0, pkt) == wxMSGQUEUE_NO_ERROR)
+                handler->SendPacket(pkt);
+
+            // Check for packets from the server and upload it to USB
+            socket->Read(buff, 4096);
+            while (socket->LastReadCount() > 0)
+            {
+                pkt = handler->ReadNetLibPacket(buff);
+                if (pkt != NULL)
+                    this->TransferPacket(pkt);
+                socket->Read(buff, 4096);
+            }
+            wxMilliSleep(10);
         }
-        else
+        catch (ClientTimeoutException& e)
         {
-            if (this->m_Socket->IsData())
-                pkt = NetLibPacket::ReadPacket(this->m_Socket);
-            if (pkt != NULL)
-                this->TransferPacket(pkt);
-            else if (this->m_Socket->LastCount() == 0)
-                wxMilliSleep(10);
+            this->WriteConsoleError("Server timed out.\n");
+            break;
         }
     }
-    this->WriteConsoleError("Server Disconnected.\n");
-    this->NotifyDeath();
+    delete handler;
+    free(buff);
     return NULL;
 }
 
@@ -667,7 +659,7 @@ void ServerConnectionThread::TransferPacket(NetLibPacket* pkt)
         return;
     wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
     evt.SetInt(TEVENT_NETPACKET_SERVER_TO_USB);
-    evt.SetPayload<NetLibPacket*>(pkt);
+    evt.SetPayload<NetLibPacket*>(NetLibPacket::FromBytes(pkt->GetAsBytes()));
     wxQueueEvent(this->m_Window, evt.Clone());
 }
 

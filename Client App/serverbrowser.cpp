@@ -1,6 +1,5 @@
 #include "serverbrowser.h"
 #include "clientwindow.h"
-#include "romdownloader.h"
 #include "packets.h"
 #include "helper.h"
 #include "sha256.h"
@@ -16,12 +15,17 @@ typedef enum {
     TEVENT_THREADENDED,
 } ThreadEventType;
 
+static wxMessageQueue<S64Packet*> global_msgqueue_serverthread;
+
 ServerBrowser::ServerBrowser(wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style) : wxFrame(parent, id, title, pos, size, style)
 {
     wxString addrstr;
     this->m_MasterAddress = DEFAULT_MASTERSERVER_ADDRESS; // TODO: This has to actually be editable
     this->m_MasterPort = DEFAULT_MASTERSERVER_PORT;
     this->m_FinderThread = NULL;
+    this->m_Socket = NULL;
+    this->m_MasterConnectionHandler = NULL;
+    this->m_DownloadWindow = NULL;
     addrstr = wxString::Format("%s:%d", this->m_MasterAddress, this->m_MasterPort);
 
     this->SetSizeHints( wxDefaultSize, wxDefaultSize );
@@ -82,18 +86,26 @@ ServerBrowser::ServerBrowser(wxWindow* parent, wxWindowID id, const wxString& ti
     m_TextCtrl_MasterServerAddress->Connect( wxEVT_COMMAND_TEXT_UPDATED, wxCommandEventHandler( ServerBrowser::m_TextCtrl_MasterServerAddress_OnText ), NULL, this );
     m_DataViewListCtrl_Servers->Connect( wxEVT_COMMAND_DATAVIEW_ITEM_ACTIVATED, wxDataViewEventHandler( ServerBrowser::m_DataViewListCtrl_Servers_OnDataViewListCtrlItemActivated ), NULL, this );
 
+    // Connect to the master server
     this->ConnectMaster();
 }
 
 ServerBrowser::~ServerBrowser()
 {
+    global_msgqueue_serverthread.Post(new S64Packet("PROGEND", 0, NULL));
+
     // Deallocate the thread. Use a CriticalSection to access it
     {
         wxCriticalSectionLocker enter(this->m_FinderThreadCS);
 
         if (this->m_FinderThread != NULL)
             this->m_FinderThread->Delete();
+        this->m_FinderThread = NULL;
     }
+
+    // Close the socket
+    if (this->m_Socket != NULL)
+        this->m_Socket->Destroy();
 
     // Disconnect events
     this->Disconnect(wxID_ANY, wxEVT_THREAD, wxThreadEventHandler(ServerBrowser::ThreadEvent));
@@ -104,7 +116,6 @@ ServerBrowser::~ServerBrowser()
 void ServerBrowser::m_Tool_Refresh_OnToolClicked(wxCommandEvent& event)
 {
     (void)event;
-    this->ClearServers();
     this->ConnectMaster();
 }
 
@@ -128,9 +139,7 @@ void ServerBrowser::m_DataViewListCtrl_Servers_OnDataViewListCtrlItemActivated(w
         SHA256_CTX ctx;
         FILE* fp = fopen(rompath, "rb");
         if (fp == NULL)
-        {
             return;
-        }
 
         // Get the file size and malloc space for the file data
         fseek(fp, 0L, SEEK_END);
@@ -167,56 +176,38 @@ void ServerBrowser::m_DataViewListCtrl_Servers_OnDataViewListCtrlItemActivated(w
         else
             this->CreateClient(rompath, serveraddr);
     }
+    else if (romavailable)
+    {
+        wxMessageDialog dialog(this, wxString("In order to join this server, the ROM '") + romname + wxString("' must be downloaded. This ROM is available to download from the Master Server.\n\nContinue?"), wxString("Download ROM?"), wxICON_QUESTION | wxYES_NO);
+        if (dialog.ShowModal() == wxID_YES)
+        {
+            // Create the ROM download dialog    
+            this->m_DownloadWindow = new ROMDownloadWindow(this);
+            this->RequestDownload(romhash, rompath);
+            if (this->m_DownloadWindow->ShowModal() != 1)
+            {
+                wxMessageDialog dialog(this, wxString("ROM download was unsuccessful."), wxString("ROM Download Failed"), wxICON_ERROR);
+                dialog.ShowModal();
+                global_msgqueue_serverthread.Post(new S64Packet("CANCELDL", 0, NULL));
+            }
+            else
+                this->CreateClient(rompath, serveraddr);
+        }
+    }
     else
     {
-        if (romavailable)
-        {
-            wxMessageDialog dialog(this, wxString("In order to join this server, the ROM '") + romname + wxString("' must be downloaded. This ROM is available to download from the Master Server.\n\nContinue?"), wxString("Download ROM?"), wxICON_QUESTION | wxYES_NO);
-            if (dialog.ShowModal() == wxID_YES)
-            {
-                // Stop the server retrieval thread if it is running
-                {
-                    wxCriticalSectionLocker enter(this->m_FinderThreadCS);
-
-                    if (this->m_FinderThread != NULL)
-                        this->m_FinderThread->Delete();
-                }
-
-                // Create the ROM download dialog
-                ROMDownloadWindow* rdw = new ROMDownloadWindow(this);
-                rdw->SetROMPath(rompath);
-                rdw->SetROMHash(romhash);
-                rdw->SetAddress(this->m_MasterAddress);
-                rdw->SetPortNumber(this->m_MasterPort);
-                rdw->BeginConnection();
-                if (rdw->ShowModal() == 0)
-                {
-                    wxMessageDialog dialog(this, wxString("ROM download was unsuccessful."), wxString("ROM Download Failed"), wxICON_ERROR);
-                    dialog.ShowModal();
-                }
-                else
-                    this->CreateClient(rompath, serveraddr);
-            }
-        }
-        else
-        {
-            wxMessageDialog dialog(this, wxString("This server requires the ROM '") + romname + wxString("', which is not available for download from the master server.\n\nIn order to join this server, you must manually find and download the ROM, and place it in your ROMs folder."), wxString("ROM Unavailable"), wxICON_ERROR);
-            dialog.ShowModal();
-        }
+        wxMessageDialog dialog(this, wxString("This server requires the ROM '") + romname + wxString("', which is not available for download from the master server.\n\nIn order to join this server, you must manually find and download the ROM, and place it in your ROMs folder."), wxString("ROM Unavailable"), wxICON_ERROR);
+        dialog.ShowModal();
     }
 }
 
 void ServerBrowser::m_TextCtrl_MasterServerAddress_OnText(wxCommandEvent& event)
 {
-    int port;
     wxString str = event.GetString();
     wxStringTokenizer tokenizer(str, ":");
     this->m_MasterAddress = tokenizer.GetNextToken();
     if (tokenizer.HasMoreTokens())
-    {
-        tokenizer.GetNextToken().ToInt(&port);
-        this->m_MasterPort = port;
-    }
+        tokenizer.GetNextToken().ToInt(&this->m_MasterPort);
 }
 
 void ServerBrowser::m_MenuItem_File_Connect_OnMenuSelection(wxCommandEvent& event)
@@ -237,7 +228,28 @@ void ServerBrowser::CreateClient(wxString rom, wxString address)
     int port;
     wxStringTokenizer tokenizer(address, ":");
     ClientWindow* cw = new ClientWindow(this);
+
+    // Kill the server finder thread so it doesn't steal packets from the client window
+    {
+        wxCriticalSectionLocker enter(this->m_FinderThreadCS);
+
+        if (this->m_FinderThread != NULL)
+            this->m_FinderThread->Delete();
+        this->m_FinderThread = NULL;
+    }
+
+    // Open a UDP socket if it's not open yet
+    if (this->m_Socket == NULL)
+    {
+        wxIPV4address localaddr;
+        localaddr.AnyAddress();
+        localaddr.Service(0);
+        this->m_Socket = new wxDatagramSocket(localaddr , wxSOCKET_NOWAIT);
+    }
+
+    // Initialize the client window
     cw->SetROM(rom);
+    cw->SetSocket(this->m_Socket);
     cw->SetAddress(tokenizer.GetNextToken());
     tokenizer.GetNextToken().ToInt(&port);
     this->Lower();
@@ -249,27 +261,77 @@ void ServerBrowser::CreateClient(wxString rom, wxString address)
 
 void ServerBrowser::ConnectMaster()
 {
-    // If the thread is running, kill it
+    // Clear the server list
+    this->ClearServers();
+
+    // Open a UDP socket if it's not open yet
+    if (this->m_Socket == NULL)
     {
-        wxCriticalSectionLocker enter(this->m_FinderThreadCS);
-        if (this->m_FinderThread != NULL)
+        wxIPV4address localaddr;
+        localaddr.AnyAddress();
+        localaddr.Service(0);
+        this->m_Socket = new wxDatagramSocket(localaddr , wxSOCKET_NOWAIT);
+    }
+
+    // Create the finder thread if it doesn't exist yet
+    if (this->m_FinderThread == NULL)
+    {
+        this->m_FinderThread = new ServerFinderThread(this);
+        if (this->m_FinderThread->Run() != wxTHREAD_NO_ERROR)
         {
-            this->m_FinderThread->Delete();
+            delete this->m_FinderThread;
             this->m_FinderThread = NULL;
         }
     }
 
-    // Clear the server list
-    this->ClearServers();
+    // Send a message to the finder thread that we wanna connect to the master server
+    printf("Requesting server list from Master Server\n");
+    global_msgqueue_serverthread.Post(new S64Packet("LIST", 0, NULL));
+}
 
-    // Create the finder thread
-    this->m_FinderThread = new ServerFinderThread(this);
-    if (this->m_FinderThread->Run() != wxTHREAD_NO_ERROR)
+void ServerBrowser::RequestDownload(wxString hash, wxString filepath)
+{
+    uint8_t romhash[32];
+    hash = hash.Lower();
+    for (size_t i=0; i<hash.length(); i+=2)
     {
-        delete this->m_FinderThread;
-        this->m_FinderThread = NULL;
+        char first = hash[i];
+        char second = hash[i+1];
+        if (first >= 'a' && first <= 'f')
+            first = 10 + first - 'a';
+        else
+            first = first - '0';
+        if (second >= 'a' && second <= 'f')
+            second = 10 + second - 'a';
+        else
+            second = second - '0';
+        romhash[i/2] = (first << 4) | second;
     }
-    
+
+    // Open a UDP socket if it's not open yet
+    if (this->m_Socket == NULL)
+    {
+        wxIPV4address localaddr;
+        localaddr.AnyAddress();
+        localaddr.Service(0);
+        this->m_Socket = new wxDatagramSocket(localaddr , wxSOCKET_NOWAIT);
+    }
+
+    // Create the finder thread if it doesn't exist yet
+    if (this->m_FinderThread == NULL)
+    {
+        this->m_FinderThread = new ServerFinderThread(this);
+        if (this->m_FinderThread->Run() != wxTHREAD_NO_ERROR)
+        {
+            delete this->m_FinderThread;
+            this->m_FinderThread = NULL;
+        }
+    }
+
+    // Send a message to the finder thread that we wanna connect to download a ROM
+    printf("Requesting ROM download from Master Server into '%s'\n", static_cast<const char*>(filepath.c_str()));
+    global_msgqueue_serverthread.Post(new S64Packet("FILENAME", filepath.Length(), (uint8_t*)(const char*)filepath.mb_str()));
+    global_msgqueue_serverthread.Post(new S64Packet("DOWNLOAD", 32, romhash, FLAG_UNRELIABLE));
 }
 
 void ServerBrowser::ClearServers()
@@ -282,22 +344,25 @@ void ServerBrowser::ThreadEvent(wxThreadEvent& event)
     switch ((ThreadEventType)event.GetInt())
     {
         case TEVENT_THREADENDED:
+        {
             this->m_FinderThread = NULL;
             break;
+        }
         case TEVENT_ADDSERVER:
+        {
             FoundServer* server = event.GetPayload<FoundServer*>();
             wxVector<wxVariant> data;
-            data.push_back(wxVariant("?"));
+            data.push_back(wxVariant(wxString::Format("%ld", server->ping)));
             data.push_back(wxVariant(wxString::Format("%d/%d", server->playercount, server->maxplayers)));
             data.push_back(wxVariant(server->name));
-            data.push_back(wxVariant(server->address));
-            data.push_back(wxVariant(server->rom));
-            data.push_back(wxVariant(server->hash));
-            data.push_back(wxVariant(wxString::Format("%d", server->romonmaster)));
-            // TODO: Poke the server to get its ping and player count
+            data.push_back(wxVariant(server->fulladdress));
+            data.push_back(wxVariant(server->romname));
+            data.push_back(wxVariant(server->romhash));
+            data.push_back(wxVariant(wxString::Format("%d", server->romdownloadable)));
             this->m_DataViewListCtrl_Servers->AppendItem(data);
             free(server);
             break;
+        }
     }
 }
 
@@ -310,6 +375,344 @@ int ServerBrowser::GetPort()
 {
     return this->m_MasterPort;
 }
+
+wxDatagramSocket* ServerBrowser::GetSocket()
+{
+    return this->m_Socket;
+}
+
+
+/*=============================================================
+
+=============================================================*/
+
+ServerFinderThread::ServerFinderThread(ServerBrowser* win)
+{
+    this->m_Window = win;
+}
+
+ServerFinderThread::~ServerFinderThread()
+{
+    this->NotifyMainOfDeath();
+}
+
+void* ServerFinderThread::Entry()
+{
+    std::unordered_map<wxString, std::pair<FoundServer, wxLongLong>> serversleft; 
+    uint8_t* buff = (uint8_t*)malloc(4096);
+    wxDatagramSocket* sock = this->m_Window->GetSocket();
+    UDPHandler* handler = new UDPHandler(sock, this->m_Window->GetAddress(), this->m_Window->GetPort());
+    FileDownload* filedl = NULL;
+    wxString filedl_path = "";
+    while (!TestDestroy())
+    {
+        try 
+        {
+            S64Packet* pkt = NULL;
+
+            // Check for messages from the main thread
+            while (global_msgqueue_serverthread.ReceiveTimeout(0, pkt) == wxMSGQUEUE_NO_ERROR)
+            {
+                if (pkt->GetType() == "FILENAME") // Special case, not a real packet we want to send
+                {
+                    filedl_path = wxString(pkt->GetData(), pkt->GetSize());
+                    delete pkt;
+                }
+                else if (pkt->GetType() == "CANCELDL") // Special case, not a real packet we want to send
+                {
+                    if (filedl != NULL)
+                    {
+                        filedl_path = "";
+                        free(filedl->filedata);
+                        delete filedl;
+                        filedl = NULL;
+                    }
+                }
+                else if (pkt->GetType() == "PROGEND") // Special case, not a real packet we want to send
+                    this->m_Window = NULL;
+                else
+                    handler->SendPacket(pkt);
+            }
+            handler->ResendMissingPackets();
+
+            // Check for packets from the master server / servers we pinged
+            sock->Read(buff, 4096);
+            while (sock->LastReadCount() > 0)
+            {
+                pkt = handler->ReadS64Packet(buff);
+                if (pkt != NULL)
+                {
+                    if (!strncmp(pkt->GetType(), "SERVER", 6))
+                    {
+                        FoundServer server = this->ParsePacket_Server(handler->GetSocket(), pkt);
+                        serversleft[server.fulladdress] = std::make_pair(server, wxGetLocalTimeMillis());
+                    }
+                    else if (!strncmp(pkt->GetType(), "DONELISTING", 11))
+                        printf("Master server finished sending server list\n");
+                    else if (!strncmp(pkt->GetType(), "DOWNLOAD", 8))
+                        filedl = this->BeginFileDownload(pkt, filedl_path);
+                    else if (!strncmp(pkt->GetType(), "FILEDATA", 8))
+                        this->HandleFileData(pkt, &filedl);
+                    else if (!strncmp(pkt->GetType(), "DISCOVER", 8))
+                        this->DiscoveredServer(&serversleft, pkt);
+                    else
+                        printf("Unexpected packet type received\n");
+                }
+                sock->Read(buff, 4096);
+            }
+
+            // If we have a file download in progress, request some chunks
+            if (filedl != NULL)
+            {
+                std::list<std::pair<uint32_t, wxLongLong>>::iterator it;
+                for (it = filedl->chunksleft.begin(); it != filedl->chunksleft.end(); ++it)
+                {
+                    std::pair<uint32_t, wxLongLong> itpair = *it;
+                    if (itpair.second == 0 || wxGetLocalTimeMillis() - itpair.second > 1000)
+                    {
+                        uint32_t chunk = swap_endian32(itpair.first);
+                        handler->SendPacket(new S64Packet("FILEDATA", sizeof(uint32_t), (uint8_t*)&chunk, FLAG_UNRELIABLE));
+                        itpair.second = wxGetLocalTimeMillis();
+                        wxMilliSleep(50);
+                        break;
+                    }
+                }
+            }
+            else
+                wxMilliSleep(10);
+        }
+        catch (ClientTimeoutException& e)
+        {
+            wxString fulladdr = wxString::Format("%s:%d", handler->GetAddress(), handler->GetPort());
+            if (e.what() == fulladdr)
+            {
+                printf("Master server timed out\n");
+                if (filedl != NULL)
+                {
+                    filedl_path = "";
+                    free(filedl->filedata);
+                    delete filedl;
+                    filedl = NULL;
+                }
+                break;
+            }
+            else
+            {
+                if (serversleft.find(fulladdr) != serversleft.end())
+                {
+                    std::pair<FoundServer, wxLongLong> found = serversleft[fulladdr];
+                    printf("Server %s timed out\n", static_cast<const char*>(fulladdr.c_str()));
+                    delete found.first.handler;
+                    serversleft.erase(fulladdr);
+                }
+            }
+        }
+    }
+
+    // Cleanup
+    for (std::pair<wxString, std::pair<FoundServer, wxLongLong>> it : serversleft)
+        delete it.second.first.handler;
+    delete handler;
+    free(buff);
+    return NULL;
+}
+
+FoundServer ServerFinderThread::ParsePacket_Server(wxDatagramSocket* socket, S64Packet* pkt)
+{
+    uint8_t hash[32];
+    uint32_t read32;
+    uint8_t* buf = pkt->GetData();
+    uint32_t buffoffset = 0;
+    FoundServer server;
+    wxCharBuffer serveraddr;
+
+    // Read the full server address
+    memcpy(&read32, buf + buffoffset, sizeof(uint32_t));
+    read32 = swap_endian32(read32);
+    buffoffset += sizeof(uint32_t);
+    server.fulladdress = wxString(buf + buffoffset, (size_t)read32);
+    buffoffset += read32;
+
+    // Read the ROM name
+    memcpy(&read32, buf + buffoffset, sizeof(uint32_t));
+    read32 = swap_endian32(read32);
+    buffoffset += sizeof(uint32_t);
+    server.romname = wxString(buf + buffoffset, (size_t)read32);
+    buffoffset += read32;
+
+    // Read the rom hash
+    memcpy(&read32, buf + buffoffset, sizeof(uint32_t));
+    read32 = swap_endian32(read32);
+    buffoffset += sizeof(uint32_t);
+    memcpy(hash, buf + buffoffset, read32);
+    buffoffset += read32;
+
+    // Convert the hash
+    server.romhash = "";
+    for (uint32_t i=0; i<read32; i++)
+        server.romhash += wxString::Format("%02X", hash[i]);
+
+    // Read if the ROM is on the master
+    memcpy(hash, buf + buffoffset, sizeof(char));
+    buffoffset += sizeof(char);
+    server.romdownloadable = hash[0];
+
+    // Create the UDP handler and send the ping packet
+    server.handler = new UDPHandler(socket, server.fulladdress);
+    serveraddr = server.fulladdress.ToUTF8();
+    server.handler->SendPacket(new S64Packet("DISCOVER", serveraddr.length(), (uint8_t*)serveraddr.data(), FLAG_UNRELIABLE));
+    
+    // Done
+    return server;
+}
+
+void ServerFinderThread::DiscoveredServer(std::unordered_map<wxString, std::pair<FoundServer, wxLongLong>>* serverlist, S64Packet* pkt)
+{
+    uint32_t read32;
+    wxString fulladdress;
+    uint32_t buffoffset = 0;
+    uint8_t* buf = pkt->GetData();
+
+    // Read the full server address
+    memcpy(&read32, buf + buffoffset, sizeof(uint32_t));
+    read32 = swap_endian32(read32);
+    buffoffset += sizeof(uint32_t);
+    fulladdress = wxString(buf + buffoffset, (size_t)read32);
+    buffoffset += read32;
+
+    // Ensure the server that pinged us back is actually in the server list
+    if (serverlist->find(fulladdress) != serverlist->end())
+    {
+        std::pair<FoundServer, wxLongLong> found = (*serverlist)[fulladdress];
+        FoundServer* server_copy = new FoundServer();
+        wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
+        FoundServer* server = &found.first;
+
+        // Read the server name
+        memcpy(&read32, buf + buffoffset, sizeof(uint32_t));
+        read32 = swap_endian32(read32);
+        buffoffset += sizeof(uint32_t);
+        server->name = wxString(buf + buffoffset, (size_t)read32);
+        buffoffset += read32;
+
+        // Read if the player count and max player count
+        memcpy(&read32, buf + buffoffset, sizeof(uint32_t));
+        read32 = swap_endian32(read32);
+        buffoffset += sizeof(uint32_t);
+        server->playercount = read32;
+        memcpy(&read32, buf + buffoffset, sizeof(uint32_t));
+        read32 = swap_endian32(read32);
+        buffoffset += sizeof(uint32_t);
+        server->maxplayers = read32;
+
+        // Calculate the ping
+        server->ping = wxGetLocalTimeMillis() - found.second;
+        printf("Discovered %s in %lldms\n", static_cast<const char*>(fulladdress.c_str()), server->ping.GetValue());
+
+        // Copy the server data
+        server_copy->fulladdress = server->fulladdress;
+        server_copy->name = server->name;
+        server_copy->playercount = server->playercount;
+        server_copy->maxplayers = server->maxplayers;
+        server_copy->ping = server->ping;
+        server_copy->romname = server->romname;
+        server_copy->romhash = server->romhash;
+        server_copy->romdownloadable = server->romdownloadable;
+
+        // Cleanup
+        delete server->handler;
+        serverlist->erase(fulladdress);
+
+        // Send the event to the main thread
+        evt.SetInt(TEVENT_ADDSERVER);
+        evt.SetPayload<FoundServer*>(server_copy);
+        wxQueueEvent(this->m_Window, evt.Clone());
+    }
+}
+
+FileDownload* ServerFinderThread::BeginFileDownload(S64Packet* pkt, wxString filepath)
+{
+    uint32_t chunkcount;
+    FileDownload* ret = NULL;
+    if (filepath == "" || pkt->GetSize() == 0)
+        return NULL;
+    ret = new FileDownload();
+
+    // Assign file info
+    ret->filepath = filepath;
+    memcpy(&ret->filesize, &pkt->GetData()[0], sizeof(uint32_t));
+    ret->filesize = swap_endian32(ret->filesize);
+    ret->filedata = (uint8_t*)malloc(ret->filesize);
+    if (ret->filedata == NULL)
+    {
+        delete ret;
+        return NULL;
+    }
+
+    // Get chunk data
+    memcpy(&ret->chunksize, &pkt->GetData()[4], sizeof(uint32_t));
+    ret->chunksize = swap_endian32(ret->chunksize);
+    chunkcount = ceilf(((float)ret->filesize)/ret->chunksize);
+    for (uint32_t i=0; i<chunkcount; i++)
+        ret->chunksleft.push_back(std::make_pair(i, 0));
+
+    // Done
+    return ret;
+}
+
+void ServerFinderThread::HandleFileData(S64Packet* pkt, FileDownload** filedlp)
+{
+    FileDownload* filedl = *filedlp;
+    uint32_t chunknum, readsize;
+    std::list<std::pair<uint32_t, wxLongLong>>::iterator it;
+
+    // Ensure we have a valid packet
+    if (filedl == NULL || pkt->GetSize() == 0)
+        return;
+
+    // Read data from the packet
+    memcpy(&chunknum, &pkt->GetData()[0], sizeof(uint32_t));
+    chunknum = swap_endian32(chunknum);
+    memcpy(&readsize, &pkt->GetData()[4], sizeof(uint32_t));
+    readsize = swap_endian32(readsize);
+    memcpy(&filedl->filedata[chunknum*filedl->chunksize], &pkt->GetData()[8], readsize);
+
+    // Remove this chunk from the list
+    for (it = filedl->chunksleft.begin(); it != filedl->chunksleft.end(); ++it)
+    {
+        std::pair<uint32_t, wxLongLong> itpair = *it;
+        if (itpair.first == chunknum)
+        {
+            filedl->chunksleft.erase(it);
+            break;
+        }
+    }
+
+    // If no chunks are left, dump this ROM to a file
+    if (filedl->chunksleft.size() == 0)
+    {
+        printf("Download done, saving file\n");
+        FILE* fp = fopen(filedl->filepath, "wb+");
+        fwrite(filedl->filedata, 1, filedl->filesize, fp);
+        fclose(fp);
+        this->m_Window->m_DownloadWindow->UpdateDownloadProgress(100);
+        free(filedl->filedata);
+        delete filedl;
+        filedl = NULL;
+        return;
+    }
+    this->m_Window->m_DownloadWindow->UpdateDownloadProgress((1-((float)filedl->chunksize*filedl->chunksleft.size())/filedl->filesize)*100);
+}
+
+void ServerFinderThread::NotifyMainOfDeath()
+{
+    if (this->m_Window == NULL)
+        return;
+    wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
+    evt.SetInt(TEVENT_THREADENDED);
+    wxQueueEvent(this->m_Window, evt.Clone());
+}
+
 
 
 /*=============================================================
@@ -363,28 +766,14 @@ ManualConnectWindow::ManualConnectWindow( wxWindow* parent, wxWindowID id, const
     this->Centre( wxBOTH );
 
     // Connect Events
-    //m_TextCtrl_Server->Connect( wxEVT_COMMAND_TEXT_UPDATED, wxCommandEventHandler( ManualConnectWindow::m_TextCtrl_Server_OnText ), NULL, this );
-    //m_FilePicker_ROM->Connect( wxEVT_COMMAND_FILEPICKER_CHANGED, wxFileDirPickerEventHandler( ManualConnectWindow::m_FilePicker_ROM_OnFileChanged ), NULL, this );
     m_Button_Connect->Connect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( ManualConnectWindow::m_Button_Connect_OnButtonClick ), NULL, this );
 }
 
 ManualConnectWindow::~ManualConnectWindow()
 {
     // Disconnect Events
-    //m_TextCtrl_Server->Disconnect( wxEVT_COMMAND_TEXT_UPDATED, wxCommandEventHandler( ManualConnectWindow::m_TextCtrl_Server_OnText ), NULL, this );
-    //m_FilePicker_ROM->Disconnect( wxEVT_COMMAND_FILEPICKER_CHANGED, wxFileDirPickerEventHandler( ManualConnectWindow::m_FilePicker_ROM_OnFileChanged ), NULL, this );
     m_Button_Connect->Disconnect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( ManualConnectWindow::m_Button_Connect_OnButtonClick ), NULL, this );
 }
-
-/*void ManualConnectWindow::m_TextCtrl_Server_OnText(wxCommandEvent& event)
-{
-
-}
-
-void ManualConnectWindow::m_FilePicker_ROM_OnFileChanged(wxFileDirPickerEvent& event)
-{
-
-}*/
 
 void ManualConnectWindow::m_Button_Connect_OnButtonClick(wxCommandEvent& event)
 {
@@ -394,163 +783,4 @@ void ManualConnectWindow::m_Button_Connect_OnButtonClick(wxCommandEvent& event)
     ServerBrowser* parent = (ServerBrowser*)this->GetParent();
     this->Destroy(); // Must be done first or the parent window will steal attention from the client
     parent->CreateClient(path, address);
-}
-
-
-/*=============================================================
-
-=============================================================*/
-
-ServerFinderThread::ServerFinderThread(ServerBrowser* win)
-{
-    this->m_Window = win;
-    this->m_Socket = NULL;
-}
-
-ServerFinderThread::~ServerFinderThread()
-{
-    this->NotifyMainOfDeath();
-    if (this->m_Socket != NULL)
-        delete this->m_Socket;
-}
-
-void* ServerFinderThread::Entry()
-{
-    S64Packet* pkt;
-    FoundServer serverdata;
-    wxIPV4address addr;
-    addr.Hostname(this->m_Window->GetAddress());
-    addr.Service(this->m_Window->GetPort());
-
-    // Attempt to connect the socket
-    this->m_Socket = new wxSocketClient(wxSOCKET_BLOCK | wxSOCKET_WAITALL);
-    this->m_Socket->SetTimeout(10);
-    this->m_Socket->Connect(addr);
-    if (!this->m_Socket->IsConnected())
-    {
-        this->m_Socket->Close();
-        printf("Master Server socket failed to connect.\n");
-        return NULL;
-    }
-
-    printf("Connected to master server successfully!\n");
-    pkt = new S64Packet("LIST", 0, NULL);
-    pkt->SendPacket(this->m_Socket);
-    printf("Requested server list\n");
-    while (!TestDestroy())
-    {
-        if (this->m_Socket->IsData())
-        {
-            pkt = S64Packet::ReadPacket(this->m_Socket);
-
-            // Parse the packet
-            if (pkt != NULL)
-            {
-                if (!strncmp(pkt->GetType(), "SERVER", 6))
-                    ParsePacket_Server(pkt->GetData());
-                else
-                    printf("Unexpected packet type received\n");
-                delete pkt;
-                continue;
-            }
-            else if (this->m_Socket->LastCount() == 0)
-            {
-                wxMilliSleep(100);
-            }
-        }
-    }
-    return NULL;
-}
-
-void ServerFinderThread::OnSocketEvent(wxSocketEvent& event)
-{
-    (void)event;
-}
-
-void ServerFinderThread::ParsePacket_Server(char* buf)
-{
-    uint32_t i;
-    uint32_t strsize;
-    int buffoffset = 0;
-    uint8_t hash[32];
-    FoundServer server;
-
-    // Read the server name
-    memcpy(&strsize, buf + buffoffset, sizeof(int));
-    strsize = swap_endian32(strsize);
-    buffoffset += sizeof(int);
-    server.name = wxString(buf + buffoffset, (size_t)strsize);
-    buffoffset += strsize;
-
-    // Read the max players
-    memcpy(&strsize, buf + buffoffset, sizeof(int));
-    strsize = swap_endian32(strsize);
-    buffoffset += sizeof(int);
-    server.maxplayers = strsize;
-
-    // Read the server address
-    memcpy(&strsize, buf + buffoffset, sizeof(int));
-    strsize = swap_endian32(strsize);
-    buffoffset += sizeof(int);
-    server.address = wxString(buf + buffoffset, (size_t)strsize);
-    buffoffset += strsize;
-
-    // Read the rom
-    memcpy(&strsize, buf + buffoffset, sizeof(int));
-    strsize = swap_endian32(strsize);
-    buffoffset += sizeof(int);
-    server.rom = wxString(buf + buffoffset, (size_t)strsize);
-    buffoffset += strsize;
-
-    // Read the rom hash
-    memcpy(&strsize, buf + buffoffset, sizeof(int));
-    strsize = swap_endian32(strsize);
-    buffoffset += sizeof(int);
-    memcpy(hash, buf + buffoffset, (size_t)strsize);
-    buffoffset += strsize;
-
-    // Convert the hash
-    server.hash = "";
-    for (i=0; i<strsize; i++)
-        server.hash += wxString::Format("%02X", hash[i]);
-
-    // Read if the ROM is on the master
-    memcpy(hash, buf + buffoffset, sizeof(char));
-    buffoffset += sizeof(char);
-    server.romonmaster = hash[0];
-
-    // Read the playercount
-    memcpy(hash, buf + buffoffset, sizeof(char));
-    buffoffset += sizeof(char);
-    server.playercount = hash[0];
-
-    // Send the server info to the main thread
-    this->AddServer(&server);
-}
-
-void ServerFinderThread::AddServer(FoundServer* server)
-{
-    FoundServer* server_copy = new FoundServer();
-    wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
-
-    // Copy the server data
-    server_copy->name = server->name;
-    server_copy->playercount = server->playercount;
-    server_copy->maxplayers = server->maxplayers;
-    server_copy->address = server->address;
-    server_copy->rom = server->rom;
-    server_copy->hash = server->hash;
-    server_copy->romonmaster = server->romonmaster;
-
-    // Send the event
-    evt.SetInt(TEVENT_ADDSERVER);
-    evt.SetPayload<FoundServer*>(server_copy);
-    wxQueueEvent(this->m_Window, evt.Clone());
-}
-
-void ServerFinderThread::NotifyMainOfDeath()
-{
-    wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
-    evt.SetInt(TEVENT_THREADENDED);
-    wxQueueEvent(this->m_Window, evt.Clone());
 }

@@ -25,29 +25,44 @@ typedef struct IUnknown IUnknown;
 #include <wx/button.h>
 #include <wx/sizer.h>
 #include <wx/dialog.h>
+#include <list>
+#include "packets.h"
+#include "romdownloader.h"
 
 #define DEFAULT_MASTERSERVER_ADDRESS "localhost"
 #define DEFAULT_MASTERSERVER_PORT    6464
 
 typedef struct
 {
+    UDPHandler* handler;
+    wxString fulladdress;
     wxString name;
-    wxString address;
     int playercount;
     int maxplayers;
-    int ping;
-    wxString rom;
-    wxString hash;
-    bool romonmaster;
+    wxLongLong ping;
+    wxString romname;
+    wxString romhash;
+    bool romdownloadable;
 } FoundServer;
+
+typedef struct
+{
+    wxString filepath;
+    uint8_t* filedata;
+    uint32_t filesize;
+    uint32_t chunksize;
+    std::list<std::pair<uint32_t, wxLongLong>> chunksleft;
+} FileDownload;
 
 class ServerFinderThread;
 
 class ServerBrowser : public wxFrame
 {
     private:
-        wxString m_MasterAddress;
-        int      m_MasterPort;
+        wxString    m_MasterAddress;
+        int         m_MasterPort;
+        UDPHandler* m_MasterConnectionHandler;
+        wxDatagramSocket* m_Socket;
         ServerFinderThread* m_FinderThread;
         wxCriticalSection m_FinderThreadCS;
 
@@ -73,6 +88,7 @@ class ServerBrowser : public wxFrame
         void m_DataViewListCtrl_Servers_OnDataViewListCtrlItemActivated(wxDataViewEvent& event);
 
     public:
+        ROMDownloadWindow* m_DownloadWindow;
         ServerBrowser(wxWindow* parent = NULL, wxWindowID id = wxID_ANY, const wxString& title = wxEmptyString, const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 800,600 ), long style = wxDEFAULT_FRAME_STYLE|wxTAB_TRAVERSAL );
         ~ServerBrowser();
 
@@ -80,8 +96,30 @@ class ServerBrowser : public wxFrame
         void ConnectMaster();
         void ClearServers();
         void ThreadEvent(wxThreadEvent& event);
-        wxString GetAddress();
-        int GetPort();
+        void RequestDownload(wxString hash, wxString filepath);
+        wxString          GetAddress();
+        int               GetPort();
+        wxDatagramSocket* GetSocket();
+};
+
+class ServerFinderThread : public wxThread
+{
+    private:
+        ServerBrowser* m_Window;
+
+    protected:
+
+    public:
+        ServerFinderThread(ServerBrowser* win);
+        ~ServerFinderThread();
+
+        virtual void* Entry() wxOVERRIDE;
+        FoundServer   ParsePacket_Server(wxDatagramSocket* socket, S64Packet* pkt);
+        void          DiscoveredServer(std::unordered_map<wxString, std::pair<FoundServer, wxLongLong>>* serverlist, S64Packet* pkt);
+        FileDownload* BeginFileDownload(S64Packet* pkt, wxString filepath);
+        void          HandleFileData(S64Packet* pkt, FileDownload** filedlp);
+        void          NotifyMainOfDeath();
+        void          UpdateDLProgress(int progress);
 };
 
 class ManualConnectWindow : public wxDialog
@@ -93,31 +131,9 @@ class ManualConnectWindow : public wxDialog
         wxFilePickerCtrl* m_FilePicker_ROM;
         wxButton* m_Button_Connect;
 
-        //void m_TextCtrl_Server_OnText(wxCommandEvent& event);
-        //void m_FilePicker_ROM_OnFileChanged(wxFileDirPickerEvent& event);
         void m_Button_Connect_OnButtonClick(wxCommandEvent& event);
 
     public:
         ManualConnectWindow( wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxT("Manual Server Connect"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 300,125 ), long style = wxDEFAULT_DIALOG_STYLE|wxRESIZE_BORDER );
         ~ManualConnectWindow();
-};
-
-
-class ServerFinderThread : public wxThread
-{
-    private:
-        wxSocketClient* m_Socket;
-        ServerBrowser* m_Window;
-
-    protected:
-
-    public:
-        ServerFinderThread(ServerBrowser* win);
-        ~ServerFinderThread();
-
-        virtual void* Entry() wxOVERRIDE;
-        void OnSocketEvent(wxSocketEvent& event);
-        void ParsePacket_Server(char* buf);
-        void AddServer(FoundServer* server);
-        void NotifyMainOfDeath();
 };

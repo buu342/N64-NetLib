@@ -19,11 +19,14 @@ public class Player {
     }
     
     public void SendMessage(Player sender, NetLibPacket pkt) {
+        // We can't just send the packet directly, because otherwise we'll send the sequence data + send attempts + other internal properties over to the other client. We don't wanna do that.
+        // So instead we make a copy with the same data and flags.
+        NetLibPacket duplicate = new NetLibPacket(pkt.GetType(), pkt.GetData(), pkt.GetFlags());
         if (sender == null)
-            pkt.SetSender(0);
+            duplicate.SetSender(0);
         else
-            pkt.SetSender(sender.GetNumber());
-    	this.messages.add(pkt);
+            duplicate.SetSender(sender.GetNumber());
+    	this.messages.add(duplicate);
     }
     
     public int GetNumber() {

@@ -73,7 +73,7 @@ static void refresh_lobbytext()
     text_setcolor(255, 255, 255, 255);
     
     // Press A to toggle ready
-    if (global_players[0].connected && global_players[0].connected && !global_gamestarting)
+    if (global_players[0].connected && global_players[1].connected && !global_gamestarting)
     {
         text_setalign(ALIGN_CENTER);
         text_create("Press A to toggle ready", SCREEN_WD/2, SCREEN_HT/2 + 88);

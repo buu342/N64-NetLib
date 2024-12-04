@@ -37,7 +37,7 @@ public class Game implements Runnable  {
                     if (this.PlayerCount() < 2) {
                         player1_ready = false;
                         player2_ready = false;
-                        Thread.sleep(1000);
+                        Thread.sleep(10);
                         continue;
                     }
                     
@@ -49,7 +49,7 @@ public class Game implements Runnable  {
                     }
                     
                     // Check everyone is ready
-                    if (pkt.GetID() == PacketIDs.PACKETID_PLAYERREADY.GetInt()) {
+                    if (pkt.GetType() == PacketIDs.PACKETID_PLAYERREADY.GetInt()) {
                         if (pkt.GetSender() == 1) {
                             player1_ready = (pkt.GetData()[0] == 1);
                             this.NotifyReady(this.players[1], this.players[0], player1_ready);
@@ -91,7 +91,7 @@ public class Game implements Runnable  {
                     }
                     
                     // Validate the packet
-                    if (pkt == null || pkt.GetID() != PacketIDs.PACKETID_PLAYERMOVE.GetInt() || pkt.GetSender() != turn.GetNumber() || pkt.GetSize() < 4)
+                    if (pkt == null || pkt.GetType() != PacketIDs.PACKETID_PLAYERMOVE.GetInt() || pkt.GetSender() != turn.GetNumber() || pkt.GetSize() < 4)
                         continue;
                     
                     // Make the move

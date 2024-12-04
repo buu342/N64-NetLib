@@ -3,58 +3,66 @@ package N64;
 import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
 
-public class N64Server {    
-    private String name;
+public class N64Server {
     private String address;
     private int    publicport;
-    private String ROM;
+    private String ROMName;
     private byte[] ROMHash;
     private String ROMHashStr;
-    private int maxplayers;
+    private long lastmessage;
     
-    public N64Server(String name, int maxplayers, String address, int publicport, String ROM, byte[] ROMHash) {
-        this.name = name;
-        this.maxplayers = maxplayers;
+    public N64Server(String address, int publicport, String ROMName, byte[] ROMHash) {
         this.address = address;
         this.publicport = publicport;
-        this.ROM = ROM;
+        this.ROMName = ROMName;
         this.ROMHash = ROMHash;
         this.ROMHashStr = N64ROM.BytesToHash(ROMHash);
+        this.lastmessage = System.currentTimeMillis();
     }
     
-    public String GetName() {
-        return this.name;
-    }
-    
-    public String GetAddress() {
-        return this.address;
+    public int GetAddress() {
+        return this.publicport;
     }
     
     public int GetPort() {
         return this.publicport;
     }
     
+    public byte[] GetROMName() {
+        return this.ROMHash;
+    }
+    
+    public byte[] GetROMHash() {
+        return this.ROMHash;
+    }
+    
     public String GetROMHashStr() {
         return this.ROMHashStr;
     }
     
-    public byte[] toByteArray() {
+    public long GetLastInteractionTime() {
+        return this.lastmessage;
+    }
+    
+    public byte[] toByteArray(boolean hasrom) {
         try {
-            String publicaddr = this.address + ":" + this.publicport;
             ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-            bytes.write(ByteBuffer.allocate(4).putInt(this.name.length()).array());
-            bytes.write(this.name.getBytes());
-            bytes.write(ByteBuffer.allocate(4).putInt(this.maxplayers).array());
+            String publicaddr = this.address + ":" + this.publicport;
             bytes.write(ByteBuffer.allocate(4).putInt(publicaddr.length()).array());
             bytes.write(publicaddr.getBytes());
-            bytes.write(ByteBuffer.allocate(4).putInt(this.ROM.length()).array());
-            bytes.write(this.ROM.getBytes());
+            bytes.write(ByteBuffer.allocate(4).putInt(this.ROMName.length()).array());
+            bytes.write(this.ROMName.getBytes());
             bytes.write(ByteBuffer.allocate(4).putInt(this.ROMHash.length).array());
             bytes.write(this.ROMHash);
+            bytes.write((byte)(hasrom ? 1 : 0));
             return bytes.toByteArray();
         } catch (Exception e) {
             e.printStackTrace();
             return null;
         }
+    }
+    
+    public void UpdateLastInteractionTime() {
+        this.lastmessage = System.currentTimeMillis();
     }
 }

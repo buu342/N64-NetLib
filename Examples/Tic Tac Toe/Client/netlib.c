@@ -3,7 +3,7 @@
 #include "usb.h"
 
 #define NETLIB_VERSION      1
-#define PACKET_HEADERSIZE   12
+#define PACKET_HEADERSIZE   18
 #define DATATYPE_NETPACKET  0x27
 
 static volatile size_t global_writecursize;
@@ -30,13 +30,16 @@ static volatile void* memcpy_v(volatile void* dest, const volatile void* src, si
 
 void netlib_initialize()
 {
+    int i;
     usb_initialize();
-    global_clnumber = 0;
-    global_writebuffer[0] = 'P';
-    global_writebuffer[1] = 'K';
-    global_writebuffer[2] = 'T';
+    global_writebuffer[0] = 'N';
+    global_writebuffer[1] = 'L';
+    global_writebuffer[2] = 'P';
     global_writebuffer[3] = (byte)NETLIB_VERSION;
+    for (i=6; i<12; i++)
+        global_writebuffer[i] = 0;
     memset(global_funcptrs, sizeof(global_funcptrs), 1);
+    global_clnumber = 0;
     global_polling = FALSE;
     global_sendafterpoll = FALSE;
     global_disconnected = FALSE;
@@ -64,9 +67,10 @@ void netlib_callback_reconnect(void (*callback)())
     global_funcptr_reconnect = callback;
 }
 
-void netlib_start(NetPacket id)
+void netlib_start(NetPacket type)
 {
-    global_writebuffer[4] = (byte)id;
+    global_writebuffer[4] = (byte)type;
+    global_writebuffer[5] = (byte)0; // Flags
     global_writecursize = PACKET_HEADERSIZE;
 }
 
@@ -161,16 +165,19 @@ void netlib_writebytes(byte* data, size_t size)
     global_writecursize += size;
 }
 
+void netlib_setflags(PacketFlag flags)
+{
+    global_writebuffer[5] = flags;
+}
+
 void netlib_broadcast()
 {
-    int head;
-    int mask = 0xFFFFFFFF;
-    int datasize = global_writecursize - PACKET_HEADERSIZE;
+    u32 mask = 0xFFFFFFFF;
+    u16 datasize = global_writecursize - PACKET_HEADERSIZE;
     
-    // Set the header and client mask
-    head = (((int)global_writebuffer[4]) << 24) | datasize & 0x00FFFFFF;
-    memcpy_v(&global_writebuffer[4], &head, 4);
-    memcpy_v(&global_writebuffer[8], &mask, 4);
+    // Write the client list and data size
+    memcpy_v(&global_writebuffer[12], &mask, 4);
+    memcpy_v(&global_writebuffer[16], &datasize, 2);
         
     // Send the packet over the wire
     if (!global_polling)
@@ -181,14 +188,12 @@ void netlib_broadcast()
 
 void netlib_send(ClientNumber client)
 {
-    int head;
-    int mask = 1 << client;
-    int datasize = global_writecursize - PACKET_HEADERSIZE;
+    u32 mask = 1 << client;
+    u16 datasize = global_writecursize - PACKET_HEADERSIZE;
     
-    // Set the header and client mask
-    head = (((int)global_writebuffer[4]) << 24) | datasize & 0x00FFFFFF;
-    memcpy_v(&global_writebuffer[4], &head, 4);
-    memcpy_v(&global_writebuffer[8], &mask, 4);
+    // Write the client list and data size
+    memcpy_v(&global_writebuffer[12], &mask, 4);
+    memcpy_v(&global_writebuffer[16], &datasize, 2);
         
     // Send the packet over the wire
     if (!global_polling)
@@ -199,14 +204,12 @@ void netlib_send(ClientNumber client)
 
 void netlib_sendtoserver()
 {
-    int head;
-    int mask = 0; // Zero is a server send
-    int datasize = global_writecursize - PACKET_HEADERSIZE;
+    u32 mask = 0; // Zero is a server send
+    u16 datasize = global_writecursize - PACKET_HEADERSIZE;
     
-    // Set the header
-    head = (((int)global_writebuffer[4]) << 24) | datasize & 0x00FFFFFF;
-    memcpy_v(&global_writebuffer[4], &head, 4);
-    memcpy_v(&global_writebuffer[8], &mask, 4);
+    // Write the client list and data size
+    memcpy_v(&global_writebuffer[12], &mask, 4);
+    memcpy_v(&global_writebuffer[16], &datasize, 2);
     
     // Send the packet over the wire
     if (!global_polling)
@@ -215,9 +218,9 @@ void netlib_sendtoserver()
         global_sendafterpoll = TRUE;
 }
 
-void netlib_register(NetPacket id, void (*callback)(size_t))
+void netlib_register(NetPacket type, void (*callback)(size_t))
 {
-    global_funcptrs[id] = callback;
+    global_funcptrs[type] = callback;
 }
 
 void netlib_poll()
@@ -246,14 +249,13 @@ void netlib_poll()
     // Read all net packets
     while (USBHEADER_GETTYPE(header) == DATATYPE_NETPACKET)
     {
-        uint8_t version;
-        NetPacket id;
-        uint32_t headers;
+        uint8_t version, flags;
+        NetPacket type;
         uint32_t recipients;
-        uint32_t size;
+        uint16_t size;
         
         // Read the version packet
-        usb_read(&headers, 3);
+        usb_skip(3);
         usb_read(&version, 1);
         #if SAFETYCHECKS
             if (version > NETLIB_VERSION)
@@ -264,24 +266,27 @@ void netlib_poll()
             }
         #endif
         
-        // Get the packet id  and size
-        usb_read(&headers, 4);
-        id = ((headers) & 0xFF000000) >> 24;
-        size = (((headers) & 0x00FFFFFF));
+        // Get the packet type and flags
+        usb_read(&type, 1);
+        usb_read(&flags, 1);
         
-        // Get the recepients list
+        // Skip the sequence data as it's not important
+        usb_skip(6);
+        
+        // Get the recepients list and the data size
         usb_read(&recipients, 4);
+        usb_read(&size, 2);
                 
         // Call the relevant packet handling function
         #if SAFETYCHECKS
-            if (global_funcptrs[id] == NULL)
+            if (global_funcptrs[type] == NULL)
             {
                 usb_purge();
                 usb_write(DATATYPE_TEXT, "Warning: Tried calling unregistered function!\n", 47);
                 return;
             }
         #endif
-        global_funcptrs[id](size);
+        global_funcptrs[type](size);
         
         // Poll again
         usb_purge();

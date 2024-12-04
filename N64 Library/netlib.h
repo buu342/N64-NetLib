@@ -46,6 +46,11 @@
     typedef uint8_t NetPacket;
     typedef uint8_t ClientNumber;
     
+    typedef enum {
+        FLAG_UNRELIABLE = 0x01,
+        FLAG_EXPLICITACK = 0x02,
+    } PacketFlag;
+    
     
     /*==============================================================
                     Initialization and Configuration
@@ -66,7 +71,7 @@
                         N64 -> Network Functions
     ==============================================================*/
     
-    void netlib_start(NetPacket id);
+    void netlib_start(NetPacket type);
     
     void netlib_writebyte(uint8_t data);
     
@@ -80,6 +85,8 @@
     
     void netlib_writebytes(byte* data, size_t size);
     
+    void netlib_setflags(PacketFlag flags);
+    
     void netlib_broadcast();
     
     void netlib_send(ClientNumber client);
@@ -91,7 +98,7 @@
                         Network -> N64 Functions
     ==============================================================*/
     
-    void netlib_register(NetPacket id, void (*callback)(size_t));
+    void netlib_register(NetPacket type, void (*callback)(size_t));
     
     void netlib_poll();
     

@@ -1,29 +1,34 @@
-import java.net.ServerSocket;
-import java.net.Socket;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
 import java.io.File;
 import java.io.IOException;
 import java.util.Hashtable;
+import java.util.Iterator;
+import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentHashMap;
+
 import N64.N64ROM;
 import N64.N64Server;
+import NetLib.S64Packet;
 
 public class MasterServer {
     
+    private static final int TIME_KEEPSERVERS = 1000*60*10;
     private static final int DEFAULTPORT = 6464;
     
-    private static Hashtable<String, N64ROM> romtable = new Hashtable<>();
-    private static Hashtable<String, N64Server> servertable = new Hashtable<>();
+    private static int port = DEFAULTPORT;
+    private static ConcurrentHashMap<String, N64ROM> romtable = new ConcurrentHashMap<>();
+    private static ConcurrentHashMap<String, N64Server> servertable = new ConcurrentHashMap<>();
+    private static Hashtable<String, ClientConnectionThread> connectiontable = new Hashtable<>();
 
     private static String romdir = "roms/";
     
     public static void main(String args[]) throws IOException {
-        boolean isrunning = true;
-        ServerSocket ss = null;
-        int port = DEFAULTPORT;
+        byte[] data = new byte[S64Packet.PACKET_MAXSIZE];
+        DatagramSocket ds = null;
         
-        if (args.length == 1 ) {
-            port = Integer.getInteger(args[0]);
-        }
-        
+        // Check for optional arguments
+        ReadArguments(args);
         System.out.println("Starting N64NetLib Master Server.");
 
         // Open the ROM directory and get all the ROMs inside
@@ -31,35 +36,100 @@ public class MasterServer {
         
         // Try to open the port
         try {
-            ss = new ServerSocket(port);
+            ds = new DatagramSocket(port);
         } catch (IOException e) {
             System.err.println("Failed to open port " + Integer.toString(port) + ".");
             System.exit(1);
         }
         System.out.println("Successfully opened socket at port " + Integer.toString(port) + ".");
         System.out.println();
-        
-        // Try to connect a client
-        while (isrunning) {
-            Socket s = null;
-            ClientConnectionThread t;
+
+        // Pass messages over to clients
+        while (true) {
+            DatagramPacket udppkt;
             try {
-                s = ss.accept();
-                t = new ClientConnectionThread(servertable, romtable, s);
-                new Thread(t).start();
-            } catch (IOException e) {
+                String clientaddr;
+                ClientConnectionThread t;
+                Iterator<Entry<String, N64Server>> it_s;
+                Iterator<Entry<String, ClientConnectionThread>> it_c;
+                
+                // Receive packets
+                udppkt = new DatagramPacket(data, data.length);
+                ds.receive(udppkt);
+                clientaddr = udppkt.getAddress().getHostAddress() + ":" + udppkt.getPort();
+                
+                // Check for dead servers
+                it_s = servertable.entrySet().iterator();
+                while (it_s.hasNext()) {
+                    Entry<String, N64Server> entry = it_s.next();
+                    if (System.currentTimeMillis() - entry.getValue().GetLastInteractionTime() > TIME_KEEPSERVERS) {
+                        it_s.remove();
+                        System.err.println("No interactions from "+entry.getKey()+". Removing from registry.");
+                    }
+                }
+                
+                // Clean up the connection table of dead clients
+                it_c = connectiontable.entrySet().iterator();
+                while (it_c.hasNext()) {
+                    Entry<String, ClientConnectionThread> entry = it_c.next();
+                    if (!entry.getValue().isAlive())
+                        it_c.remove();
+                }
+                
+                // Create a thread for this client if it doesn't exist
+                t = connectiontable.get(clientaddr);
+                if (t == null) {
+                    t = new ClientConnectionThread(servertable, romtable, ds, udppkt.getAddress().getHostAddress(), udppkt.getPort());
+                    t.start();
+                    connectiontable.put(clientaddr, t);
+                }
+                
+                // Send the packet to this client thread
+                t.SendMessage(data, udppkt.getLength());
+            } catch (Exception e) {
                 System.err.println("Error during client connection.");
                 e.printStackTrace();
             }
         }
-        
-        // End
-        ss.close();
+    }
+    
+    private static void ReadArguments(String args[]) {
+        for (int i=0; i<args.length; i++) {
+            switch (args[i]) {
+                case "-port":
+                    if (i+1 >= args.length) {
+                        System.err.println("Missing argument for port command");
+                        ShowHelp();
+                        System.exit(1);
+                    }
+                    port = Integer.parseInt(args[++i]);
+                    break;
+                case "-dir":
+                    if (i+1 >= args.length) {
+                        System.err.println("Missing argument for port command");
+                        ShowHelp();
+                        System.exit(1);
+                    }
+                    romdir = args[++i];
+                    break;
+                case "-help":
+                default:
+                    ShowHelp();
+                    System.exit(0);
+            }
+        }
+    }
+    
+    private static void ShowHelp() {
+        System.out.println("Program arguments:");
+        System.out.println("    -help\t\tDisplay this");
+        System.out.println("    -port <Number>\tServer port (default '6464')");
+        System.out.println("    -dir <Path/To/Dir>\tROM Directory (default 'roms')");
     }
     
     private static void ReadROMs() {
         File[] files;
-        File folder = new File(romdir);
+        File folder = new File(romdir + "/");
         
         // Create the folder if it doesn't exist
         if (!folder.exists())
@@ -68,8 +138,7 @@ public class MasterServer {
         // Loop through all ROMs and register them in the ROM table
         System.out.println("Checking ROMs folder.");
         files = folder.listFiles();
-        for (int i=0; i<files.length; i++)
-        {
+        for (int i=0; i<files.length; i++) {
             try {
                 N64ROM rom = new N64ROM(files[i]);
                 romtable.put(rom.GetHashString(), rom);
@@ -82,10 +151,9 @@ public class MasterServer {
         System.out.println("Done parsing ROMs folder. "+romtable.size()+" ROMs found.");
     }
     
-    public static void ValidateROM(String name) {
-        File file = new File(romdir + name);
-        if (file.exists())
-        {
+    public static void FindROMWithName(String name) {
+        File file = new File(romdir + "/" + name);
+        if (file.exists()) {
             try {
                 N64ROM rom = new N64ROM(file);
                 romtable.put(rom.GetHashString(), rom);

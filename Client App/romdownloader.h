@@ -31,45 +31,12 @@ class ROMDownloadWindow : public wxDialog
         wxStaticText* m_Text_Download;
         wxGauge* m_Gauge_Download;
         wxButton* m_Button_Cancel;
-        wxString m_ROMPath;
-        uint8_t m_ROMHash[32];
-        wxString m_MasterAddress;
-        int m_MasterPort;
-        ROMDownloadThread* m_DownloadThread;
-        wxCriticalSection m_DownloadThreadCS;
+
+        void ThreadEvent(wxThreadEvent& event);
 
     public:
         ROMDownloadWindow(wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxEmptyString, const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxDefaultSize, long style = wxDEFAULT_DIALOG_STYLE);
         ~ROMDownloadWindow();
         void m_Button_CancelOnButtonClick(wxCommandEvent& event);
-        void ThreadEvent(wxThreadEvent& event);
-        void SetROMPath(wxString path);
-        void SetROMHash(wxString hash);
-        void SetAddress(wxString address);
-        void SetPortNumber(int port);
-        wxString GetROMPath();
-        wxString GetAddress();
-        uint8_t* GetROMHash();
-        int GetPort();
-        void BeginConnection();
-};
-
-class ROMDownloadThread : public wxThread
-{
-    private:
-        wxSocketClient* m_Socket;
-        ROMDownloadWindow* m_Window;
-        FILE* m_File;
-        bool m_Success;
-
-    protected:
-
-    public:
-        ROMDownloadThread(ROMDownloadWindow* win);
-        ~ROMDownloadThread();
-
-        virtual void* Entry() wxOVERRIDE;
-        void OnSocketEvent(wxSocketEvent& event);
         void UpdateDownloadProgress(int progress);
-        void NotifyMainOfDeath();
 };
