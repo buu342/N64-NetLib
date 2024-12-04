@@ -267,6 +267,7 @@ void UDPHandler::ResendMissingPackets()
 /*=============================================================
 
 =============================================================*/
+
 AbstractPacket::AbstractPacket(uint8_t version, uint16_t size, uint8_t* data, uint8_t flags, uint16_t seqnum, uint16_t acknum, uint16_t ackbitfield)
 {
     this->m_Version = version;

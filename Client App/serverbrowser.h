@@ -25,8 +25,9 @@ typedef struct IUnknown IUnknown;
 #include <wx/button.h>
 #include <wx/sizer.h>
 #include <wx/dialog.h>
-#include <map>
+#include <list>
 #include "packets.h"
+#include "romdownloader.h"
 
 #define DEFAULT_MASTERSERVER_ADDRESS "localhost"
 #define DEFAULT_MASTERSERVER_PORT    6464
@@ -43,6 +44,15 @@ typedef struct
     wxString romhash;
     bool romdownloadable;
 } FoundServer;
+
+typedef struct
+{
+    wxString filepath;
+    uint8_t* filedata;
+    uint32_t filesize;
+    uint32_t chunksize;
+    std::list<std::pair<uint32_t, wxLongLong>> chunksleft;
+} FileDownload;
 
 class ServerFinderThread;
 
@@ -78,6 +88,7 @@ class ServerBrowser : public wxFrame
         void m_DataViewListCtrl_Servers_OnDataViewListCtrlItemActivated(wxDataViewEvent& event);
 
     public:
+        ROMDownloadWindow* m_DownloadWindow;
         ServerBrowser(wxWindow* parent = NULL, wxWindowID id = wxID_ANY, const wxString& title = wxEmptyString, const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 800,600 ), long style = wxDEFAULT_FRAME_STYLE|wxTAB_TRAVERSAL );
         ~ServerBrowser();
 
@@ -85,6 +96,7 @@ class ServerBrowser : public wxFrame
         void ConnectMaster();
         void ClearServers();
         void ThreadEvent(wxThreadEvent& event);
+        void RequestDownload(wxString hash, wxString filepath);
         wxString          GetAddress();
         int               GetPort();
         wxDatagramSocket* GetSocket();
@@ -102,9 +114,12 @@ class ServerFinderThread : public wxThread
         ~ServerFinderThread();
 
         virtual void* Entry() wxOVERRIDE;
-        FoundServer ParsePacket_Server(wxDatagramSocket* socket, S64Packet* pkt);
-        void DiscoveredServer(std::unordered_map<wxString, std::pair<FoundServer, wxLongLong>>* serverlist, S64Packet* pkt);
-        void NotifyMainOfDeath();
+        FoundServer   ParsePacket_Server(wxDatagramSocket* socket, S64Packet* pkt);
+        void          DiscoveredServer(std::unordered_map<wxString, std::pair<FoundServer, wxLongLong>>* serverlist, S64Packet* pkt);
+        FileDownload* BeginFileDownload(S64Packet* pkt, wxString filepath);
+        void          HandleFileData(S64Packet* pkt, FileDownload** filedlp);
+        void          NotifyMainOfDeath();
+        void          UpdateDLProgress(int progress);
 };
 
 class ManualConnectWindow : public wxDialog

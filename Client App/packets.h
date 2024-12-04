@@ -71,7 +71,7 @@ class AbstractPacket
         AbstractPacket(uint8_t version, uint16_t size, uint8_t* data) : AbstractPacket(version, size, data, 0, 0, 0, 0) {};
 
     public:
-        ~AbstractPacket();
+        virtual ~AbstractPacket();
 
         uint8_t    GetVersion();
         uint8_t    GetFlags();

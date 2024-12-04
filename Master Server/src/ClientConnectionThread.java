@@ -123,7 +123,7 @@ public class ClientConnectionThread extends Thread {
         System.out.println("Client " + addrport + " requested server list");
         for (N64Server server : this.servers.values()) {
             this.handler.SendPacket(new S64Packet("SERVER", server.toByteArray(this.roms.get(server.GetROMHashStr()) != null), PacketFlag.FLAG_UNRELIABLE.GetInt()));
-            Thread.sleep(10);
+            Thread.sleep(50);
         }
         this.handler.SendPacket(new S64Packet("DONELISTING", null, PacketFlag.FLAG_UNRELIABLE.GetInt()));
         System.out.println("Client " + addrport + " got server list");
@@ -136,7 +136,6 @@ public class ClientConnectionThread extends Thread {
     }
     
     private void DownloadROM(byte[] data) throws Exception, IOException {
-        int size;
         byte[] hash;
         N64ROM rom;
         String romhashstr;
@@ -145,12 +144,9 @@ public class ClientConnectionThread extends Thread {
         String addrport = this.handler.GetAddress() + ":" + this.handler.GetPort();
         System.out.println("Client " + addrport + " wants to download ROM");
         
-        // Get the hash size
-        size = bb.getInt();
-        
         // Store the hash
-        hash = new byte[size];
-        for (int i=0; i<size; i++)
+        hash = new byte[data.length];
+        for (int i=0; i<data.length; i++)
             hash[i] = bb.get();
         
         // Find the hash in our ROM list
