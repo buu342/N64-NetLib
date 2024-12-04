@@ -165,6 +165,11 @@ void netlib_writebytes(byte* data, size_t size)
     global_writecursize += size;
 }
 
+void netlib_setflags(PacketFlag flags)
+{
+    global_writebuffer[5] = flags;
+}
+
 void netlib_broadcast()
 {
     u32 mask = 0xFFFFFFFF;

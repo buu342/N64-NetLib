@@ -85,6 +85,8 @@
     
     void netlib_writebytes(byte* data, size_t size);
     
+    void netlib_setflags(PacketFlag flags);
+    
     void netlib_broadcast();
     
     void netlib_send(ClientNumber client);
