@@ -77,7 +77,7 @@ public class Game implements Runnable  {
                     this.turn = this.players[0];
                 this.ChangePlayerTurn(this.turn);
                 System.out.println(this.board);
-                System.out.println("Player " + turn.GetNumber() + "'s turn");
+                System.out.println("Player " + this.turn.GetNumber() + "'s turn");
                 System.out.println("");
                 
                 while (this.state == GameState.GAMESTATE_PLAYING) {
@@ -91,7 +91,7 @@ public class Game implements Runnable  {
                     }
                     
                     // Validate the packet
-                    if (pkt == null || pkt.GetType() != PacketIDs.PACKETID_PLAYERMOVE.GetInt() || pkt.GetSender() != turn.GetNumber() || pkt.GetSize() < 4)
+                    if (pkt == null || pkt.GetType() != PacketIDs.PACKETID_PLAYERMOVE.GetInt() || pkt.GetSender() != this.turn.GetNumber() || pkt.GetSize() < 4)
                         continue;
                     
                     // Make the move
@@ -99,11 +99,11 @@ public class Game implements Runnable  {
                     boardy = pkt.GetData()[1];
                     movex = pkt.GetData()[2];
                     movey = pkt.GetData()[3];
-                    if (!this.board.MakeMove(turn, boardx, boardy, movex, movey))
+                    if (!this.board.MakeMove(this.turn, boardx, boardy, movex, movey))
                         continue; // If the move wasn't valid, restart the loop and try again
                     
                     // Valid move, notify other players of the move
-                    this.NotifyMove(turn, 1 + boardx + boardy*3, movex, movey);
+                    this.NotifyMove(this.turn, 1 + boardx + boardy*3, movex, movey);
                     
                     // Notify if the board was completed
                     if (this.board.GetBoard(boardx, boardy).BoardFinished())
@@ -127,7 +127,7 @@ public class Game implements Runnable  {
                     
                     // Print the next player's turn
                     System.out.println(this.board);
-                    System.out.println("Player " + turn.GetNumber() + "'s turn");
+                    System.out.println("Player " + this.turn.GetNumber() + "'s turn");
                     if (this.board.GetForcedBoardNumber() != 0)
                         System.out.println("Forced to play on board " + this.board.GetForcedBoardNumber());
                     System.out.println("");
@@ -195,7 +195,10 @@ public class Game implements Runnable  {
             if (this.players[i] == ply) {
                 this.players[i] = null;
                 if (this.state == GameState.GAMESTATE_PLAYING)
+                {
+                    this.turn = null;
                     this.state = GameState.GAMESTATE_ENDED_DISCONNECT;
+                }
                 return;
             }
         }
