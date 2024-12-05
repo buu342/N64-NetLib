@@ -25,6 +25,7 @@ typedef struct IUnknown IUnknown;
 #include <wx/button.h>
 #include <wx/sizer.h>
 #include <wx/dialog.h>
+#include <unordered_map>
 #include <list>
 #include "packets.h"
 #include "romdownloader.h"

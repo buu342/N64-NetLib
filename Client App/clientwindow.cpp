@@ -639,6 +639,7 @@ void* ServerConnectionThread::Entry()
         }
         catch (ClientTimeoutException& e)
         {
+            (void)e;
             this->WriteConsoleError("Server timed out.\n");
             break;
         }
