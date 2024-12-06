@@ -289,6 +289,7 @@ void ServerBrowser::m_DataViewListCtrl_Servers_OnMotion(wxMouseEvent& event)
     else if (lastrow != row)
         this->m_DataViewListCtrl_Servers->SetToolTip("");
     lastrow = this->m_DataViewListCtrl_Servers->ItemToRow(item);
+    (void)event;
 }
 
 void ServerBrowser::m_MenuItem_File_Connect_OnMenuSelection(wxCommandEvent& event)
@@ -833,7 +834,7 @@ ManualConnectWindow::ManualConnectWindow( wxWindow* parent, wxWindowID id, const
     wxStaticText* m_StaticText_Server;
     m_StaticText_Server = new wxStaticText( this, wxID_ANY, wxT("Server IP:"), wxDefaultPosition, wxDefaultSize, 0 );
     m_StaticText_Server->Wrap( -1 );
-    m_Sizer_Inputs->Add( m_StaticText_Server, 0, wxALL, 5 );
+    m_Sizer_Inputs->Add( m_StaticText_Server, 0, wxALIGN_CENTER|wxALL, 5 );
 
     m_TextCtrl_Server = new wxTextCtrl( this, wxID_ANY, wxConfigBase::Get()->Read("ManualAddress", wxEmptyString), wxDefaultPosition, wxDefaultSize, 0 );
     m_Sizer_Inputs->Add( m_TextCtrl_Server, 0, wxALL|wxEXPAND, 5 );
@@ -843,8 +844,10 @@ ManualConnectWindow::ManualConnectWindow( wxWindow* parent, wxWindowID id, const
     m_StaticText_ROM->Wrap( -1 );
     m_Sizer_Inputs->Add( m_StaticText_ROM, 0, wxALIGN_CENTER|wxALL, 5 );
 
-    m_FilePicker_ROM = new wxFilePickerCtrl( this, wxID_ANY, wxConfigBase::Get()->Read("ManualAddress", wxEmptyString), wxT("Load ROM"), wxT("*.*"), wxDefaultPosition, wxDefaultSize, wxFLP_DEFAULT_STYLE|wxFLP_FILE_MUST_EXIST|wxFLP_OPEN|wxFLP_SMALL|wxFLP_USE_TEXTCTRL );
-    m_FilePicker_ROM->DragAcceptFiles( true );
+    m_FilePicker_ROM = new wxFilePickerCtrl(this, wxID_ANY, wxConfigBase::Get()->Read("ManualROMPath", wxEmptyString), wxT("Load ROM"), wxT("*.*"), wxDefaultPosition, wxDefaultSize, wxFLP_DEFAULT_STYLE|wxFLP_FILE_MUST_EXIST|wxFLP_OPEN|wxFLP_SMALL|wxFLP_USE_TEXTCTRL );
+    m_FilePicker_ROM->DragAcceptFiles(true);
+    m_FilePicker_ROM->SetPath(wxConfigBase::Get()->Read("ManualROMPath", wxEmptyString));
+    m_FilePicker_ROM->SetInitialDirectory(wxConfigBase::Get()->Read("ManualROMPath", wxEmptyString));
 
     m_Sizer_Inputs->Add( m_FilePicker_ROM, 0, wxALL|wxEXPAND, 5 );
 

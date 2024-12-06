@@ -36,6 +36,7 @@ typedef enum {
 class ClientWindow;
 class DeviceThread;
 class ServerConnectionThread;
+class UploadThread;
 
 class ClientWindow : public wxFrame
 {
@@ -49,6 +50,7 @@ class ClientWindow : public wxFrame
         wxRichTextCtrl* m_RichText_Console;
         wxTextCtrl* m_TextCtrl_Input;
         wxButton* m_Button_Send;
+        wxButton* m_Button_Reconnect;
         wxGauge* m_Gauge_Upload;
         wxStatusBar* m_StatusBar_ClientStatus;
         wxString m_ROMPath;
@@ -63,6 +65,8 @@ class ClientWindow : public wxFrame
     public:
         ClientWindow( wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxEmptyString, const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 640,480 ), long style = wxDEFAULT_FRAME_STYLE|wxTAB_TRAVERSAL );
         ~ClientWindow();
+        void m_Button_Send_OnButtonClick(wxCommandEvent& event);
+        void m_Button_Reconnect_OnButtonClick(wxCommandEvent& event);
 
         void ConnectServer();
         void BeginWorking();
@@ -81,6 +85,7 @@ class DeviceThread : public wxThread
 {
     private:
         ClientWindow* m_Window;
+        UploadThread* m_UploadThread;
         bool m_FirstPrint;
 
     protected:

@@ -26,6 +26,7 @@ static wxMessageQueue<NetLibPacket*> global_msgqueue_serverthread;
 
 ClientWindow::ClientWindow( wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style ) : wxFrame( parent, id, title, pos, size, style )
 {
+    this->m_ServerThread = NULL;
     this->SetSizeHints( wxDefaultSize, wxDefaultSize );
 
     wxFlexGridSizer* m_Sizer_Main;
@@ -52,9 +53,11 @@ ClientWindow::ClientWindow( wxWindow* parent, wxWindowID id, const wxString& tit
     m_Gauge_Upload->Disable();
     m_Gauge_Upload->Hide();
 
-    m_Button_Send = new wxButton( this, wxID_ANY, wxT(""), wxDefaultPosition, wxDefaultSize, 0 );
-    m_Button_Send->Enable( false );
+    m_Button_Send = new wxButton( this, wxID_ANY, wxT("Reupload"), wxDefaultPosition, wxDefaultSize, 0 );
     m_Sizer_Input->Add( m_Button_Send, wxGBPosition( 0, 1 ), wxGBSpan( 1, 1 ), wxALL, 5 );
+
+    m_Button_Reconnect = new wxButton( this, wxID_ANY, wxT("Reconnect"), wxDefaultPosition, wxDefaultSize, 0 );
+    m_Sizer_Input->Add(m_Button_Reconnect, wxGBPosition( 0, 2 ), wxGBSpan( 1, 1 ), wxALL, 5);
 
     m_Sizer_Input->AddGrowableCol( 0 );
     m_Sizer_Main->Add( m_Sizer_Input, 1, wxEXPAND, 5 );
@@ -65,25 +68,25 @@ ClientWindow::ClientWindow( wxWindow* parent, wxWindowID id, const wxString& tit
 
     this->Centre(wxBOTH);
     this->Connect(wxID_ANY, wxEVT_THREAD, wxThreadEventHandler(ClientWindow::ThreadEvent));
+    m_Button_Reconnect->Connect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( ClientWindow::m_Button_Reconnect_OnButtonClick ), NULL, this );
+    m_Button_Send->Connect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( ClientWindow::m_Button_Send_OnButtonClick ), NULL, this );
+
 }
 
 ClientWindow::~ClientWindow()
 {
+    m_Button_Reconnect->Disconnect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( ClientWindow::m_Button_Reconnect_OnButtonClick ), NULL, this );
+    m_Button_Send->Disconnect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( ClientWindow::m_Button_Send_OnButtonClick ), NULL, this );
+
+    if (this->m_DeviceThread != NULL)
     {
-        wxCriticalSectionLocker enter(this->m_DeviceThreadCS);
-        if (this->m_DeviceThread != NULL)
-        {
-            this->m_DeviceThread->SetMainWindow(NULL);
-            this->m_DeviceThread->Delete();
-        }
+        this->m_DeviceThread->SetMainWindow(NULL);
+        this->m_DeviceThread->Delete();
     }
+    if (this->m_ServerThread != NULL)
     {
-        wxCriticalSectionLocker enter(this->m_ServerThreadCS);
-        if (this->m_ServerThread != NULL)
-        {
-            this->m_ServerThread->SetMainWindow(NULL);
-            this->m_ServerThread->Delete();
-        }
+        this->m_ServerThread->SetMainWindow(NULL);
+        this->m_ServerThread->Delete();
     }
     this->Disconnect(wxID_ANY, wxEVT_THREAD, wxThreadEventHandler(ClientWindow::ThreadEvent));
 }
@@ -98,6 +101,37 @@ void ClientWindow::BeginWorking()
     }
 
     if (this->GetAddress() != "")
+    {
+        this->m_ServerThread = new ServerConnectionThread(this);
+        if (this->m_ServerThread->Run() != wxTHREAD_NO_ERROR)
+        {
+            delete this->m_ServerThread;
+            this->m_ServerThread = NULL;
+        }
+    }
+}
+
+void ClientWindow::m_Button_Send_OnButtonClick(wxCommandEvent& event)
+{
+    (void)event;
+    if (this->m_DeviceThread != NULL)
+    {
+        this->m_DeviceThread->SetMainWindow(NULL);
+        this->m_DeviceThread->Delete();
+    }
+
+    this->m_DeviceThread = new DeviceThread(this);
+    if (this->m_DeviceThread->Run() != wxTHREAD_NO_ERROR)
+    {
+        delete this->m_DeviceThread;
+        this->m_DeviceThread = NULL;
+    }
+}
+
+void ClientWindow::m_Button_Reconnect_OnButtonClick(wxCommandEvent& event)
+{
+    (void)event;
+    if (this->GetAddress() != "" && this->m_ServerThread == NULL)
     {
         this->m_ServerThread = new ServerConnectionThread(this);
         if (this->m_ServerThread->Run() != wxTHREAD_NO_ERROR)
@@ -161,16 +195,10 @@ void ClientWindow::ThreadEvent(wxThreadEvent& event)
             }
             break;
         case TEVENT_DEATH_DEVICE:
-            {
-                wxCriticalSectionLocker enter(this->m_DeviceThreadCS);
-                this->m_DeviceThread = NULL;
-            }
+            this->m_DeviceThread = NULL;
             break;
         case TEVENT_DEATH_SERVER:
-            {
-                wxCriticalSectionLocker enter(this->m_ServerThreadCS);
-                this->m_ServerThread = NULL;
-            }
+            this->m_ServerThread = NULL;
             break;
         case TEVENT_NETPACKET_USB_TO_SERVER:
             {
@@ -242,6 +270,7 @@ DeviceThread::DeviceThread(ClientWindow* win)
 {
     this->m_Window = win;
     this->m_FirstPrint = TRUE;
+    this->m_UploadThread = NULL;
     global_msgqueue_usbthread.Clear();
     device_initialize();
 }
@@ -264,7 +293,6 @@ void* DeviceThread::Entry()
     if (deverr != DEVICEERR_OK)
     {
         this->WriteConsoleError(wxString::Format("Error finding flashcart. Returned error %d.\n", deverr));
-        this->NotifyDeath();
         return NULL;
     }
     this->WriteConsole("Found ");
@@ -277,7 +305,6 @@ void* DeviceThread::Entry()
         case CART_NONE: 
             this->WriteConsole("Unknown\n");
             this->WriteConsoleError("USB Disconnected.\n");
-            this->NotifyDeath();
             return NULL;
     }
 
@@ -286,7 +313,6 @@ void* DeviceThread::Entry()
     if (device_open() != DEVICEERR_OK)
     {
         this->WriteConsoleError(wxString::Format("Error opening flashcart. Returned error %d.\n", deverr));
-        this->NotifyDeath();
         return NULL;
     }
 
@@ -294,7 +320,6 @@ void* DeviceThread::Entry()
     if (device_testdebug() != DEVICEERR_OK)
     {
         this->WriteConsoleError("Please upgrade to firmware 2.05 or higher to access full USB functionality.\n");
-        this->NotifyDeath();
         return NULL;
     }
 
@@ -314,10 +339,17 @@ void* DeviceThread::Entry()
                 oldprogress = curprog;
                 this->SetUploadProgress(device_getuploadprogress());
             }
+
+            // Check for a thread kill request
+            if (TestDestroy())
+            {
+                this->m_UploadThread->Delete();
+                this->WriteConsoleError("\nUpload interrupted.\n");
+                return NULL;
+            }
+            wxSleep(10);
         }
         this->SetClientDeviceStatus(CLSTATUS_UPLOADDONE);
-
-        // TODO: Handle TestDestroy() properly
 
         // Finished uploading
         this->WriteConsole("Finished uploading.\n");
@@ -376,7 +408,6 @@ void* DeviceThread::Entry()
         }
     }
     this->WriteConsoleError("\nUSB Disconnected.\n");
-    this->NotifyDeath();
     return NULL;
 }
 
@@ -504,9 +535,9 @@ void DeviceThread::SetMainWindow(ClientWindow* win)
 
 void DeviceThread::UploadROM(wxString path)
 {
-    UploadThread* dev = new UploadThread(this->m_Window, path);
-    if (dev->Run() != wxTHREAD_NO_ERROR)
-        delete dev;
+    this->m_UploadThread = new UploadThread(this->m_Window, path);
+    if (this->m_UploadThread->Run() != wxTHREAD_NO_ERROR)
+        delete this->m_UploadThread;
 }
 
 void DeviceThread::NotifyDeath()

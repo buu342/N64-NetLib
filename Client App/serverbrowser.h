@@ -136,6 +136,6 @@ class ManualConnectWindow : public wxDialog
         void m_Button_Connect_OnButtonClick(wxCommandEvent& event);
 
     public:
-        ManualConnectWindow( wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxT("Manual Server Connect"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 300,125 ), long style = wxDEFAULT_DIALOG_STYLE|wxRESIZE_BORDER );
+        ManualConnectWindow( wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxT("Manual Server Connect"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(300, 144), long style = wxDEFAULT_DIALOG_STYLE|wxRESIZE_BORDER );
         ~ManualConnectWindow();
 };
