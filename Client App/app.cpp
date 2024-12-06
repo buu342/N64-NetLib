@@ -4,8 +4,11 @@
 This file handles the wxWidgets initialization.
 ***************************************************************/
 
-#include <wx/socket.h>
 #include "app.h"
+#include <wx/stdpaths.h>
+#include <wx/socket.h>
+#include <wx/config.h>
+#include <wx/dir.h>
 
 #include "Resources/resources.h"
 
@@ -44,12 +47,25 @@ App::~App()
 
 bool App::OnInit()
 {
+    wxString cfgname = "config.cfg";
+    wxString cfgpath;
+    wxFileConfig* cfgfile;
+
     if (!wxApp::OnInit())
         return false;
 
     // Initialize image handlers
     wxInitAllImageHandlers();
     wxSocketBase::Initialize();
+
+    // Initialize config file
+    wxStandardPaths::Get().SetFileLayout(wxStandardPaths::FileLayout_XDG);
+    cfgpath = wxStandardPaths::Get().GetUserConfigDir() + wxFileName::GetPathSeparator() + "N64NetLibBrowser" + wxFileName::GetPathSeparator();
+    if (!wxDirExists(cfgpath))
+        wxDir::Make(cfgpath, wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL);
+    cfgfile = new wxFileConfig(wxEmptyString, wxEmptyString, cfgpath + cfgname);
+    wxConfigBase::Set(cfgfile);
+    printf("%s\n", static_cast<const char*>(cfgpath.c_str()));
 
     // Create icons
     icon_refresh = wxBITMAP_PNG_FROM_DATA(icon_refresh);

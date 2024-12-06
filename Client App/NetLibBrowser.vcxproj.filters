@@ -34,6 +34,9 @@
     <ClInclude Include="clientwindow.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="customview.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="packets.cpp" />
@@ -42,6 +45,7 @@
     <ClCompile Include="sha256.cpp" />
     <ClCompile Include="app.cpp" />
     <ClCompile Include="clientwindow.cpp" />
+    <ClCompile Include="customview.cpp" />
     <ClCompile Include="helper.cpp" />
   </ItemGroup>
 </Project>

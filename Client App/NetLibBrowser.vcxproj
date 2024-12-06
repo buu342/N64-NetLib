@@ -13,6 +13,7 @@
   <ItemGroup>
     <ClInclude Include="app.h" />
     <ClInclude Include="clientwindow.h" />
+    <ClInclude Include="customview.h" />
     <ClInclude Include="serverbrowser.h" />
     <ClInclude Include="romdownloader.h" />
     <ClInclude Include="packets.h" />
@@ -22,6 +23,7 @@
   <ItemGroup>
     <ClCompile Include="app.cpp" />
     <ClCompile Include="clientwindow.cpp" />
+    <ClCompile Include="customview.cpp" />
     <ClCompile Include="serverbrowser.cpp" />
     <ClCompile Include="romdownloader.cpp" />
     <ClCompile Include="packets.cpp" />

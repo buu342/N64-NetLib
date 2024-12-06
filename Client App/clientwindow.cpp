@@ -36,8 +36,8 @@ ClientWindow::ClientWindow( wxWindow* parent, wxWindowID id, const wxString& tit
     m_Sizer_Main->SetNonFlexibleGrowMode( wxFLEX_GROWMODE_SPECIFIED );
 
     m_RichText_Console = new wxRichTextCtrl( this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_READONLY|wxVSCROLL|wxHSCROLL|wxNO_BORDER|wxWANTS_CHARS );
-
     m_Sizer_Main->Add( m_RichText_Console, 1, wxEXPAND | wxALL, 5 );
+    this->m_RichText_Console->Clear();
 
     m_Sizer_Input = new wxGridBagSizer( 0, 0 );
     m_Sizer_Input->SetFlexibleDirection( wxBOTH );
@@ -260,33 +260,32 @@ void* DeviceThread::Entry()
     wxString rompath = this->m_Window->GetROM();
 
     // Check which flashcart we found
-    this->ClearConsole();
-    this->WriteConsole(wxT("Searching for a valid flashcart"));
+    this->WriteConsole("Searching for a valid flashcart\n");
     if (deverr != DEVICEERR_OK)
     {
-        this->WriteConsoleError(wxString::Format(wxT("\nError finding flashcart. Returned error %d."), deverr));
+        this->WriteConsoleError(wxString::Format("Error finding flashcart. Returned error %d.\n", deverr));
         this->NotifyDeath();
         return NULL;
     }
-    this->WriteConsole(wxT("\nFound "));
+    this->WriteConsole("Found ");
     switch (device_getcart())
     {
-        case CART_64DRIVE1: this->WriteConsole(wxT("64Drive HW1")); break;
-        case CART_64DRIVE2: this->WriteConsole(wxT("64Drive HW2")); break;
-        case CART_EVERDRIVE: this->WriteConsole(wxT("EverDrive")); break;
-        case CART_SC64: this->WriteConsole(wxT("SummerCart64")); break;
+        case CART_64DRIVE1: this->WriteConsole("64Drive HW1\n"); break;
+        case CART_64DRIVE2: this->WriteConsole("64Drive HW2\n"); break;
+        case CART_EVERDRIVE: this->WriteConsole("EverDrive\n"); break;
+        case CART_SC64: this->WriteConsole("SummerCart64\n"); break;
         case CART_NONE: 
-            this->WriteConsole(wxT("Unknown"));
+            this->WriteConsole("Unknown\n");
             this->WriteConsoleError("USB Disconnected.\n");
             this->NotifyDeath();
             return NULL;
     }
 
     // Open the cart
-    this->WriteConsole("\nOpening device");
+    this->WriteConsole("Opening device\n");
     if (device_open() != DEVICEERR_OK)
     {
-        this->WriteConsoleError(wxString::Format(wxT("\nError opening flashcart. Returned error %d."), deverr));
+        this->WriteConsoleError(wxString::Format("Error opening flashcart. Returned error %d.\n", deverr));
         this->NotifyDeath();
         return NULL;
     }
@@ -294,7 +293,7 @@ void* DeviceThread::Entry()
     // Test that debug mode is possible
     if (device_testdebug() != DEVICEERR_OK)
     {
-        this->WriteConsoleError(wxT("\nPlease upgrade to firmware 2.05 or higher to access full USB functionality."));
+        this->WriteConsoleError("Please upgrade to firmware 2.05 or higher to access full USB functionality.\n");
         this->NotifyDeath();
         return NULL;
     }
@@ -302,7 +301,7 @@ void* DeviceThread::Entry()
     // Load the ROM
     if (rompath != "" && wxFileExists(rompath))
     {
-        this->WriteConsole("\nLoading '" + rompath + "' via USB");
+        this->WriteConsole("Loading '" + rompath + "' via USB\n");
         this->SetClientDeviceStatus(CLSTATUS_UPLOADING);
 
         // Upload the ROM
@@ -321,9 +320,9 @@ void* DeviceThread::Entry()
         // TODO: Handle TestDestroy() properly
 
         // Finished uploading
-        this->WriteConsole("\nFinished uploading.");
+        this->WriteConsole("Finished uploading.\n");
         if (device_getcart() != CART_EVERDRIVE)
-            this->WriteConsole("\nYou may now boot the console.");
+            this->WriteConsole("You may now boot the console.\n");
     }
     else
     {
@@ -332,14 +331,14 @@ void* DeviceThread::Entry()
     }
 
     // Now just read from USB in a loop
-    this->WriteConsole("\nUSB polling begun\n");
+    this->WriteConsole("USB polling begun\n");
     while (!TestDestroy() && device_isopen())
     {
         uint8_t* outbuff = NULL;
         uint32_t dataheader = 0;
         if (device_receivedata(&dataheader, &outbuff) != DEVICEERR_OK)
         {
-            this->WriteConsoleError("\nError receiving data from the flashcart.");
+            this->WriteConsoleError("\nError receiving data from the flashcart.\n");
             break;
         }
         if (dataheader != 0 && outbuff != NULL)
@@ -354,7 +353,7 @@ void* DeviceThread::Entry()
                 case DATATYPE_NETPACKET: this->ParseUSB_NetLibPacket(outbuff); break;
                 case DATATYPE_HEARTBEAT: this->ParseUSB_HeartbeatPacket(outbuff, size); break;
                 default:
-                    this->WriteConsoleError(wxString::Format("\nError: Received unknown datatype '%02X' from the flashcart.", command));
+                    this->WriteConsoleError(wxString::Format("\nError: Received unknown datatype '%02X' from the flashcart.\n", command));
                     break;
             }
 
@@ -372,9 +371,11 @@ void* DeviceThread::Entry()
                 free(pktasbytes);
                 delete pkt;
             }
+            else
+                wxMilliSleep(10);
         }
     }
-    this->WriteConsoleError("USB Disconnected.\n");
+    this->WriteConsoleError("\nUSB Disconnected.\n");
     this->NotifyDeath();
     return NULL;
 }
@@ -385,7 +386,7 @@ void DeviceThread::ParseUSB_TextPacket(uint8_t* buff, uint32_t size)
     text = (char*)malloc(size+1);
     if (text == NULL)
     {
-        this->WriteConsoleError("\nError: Unable to allocate memory for incoming string.");
+        this->WriteConsoleError("\nError: Unable to allocate memory for incoming string.\n");
         return;
     }
     memset(text, 0, size+1);
@@ -420,7 +421,7 @@ void DeviceThread::ParseUSB_HeartbeatPacket(uint8_t* buff, uint32_t size)
     uint16_t protocol_version;
     if (size < 4)
     {
-        this->WriteConsoleError("\nError: Malformed heartbeat received.");
+        this->WriteConsoleError("\nError: Malformed heartbeat received.\n");
         return;
     }
 
@@ -433,7 +434,7 @@ void DeviceThread::ParseUSB_HeartbeatPacket(uint8_t* buff, uint32_t size)
     // Ensure we support this protocol version
     if (protocol_version > USBPROTOCOL_VERSION)
     {
-        this->WriteConsoleError(wxString::Format("\nError: USB protocol %d unsupported. Your NetLib Client is probably out of date.", protocol_version));
+        this->WriteConsoleError(wxString::Format("\nError: USB protocol %d unsupported. Your NetLib Client is probably out of date.\n", protocol_version));
         return;
     }
     device_setprotocol((ProtocolVer)protocol_version);
@@ -442,7 +443,7 @@ void DeviceThread::ParseUSB_HeartbeatPacket(uint8_t* buff, uint32_t size)
     // Currently, nothing here.
     if (heartbeat_version != 0x01)
     {
-        this->WriteConsoleError(wxString::Format("\nError: Heartbeat version %d unsupported. Your NetLib Client is probably out of date.", heartbeat_version));
+        this->WriteConsoleError(wxString::Format("\nError: Heartbeat version %d unsupported. Your NetLib Client is probably out of date.\n", heartbeat_version));
         return;
     }
 }
@@ -562,7 +563,7 @@ void* UploadThread::Entry()
     deverr = device_sendrom(fp, filesize);
     if (deverr != DEVICEERR_OK)
     {
-        this->WriteConsoleError(wxString::Format(wxT("\nError sending ROM. Returned error %d."), deverr));
+        this->WriteConsoleError(wxString::Format("\nError sending ROM. Returned error %d.\n", deverr));
         fclose(fp);
         free(romstr);
         return NULL;
@@ -640,7 +641,7 @@ void* ServerConnectionThread::Entry()
         catch (ClientTimeoutException& e)
         {
             (void)e;
-            this->WriteConsoleError("Server timed out.\n");
+            this->WriteConsoleError("\nServer timed out. Disconnected.\n");
             break;
         }
     }

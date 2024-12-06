@@ -15,7 +15,6 @@ typedef struct IUnknown IUnknown;
 #include <wx/settings.h>
 #include <wx/textctrl.h>
 #include <wx/toolbar.h>
-#include <wx/dataview.h>
 #include <wx/gbsizer.h>
 #include <wx/frame.h>
 #include <wx/socket.h>
@@ -27,6 +26,7 @@ typedef struct IUnknown IUnknown;
 #include <wx/dialog.h>
 #include <unordered_map>
 #include <list>
+#include "customview.h"
 #include "packets.h"
 #include "romdownloader.h"
 
@@ -73,7 +73,7 @@ class ServerBrowser : public wxFrame
         wxToolBar* m_ToolBar;
         wxToolBarToolBase* m_Tool_Refresh;
         wxTextCtrl* m_TextCtrl_MasterServerAddress;
-        wxDataViewListCtrl* m_DataViewListCtrl_Servers;
+        CustomDataView*   m_DataViewListCtrl_Servers;
         wxDataViewColumn* m_DataViewListColumn_Ping;
         wxDataViewColumn* m_DataViewListColumn_Players;
         wxDataViewColumn* m_DataViewListColumn_ServerName;
@@ -87,6 +87,7 @@ class ServerBrowser : public wxFrame
         void m_Tool_Refresh_OnToolClicked(wxCommandEvent& event);
         void m_TextCtrl_MasterServerAddress_OnText(wxCommandEvent& event);
         void m_DataViewListCtrl_Servers_OnDataViewListCtrlItemActivated(wxDataViewEvent& event);
+        void m_DataViewListCtrl_Servers_OnMotion(wxMouseEvent& event);
 
     public:
         ROMDownloadWindow* m_DownloadWindow;

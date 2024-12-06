@@ -4,6 +4,7 @@
 #include "helper.h"
 #include "sha256.h"
 #include <stdint.h>
+#include <wx/config.h>
 #include <wx/dir.h>
 #include <wx/msgdlg.h>
 #include <wx/tokenzr.h>
@@ -17,16 +18,96 @@ typedef enum {
 
 static wxMessageQueue<S64Packet*> global_msgqueue_serverthread;
 
+
+/*=============================================================
+
+=============================================================*/
+
+void address_fromstr(wxString str, wxString* addr, int* port)
+{
+    wxStringTokenizer tokenizer(str, ":");
+    *addr = tokenizer.GetNextToken();
+    if (tokenizer.HasMoreTokens())
+        tokenizer.GetNextToken().ToInt(port);
+}
+
+wxString get_sanitizedromname(wxString romname)
+{
+    if (romname.Right(wxString("</span>").Length()) == "</span>")
+    {
+        romname.Replace("</span>", "");
+        return romname.AfterFirst('>');
+    }
+    else
+        return romname;
+}
+
+wxString get_rompath(wxString romname)
+{
+    const wxString romfolder = wxString("roms");
+    if (!wxDirExists(romfolder))
+        wxDir::Make(romfolder, wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL);
+    return romfolder + wxFileName::GetPathSeparator() + romname;
+}
+
+bool is_samerom(wxString romname, wxString romhash)
+{
+    uint8_t hash[32];
+    uint8_t *filedata;
+    uint32_t filesize;
+    wxString rompath = get_rompath(romname);
+    wxString hashstr = "";
+    SHA256_CTX ctx;
+    FILE* fp;
+    if (!wxFileExists(rompath))
+        return false;
+
+    fp = fopen(rompath, "rb");
+    if (fp == NULL)
+        return false;
+
+    // Get the file size and malloc space for the file data
+    fseek(fp, 0L, SEEK_END);
+    filesize = ftell(fp);
+    filedata = (uint8_t*)malloc(filesize);
+    if (filedata == NULL)
+    {
+        fclose(fp);
+        return false;
+    }
+
+    // Read the file data, and then calculate the hash
+    fseek(fp, 0L, SEEK_SET);
+    fread(filedata, 1, filesize, fp);
+    sha256_init(&ctx);
+    sha256_update(&ctx, filedata, filesize);
+    sha256_final(&ctx, hash);
+
+    // Convert it to a string
+    hashstr = "";
+    for (uint32_t i=0; i<(sizeof(hash)/sizeof(hash[0])); i++)
+        hashstr += wxString::Format("%02X", hash[i]);
+
+    // Cleanup
+    fclose(fp);
+    free(filedata);
+    return hashstr == romhash;
+}
+
+
+/*=============================================================
+
+=============================================================*/
+
 ServerBrowser::ServerBrowser(wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style) : wxFrame(parent, id, title, pos, size, style)
 {
-    wxString addrstr;
-    this->m_MasterAddress = DEFAULT_MASTERSERVER_ADDRESS; // TODO: This has to actually be editable
-    this->m_MasterPort = DEFAULT_MASTERSERVER_PORT;
+    wxString maddr;
     this->m_FinderThread = NULL;
     this->m_Socket = NULL;
     this->m_MasterConnectionHandler = NULL;
     this->m_DownloadWindow = NULL;
-    addrstr = wxString::Format("%s:%d", this->m_MasterAddress, this->m_MasterPort);
+    maddr = wxConfigBase::Get()->Read("MasterAddress", wxString::Format("%s:%d", DEFAULT_MASTERSERVER_ADDRESS, DEFAULT_MASTERSERVER_PORT));
+    address_fromstr(maddr, &this->m_MasterAddress, &this->m_MasterPort);
 
     this->SetSizeHints( wxDefaultSize, wxDefaultSize );
 
@@ -47,9 +128,10 @@ ServerBrowser::ServerBrowser(wxWindow* parent, wxWindowID id, const wxString& ti
     this->SetMenuBar( m_MenuBar );
 
     m_ToolBar = this->CreateToolBar( wxTB_HORIZONTAL, wxID_ANY );
+    m_ToolBar->SetToolPacking(10);  
     m_Tool_Refresh = m_ToolBar->AddTool( wxID_ANY, wxT("Refresh"), icon_refresh, wxNullBitmap, wxITEM_NORMAL, wxEmptyString, wxEmptyString, NULL );
 
-    m_TextCtrl_MasterServerAddress = new wxTextCtrl( m_ToolBar, wxID_ANY, addrstr, wxDefaultPosition, wxDefaultSize, 0 );
+    m_TextCtrl_MasterServerAddress = new wxTextCtrl( m_ToolBar, wxID_ANY, maddr, wxDefaultPosition, wxSize(200, -1), 0 );
     m_ToolBar->AddControl( m_TextCtrl_MasterServerAddress );
     m_ToolBar->AddSeparator();
 
@@ -60,12 +142,12 @@ ServerBrowser::ServerBrowser(wxWindow* parent, wxWindowID id, const wxString& ti
     m_Sizer_Main->SetFlexibleDirection( wxBOTH );
     m_Sizer_Main->SetNonFlexibleGrowMode( wxFLEX_GROWMODE_SPECIFIED );
 
-    m_DataViewListCtrl_Servers = new wxDataViewListCtrl( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxDV_ROW_LINES );
+    m_DataViewListCtrl_Servers = new CustomDataView(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxDV_ROW_LINES);
     m_DataViewListColumn_Ping = m_DataViewListCtrl_Servers->AppendTextColumn( wxT("Ping"), wxDATAVIEW_CELL_INERT, -1, static_cast<wxAlignment>(wxALIGN_LEFT), wxDATAVIEW_COL_RESIZABLE|wxDATAVIEW_COL_SORTABLE );
     m_DataViewListColumn_Players = m_DataViewListCtrl_Servers->AppendTextColumn( wxT("Players"), wxDATAVIEW_CELL_INERT, -1, static_cast<wxAlignment>(wxALIGN_LEFT), wxDATAVIEW_COL_RESIZABLE|wxDATAVIEW_COL_SORTABLE );
-    m_DataViewListColumn_ServerName = m_DataViewListCtrl_Servers->AppendTextColumn( wxT("Server Name"), wxDATAVIEW_CELL_INERT, -1, static_cast<wxAlignment>(wxALIGN_LEFT), wxDATAVIEW_COL_RESIZABLE|wxDATAVIEW_COL_SORTABLE );
     m_DataViewListColumn_Address = m_DataViewListCtrl_Servers->AppendTextColumn( wxT("Address"), wxDATAVIEW_CELL_INERT, -1, static_cast<wxAlignment>(wxALIGN_LEFT), wxDATAVIEW_COL_RESIZABLE|wxDATAVIEW_COL_SORTABLE );
-    m_DataViewListColumn_ROM = m_DataViewListCtrl_Servers->AppendTextColumn( wxT("ROM"), wxDATAVIEW_CELL_INERT, -1, static_cast<wxAlignment>(wxALIGN_LEFT), wxDATAVIEW_COL_RESIZABLE|wxDATAVIEW_COL_SORTABLE );
+    m_DataViewListColumn_ROM = m_DataViewListCtrl_Servers->AppendCustomTextColumn( wxT("ROM"), wxDATAVIEW_CELL_INERT, -1, static_cast<wxAlignment>(wxALIGN_LEFT), wxDATAVIEW_COL_RESIZABLE|wxDATAVIEW_COL_SORTABLE );
+    m_DataViewListColumn_ServerName = m_DataViewListCtrl_Servers->AppendTextColumn( wxT("Server Name"), wxDATAVIEW_CELL_INERT, -1, static_cast<wxAlignment>(wxALIGN_LEFT), wxDATAVIEW_COL_RESIZABLE|wxDATAVIEW_COL_SORTABLE );
     m_DataViewListColumn_Hash = m_DataViewListCtrl_Servers->AppendTextColumn( wxT("Hash"), wxDATAVIEW_CELL_INERT, -1, static_cast<wxAlignment>(wxALIGN_LEFT), wxDATAVIEW_COL_HIDDEN );
     m_DataViewListColumn_FileExistsOnMaster = m_DataViewListCtrl_Servers->AppendTextColumn( wxT("File Exists on Master"), wxDATAVIEW_CELL_INERT, -1, static_cast<wxAlignment>(wxALIGN_LEFT), wxDATAVIEW_COL_HIDDEN );
     m_Sizer_Main->Add( m_DataViewListCtrl_Servers, wxGBPosition( 0, 0 ), wxGBSpan( 1, 1 ), wxALL|wxEXPAND, 5 );
@@ -85,6 +167,7 @@ ServerBrowser::ServerBrowser(wxWindow* parent, wxWindowID id, const wxString& ti
     this->Connect( m_Tool_Refresh->GetId(), wxEVT_COMMAND_TOOL_CLICKED, wxCommandEventHandler( ServerBrowser::m_Tool_Refresh_OnToolClicked ) );
     m_TextCtrl_MasterServerAddress->Connect( wxEVT_COMMAND_TEXT_UPDATED, wxCommandEventHandler( ServerBrowser::m_TextCtrl_MasterServerAddress_OnText ), NULL, this );
     m_DataViewListCtrl_Servers->Connect( wxEVT_COMMAND_DATAVIEW_ITEM_ACTIVATED, wxDataViewEventHandler( ServerBrowser::m_DataViewListCtrl_Servers_OnDataViewListCtrlItemActivated ), NULL, this );
+    m_DataViewListCtrl_Servers->Connect( wxEVT_MOTION, wxMouseEventHandler( ServerBrowser::m_DataViewListCtrl_Servers_OnMotion ), NULL, this );
 
     // Connect to the master server
     this->ConnectMaster();
@@ -122,53 +205,16 @@ void ServerBrowser::m_Tool_Refresh_OnToolClicked(wxCommandEvent& event)
 void ServerBrowser::m_DataViewListCtrl_Servers_OnDataViewListCtrlItemActivated(wxDataViewEvent& event)
 {
     (void)event;
-    wxString serveraddr = this->m_DataViewListCtrl_Servers->GetTextValue(this->m_DataViewListCtrl_Servers->GetSelectedRow(), 3);
-    wxString romname = this->m_DataViewListCtrl_Servers->GetTextValue(this->m_DataViewListCtrl_Servers->GetSelectedRow(), 4);
+    wxString serveraddr = this->m_DataViewListCtrl_Servers->GetTextValue(this->m_DataViewListCtrl_Servers->GetSelectedRow(), 2);
+    wxString romname = get_sanitizedromname(this->m_DataViewListCtrl_Servers->GetTextValue(this->m_DataViewListCtrl_Servers->GetSelectedRow(), 3));
     wxString romhash = this->m_DataViewListCtrl_Servers->GetTextValue(this->m_DataViewListCtrl_Servers->GetSelectedRow(), 5);
-    wxString rompath = wxString("roms/") + romname;
+    wxString rompath = get_rompath(romname);
     bool romavailable = this->m_DataViewListCtrl_Servers->GetTextValue(this->m_DataViewListCtrl_Servers->GetSelectedRow(), 6) == "1";
 
-    if (!wxDirExists("roms"))
-        wxDir::Make("roms", wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL);
     if (wxFileExists(rompath))
     {
-        uint8_t hash[32];
-        uint8_t *filedata;
-        uint32_t filesize;
-        wxString hashstr = "";
-        SHA256_CTX ctx;
-        FILE* fp = fopen(rompath, "rb");
-        if (fp == NULL)
-            return;
-
-        // Get the file size and malloc space for the file data
-        fseek(fp, 0L, SEEK_END);
-        filesize = ftell(fp);
-        filedata = (uint8_t*)malloc(filesize);
-        if (filedata == NULL)
-        {
-            fclose(fp);
-            return;
-        }
-
-        // Read the file data, and then calculate the hash
-        fseek(fp, 0L, SEEK_SET);
-        fread(filedata, 1, filesize, fp);
-        sha256_init(&ctx);
-        sha256_update(&ctx, filedata, filesize);
-        sha256_final(&ctx, hash);
-
-        // Convert it to a string
-        hashstr = "";
-        for (uint32_t i=0; i<(sizeof(hash)/sizeof(hash[0])); i++)
-            hashstr += wxString::Format("%02X", hash[i]);
-
-        // Cleanup
-        fclose(fp);
-        free(filedata);
-
         // Now validate the ROM
-        if (hashstr != romhash)
+        if (!is_samerom(romname, romhash))
         {
             wxMessageDialog dialog(this, wxString("This server requires the ROM '") + romname + wxString("', which you have in your ROM folder, however your version differs from the one the server needs.\n\nPlease remove or rename the ROM in order to download the correct one."), wxString("Bad ROM found"), wxICON_EXCLAMATION);
             dialog.ShowModal();
@@ -204,10 +250,45 @@ void ServerBrowser::m_DataViewListCtrl_Servers_OnDataViewListCtrlItemActivated(w
 void ServerBrowser::m_TextCtrl_MasterServerAddress_OnText(wxCommandEvent& event)
 {
     wxString str = event.GetString();
-    wxStringTokenizer tokenizer(str, ":");
-    this->m_MasterAddress = tokenizer.GetNextToken();
-    if (tokenizer.HasMoreTokens())
-        tokenizer.GetNextToken().ToInt(&this->m_MasterPort);
+    address_fromstr(str, &this->m_MasterAddress, &this->m_MasterPort);
+    wxConfigBase::Get()->Write("MasterAddress", str);
+    wxConfigBase::Get()->Flush();
+}
+
+void ServerBrowser::m_DataViewListCtrl_Servers_OnMotion(wxMouseEvent& event)
+{
+    int row;
+    wxDataViewItem item;
+    wxDataViewColumn* col;
+    static int lastrow = -1;
+
+    this->m_DataViewListCtrl_Servers->HitTest(this->m_DataViewListCtrl_Servers->ScreenToClient(wxGetMousePosition()), item, col);
+    row = this->m_DataViewListCtrl_Servers->ItemToRow(item);
+    if (item != NULL && col->GetModelColumn() == 3)
+    {
+        if (lastrow != row)
+        {
+            wxString romname = get_sanitizedromname(this->m_DataViewListCtrl_Servers->GetTextValue(row, 3));
+            wxString romhash = this->m_DataViewListCtrl_Servers->GetTextValue(row, 5);
+            wxString rompath = get_rompath(romname);
+            bool romavailable = this->m_DataViewListCtrl_Servers->GetTextValue(row, 6) == "1";
+            if (wxFileExists(rompath))
+            {
+                if (is_samerom(romname, romhash))
+                    this->m_DataViewListCtrl_Servers->SetToolTip("You have this ROM!");
+                else
+                    this->m_DataViewListCtrl_Servers->SetToolTip("Your ROM differs from the server.");
+            }
+            else if (!romavailable)
+                this->m_DataViewListCtrl_Servers->SetToolTip("This ROM is not available for download.");
+            else
+                this->m_DataViewListCtrl_Servers->SetToolTip("This ROM is available for download from the master server.");
+            
+        }
+    }
+    else if (lastrow != row)
+        this->m_DataViewListCtrl_Servers->SetToolTip("");
+    lastrow = this->m_DataViewListCtrl_Servers->ItemToRow(item);
 }
 
 void ServerBrowser::m_MenuItem_File_Connect_OnMenuSelection(wxCommandEvent& event)
@@ -350,13 +431,25 @@ void ServerBrowser::ThreadEvent(wxThreadEvent& event)
         }
         case TEVENT_ADDSERVER:
         {
+            wxString rompath;
             FoundServer* server = event.GetPayload<FoundServer*>();
             wxVector<wxVariant> data;
+            rompath = get_rompath(server->romname);
             data.push_back(wxVariant(wxString::Format("%ld", server->ping)));
             data.push_back(wxVariant(wxString::Format("%d/%d", server->playercount, server->maxplayers)));
-            data.push_back(wxVariant(server->name));
             data.push_back(wxVariant(server->fulladdress));
-            data.push_back(wxVariant(server->romname));
+            if (wxFileExists(rompath))
+            {
+                if (is_samerom(server->romname, server->romhash))
+                    data.push_back(wxVariant(wxString::Format("<span color=\"#008000\">%s</span>", server->romname)));
+                else
+                    data.push_back(wxVariant(wxString::Format("<span color=\"#FF8000\">%s</span>", server->romname)));
+            }
+            else if (!server->romdownloadable)
+                data.push_back(wxVariant(wxString::Format("<span color=\"#800000\">%s</span>", server->romname)));
+            else
+                data.push_back(wxVariant(server->romname));
+            data.push_back(wxVariant(server->name));
             data.push_back(wxVariant(server->romhash));
             data.push_back(wxVariant(wxString::Format("%d", server->romdownloadable)));
             this->m_DataViewListCtrl_Servers->AppendItem(data);
@@ -742,7 +835,7 @@ ManualConnectWindow::ManualConnectWindow( wxWindow* parent, wxWindowID id, const
     m_StaticText_Server->Wrap( -1 );
     m_Sizer_Inputs->Add( m_StaticText_Server, 0, wxALL, 5 );
 
-    m_TextCtrl_Server = new wxTextCtrl( this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0 );
+    m_TextCtrl_Server = new wxTextCtrl( this, wxID_ANY, wxConfigBase::Get()->Read("ManualAddress", wxEmptyString), wxDefaultPosition, wxDefaultSize, 0 );
     m_Sizer_Inputs->Add( m_TextCtrl_Server, 0, wxALL|wxEXPAND, 5 );
 
     wxStaticText* m_StaticText_ROM;
@@ -750,7 +843,7 @@ ManualConnectWindow::ManualConnectWindow( wxWindow* parent, wxWindowID id, const
     m_StaticText_ROM->Wrap( -1 );
     m_Sizer_Inputs->Add( m_StaticText_ROM, 0, wxALIGN_CENTER|wxALL, 5 );
 
-    m_FilePicker_ROM = new wxFilePickerCtrl( this, wxID_ANY, wxEmptyString, wxT("Load ROM"), wxT("*.*"), wxDefaultPosition, wxDefaultSize, wxFLP_DEFAULT_STYLE|wxFLP_FILE_MUST_EXIST|wxFLP_OPEN|wxFLP_SMALL|wxFLP_USE_TEXTCTRL );
+    m_FilePicker_ROM = new wxFilePickerCtrl( this, wxID_ANY, wxConfigBase::Get()->Read("ManualAddress", wxEmptyString), wxT("Load ROM"), wxT("*.*"), wxDefaultPosition, wxDefaultSize, wxFLP_DEFAULT_STYLE|wxFLP_FILE_MUST_EXIST|wxFLP_OPEN|wxFLP_SMALL|wxFLP_USE_TEXTCTRL );
     m_FilePicker_ROM->DragAcceptFiles( true );
 
     m_Sizer_Inputs->Add( m_FilePicker_ROM, 0, wxALL|wxEXPAND, 5 );
@@ -781,6 +874,8 @@ void ManualConnectWindow::m_Button_Connect_OnButtonClick(wxCommandEvent& event)
     wxString path = this->m_FilePicker_ROM->GetPath();
     wxString address = this->m_TextCtrl_Server->GetValue();
     ServerBrowser* parent = (ServerBrowser*)this->GetParent();
+    wxConfigBase::Get()->Write("ManualAddress", address);
+    wxConfigBase::Get()->Write("ManualROMPath", path);
     this->Destroy(); // Must be done first or the parent window will steal attention from the client
     parent->CreateClient(path, address);
 }
