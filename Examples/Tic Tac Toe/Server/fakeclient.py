@@ -1,14 +1,19 @@
+# Fake client for use with the NetLib TicTacToe server
+
 import io
 import sys
 import time
 import socket
 import threading
 
+# Server address
 HOST = "127.0.0.1"
 PORT = 6460
 
+# Current version of the NetLib packets
 NETLIB_VERSION = 1
 
+# Packet types
 PACKETID_ACKBEAT = 0
 PACKETID_CLIENTCONNECT = 1
 PACKETID_PLAYERINFO = 2
@@ -16,12 +21,28 @@ PACKETID_PLAYERDISCONNECT = 3
 PACKETID_SERVERFULL = 4
 PACKETID_PLAYERREADY = 5
 
+# Global sequence numbers
 g_sequencenum_local = 0
 g_sequencenum_remote = 0
 
+# Message queue for thread communication
 thread_messagequeue = []
 
 class Packet:
+    """
+    NetLib packet for network communication
+
+    Parameters
+    ----------
+    version : int
+        The version of the NetLib packet
+    type : int
+        The type of the packet
+    recipients : int
+        A bitmask with the list of players this packet is intended for
+    data : int
+        The payload data of the packet
+    """
     def __init__(self, version, type, recipients, data):
         self.version = version
         self.type = type
@@ -49,10 +70,31 @@ class Packet:
             mystr += "    " + self.data.hex()
         return mystr
 
-    def getid(self):
+    def gettype(self):
+        """
+        Get the type of the packet
+
+        Returns
+        -------
+        out : int
+            The type of the packet
+        """
         return self.type
 
     def receivepacket(self, sock):
+        """
+        Receive a packet from the internet
+
+        Parameters
+        ----------
+        sock : socket
+            The socket to read from
+
+        Returns
+        -------
+        out : bool
+            Whether or not we received a valid packet
+        """
         global g_sequencenum_remote
         data, addr = sock.recvfrom(4096)
 
@@ -79,6 +121,14 @@ class Packet:
         return True
 
     def sendpacket(self, sock):
+        """
+        Sends a packet over the internet
+
+        Parameters
+        ----------
+        sock : socket
+            The socket to write to
+        """
         global g_sequencenum_local
         global g_sequencenum_remote
         self.sequencenum_local = g_sequencenum_local
@@ -101,6 +151,9 @@ class Packet:
         sock.sendto(data, (HOST, PORT))
 
 def inputthread():
+    """
+    A thread for handling user input for packets
+    """
     while (True):
         try:
             x = input('Packet Input:')
@@ -116,6 +169,9 @@ def inputthread():
             print(e)
 
 def main():
+    """
+    Program entrypoint
+    """
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
         s.setblocking(True)
         s.bind(("", 0))
@@ -134,22 +190,26 @@ def main():
         # Now loop forever
         s.setblocking(False)
         while (True):
+
+            # If we have packets from the input thread, send them
             while (len(thread_messagequeue) > 0):
                 p = thread_messagequeue.pop(0)
                 p.sendpacket(s)
 
+            # Check for packets from the server and print them (or respond to ackbeats)
             try:
                 p = Packet(NETLIB_VERSION, 0, 0, None)
                 if not (p.receivepacket(s)):
                     continue
-                if (p.getid() == PACKETID_ACKBEAT):
+                if (p.gettype() == PACKETID_ACKBEAT):
                     p = Packet(NETLIB_VERSION, PACKETID_ACKBEAT, 0, None)
                     p.sendpacket(s)
                 else:
                     print(p)
             except Exception as e:
                 #print(e)
-                time.sleep(0.5)
+                time.sleep(0.01)
         sys.exit()
 
+# Start the program
 main()

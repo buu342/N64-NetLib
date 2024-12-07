@@ -5,7 +5,7 @@ This folder contains the server implementation of the Ultimate TicTacToe game. A
 ### Compiling the Server
 Open the project in [Eclipse](https://www.eclipse.org).
 
-### Using the fake client
+### Using the Fake Client
 The fake client makes the assumption that the server is available at `127.0.0.1:6460`. You can change this by modifying the `HOST` and `PORT` constants.
 
-This client works by you manually inputting what packets you want to send. Simply input the packet type (as a number), and then the raw bytes you want to send (separated by spaces).
+This client works by you manually inputting what packets you want to send. Simply input the packet type (as a number), and then the raw bytes you want to send (separated by spaces). Press Enter to actually send the packet. The client is very basic and does no validation of packets. 
