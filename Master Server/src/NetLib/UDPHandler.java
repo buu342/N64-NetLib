@@ -41,7 +41,7 @@ public class UDPHandler {
         return this.port;
     }
     
-    public void SendPacket(AbstractPacket pkt) throws IOException, ClientTimeoutException {
+    public void SendPacket(AbstractPacket pkt) throws ClientTimeoutException, IOException {
         byte[] data;
         DatagramPacket out;
         short ackbitfield = 0;

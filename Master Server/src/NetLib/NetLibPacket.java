@@ -91,7 +91,7 @@ public class NetLibPacket extends AbstractPacket {
         return new NetLibPacket(version, type, data, flags, recipients, seqnum, ack, ackbitfield);
     }
     
-    public byte[] GetBytes() throws IOException {
+    public byte[] GetBytes() {
         byte[] out;
         ByteBuffer buf = ByteBuffer.allocate(PACKET_MAXSIZE);
         buf.put(PACKET_HEADER.getBytes(StandardCharsets.US_ASCII), 0, PACKET_HEADER.length());

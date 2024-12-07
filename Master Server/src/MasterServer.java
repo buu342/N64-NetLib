@@ -16,7 +16,7 @@ public class MasterServer {
     private static final int TIME_KEEPSERVERS = 1000*60*10;
     private static final int DEFAULTPORT = 6464;
     
-    // Database
+    // Database structs
     private static ConcurrentHashMap<String, N64ROM> romtable = new ConcurrentHashMap<>();
     private static ConcurrentHashMap<String, N64Server> servertable = new ConcurrentHashMap<>();
     private static Hashtable<String, ClientConnectionThread> connectiontable = new Hashtable<>();

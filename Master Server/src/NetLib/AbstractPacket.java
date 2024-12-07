@@ -82,7 +82,7 @@ public abstract class AbstractPacket {
                 ((arr[3] & 0xFF) << 0 );
     }
     
-    abstract public byte[] GetBytes() throws IOException;
+    abstract public byte[] GetBytes();
     
     public int GetVersion() {
         return this.version;

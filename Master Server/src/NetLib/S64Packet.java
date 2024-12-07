@@ -90,7 +90,7 @@ public class S64Packet extends AbstractPacket {
         return new S64Packet(version, type, data, flags, seqnum, ack, ackbitfield);
     }
     
-    public byte[] GetBytes() throws IOException {
+    public byte[] GetBytes()  {
         byte[] out;
         ByteBuffer buf = ByteBuffer.allocate(PACKET_MAXSIZE);
         buf.put(PACKET_HEADER.getBytes(StandardCharsets.US_ASCII), 0, PACKET_HEADER.length());

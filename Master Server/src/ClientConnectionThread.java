@@ -1,3 +1,4 @@
+import N64.InvalidROMException;
 import N64.N64ROM;
 import N64.N64Server;
 import NetLib.ClientTimeoutException;
@@ -16,15 +17,31 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class ClientConnectionThread extends Thread {
     
+	// Constants
     private static final int FILECHUNKSIZE = 2048;
 
-    private File romtodownload;
-    private int romchunkcount;
+    // Connection handler
     private UDPHandler handler;
+    
+    // Database structs
     private ConcurrentHashMap<String, N64ROM> roms;
     private ConcurrentHashMap<String, N64Server> servers;
+
+    // ROM download trackers
+    private File romtodownload;
+    private int romchunkcount;
+    
+    // Thread communication
     private ConcurrentLinkedQueue<byte[]> msgqueue = new ConcurrentLinkedQueue<byte[]>();
     
+    /**
+     * Thread for handling a client's UDP communication
+     * @param servers  Server list database
+     * @param roms     ROM list database
+     * @param socket   Socket to use for communication
+     * @param addr     Client address
+     * @param port     Client port
+     */
     ClientConnectionThread(ConcurrentHashMap<String, N64Server> servers, ConcurrentHashMap<String, N64ROM> roms, DatagramSocket socket, String addr, int port) {
         this.servers = servers;
         this.roms = roms;
@@ -33,12 +50,21 @@ public class ClientConnectionThread extends Thread {
         this.romchunkcount = 0;
     }
     
+    /**
+     * Send a message to this thread
+     * The message should be the raw bytes received from the client
+     * @param data  The data received from the client
+     * @param size  The size of the received data
+     */
     public void SendMessage(byte data[], int size) {
         byte[] copy = new byte[size];
         System.arraycopy(data, 0, copy, 0, size);
         this.msgqueue.add(copy);
     }
-    
+
+    /**
+     * Run this thread
+     */
     public void run() {
         try {
             while (!Thread.currentThread().isInterrupted()) {
@@ -80,7 +106,12 @@ public class ClientConnectionThread extends Thread {
         }
     }
     
-    private void RegisterServer(byte[] data) throws IOException, ClientTimeoutException {
+    /**
+     * Handle a S64Packet with the type "REGISTER"
+     * This packet is sent by servers in order to register with the master server
+     * @param data  The packet data
+     */
+    private void RegisterServer(byte[] data)  {
         int size;
         int publicport = 0;
         String romname = "";
@@ -116,7 +147,14 @@ public class ClientConnectionThread extends Thread {
         this.servers.put(addrport, server);
         System.out.println("Client " + addrport + " registered successfully");
     }
-    
+
+    /**
+     * Handle a S64Packet with the type "LIST"
+     * This packet is sent by clients when they want to see a list of available servers
+     * @throws ClientTimeoutException  Shouldn't happen as we are sending unreliable flags
+     * @throws IOException             If an I/O error occurs
+     * @throws InterruptedException    If this function is interrupted during sleep
+     */
     private void ListServers() throws IOException, InterruptedException, ClientTimeoutException {
         String addrport = this.handler.GetAddress() + ":" + this.handler.GetPort();
         System.out.println("Client " + addrport + " requested server list");
@@ -128,13 +166,24 @@ public class ClientConnectionThread extends Thread {
         System.out.println("Client " + addrport + " got server list");
     }
     
-    private void HandleServerHeartbeat() throws IOException, ClientTimeoutException {
+    /**
+     * Handle a S64Packet with the type "HEARTBEAT"
+     * This packet is sent by servers to show they are still alive
+     */
+    private void HandleServerHeartbeat() {
         N64Server server =  this.servers.get(this.handler.GetAddress() + ":" + this.handler.GetPort());
         if (server != null)
             server.UpdateLastInteractionTime();
     }
     
-    private void DownloadROM(byte[] data) throws Exception, IOException {
+    /**
+     * Handle a S64Packet with the type "DOWNLOAD"
+     * This packet is sent by clients when they wish to download a ROM
+     * @throws ClientTimeoutException  Shouldn't happen as we are sending unreliable flags
+     * @throws IOException             If an I/O error occurs
+     * @throws InvalidROMException     If a file is found which is not a valid N64 ROM
+     */
+    private void DownloadROM(byte[] data) throws IOException, ClientTimeoutException, InvalidROMException {
         byte[] hash;
         N64ROM rom;
         String romhashstr;
@@ -185,7 +234,13 @@ public class ClientConnectionThread extends Thread {
         this.handler.SendPacket(new S64Packet("DOWNLOAD", bb.array(), PacketFlag.FLAG_UNRELIABLE.GetInt()));
     }
     
-    private void SendROMChunk(byte[] data) throws IOException, ClientTimeoutException, InterruptedException {
+    /**
+     * Handle a S64Packet with the type "FILEDATA"
+     * This packet is sent by clients when they want a chunk of the current file to download
+     * @throws ClientTimeoutException  Shouldn't happen as we are sending unreliable flags
+     * @throws IOException             If an I/O error occurs
+     */
+    private void SendROMChunk(byte[] data) throws IOException, ClientTimeoutException {
         int readcount;
         int requestedchunk;
         byte[] buffer = new byte[FILECHUNKSIZE];
@@ -205,7 +260,7 @@ public class ClientConnectionThread extends Thread {
             return;
         }
         
-        // Transfer the ROM
+        // Transfer the ROM chunk
         bis = new BufferedInputStream(new FileInputStream(this.romtodownload));
         bis.skip(requestedchunk*FILECHUNKSIZE);
         readcount = bis.read(buffer);
