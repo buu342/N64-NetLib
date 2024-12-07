@@ -539,7 +539,7 @@ void* DeviceThread::Entry()
                 this->WriteConsoleError("\nUpload interrupted.\n");
                 return NULL;
             }
-            wxSleep(10);
+            wxMilliSleep(10);
         }
         this->SetClientDeviceStatus(CLSTATUS_UPLOADDONE);
 
