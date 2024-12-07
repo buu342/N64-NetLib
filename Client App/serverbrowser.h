@@ -80,15 +80,12 @@ class ServerBrowser : public wxFrame
         UDPHandler* m_MasterConnectionHandler;
         wxDatagramSocket* m_Socket;
         ServerFinderThread* m_FinderThread;
-        wxCriticalSection m_FinderThreadCS;
-
-    protected:
         wxMenuBar* m_MenuBar;
         wxMenu* m_Menu_File;
         wxToolBar* m_ToolBar;
         wxToolBarToolBase* m_Tool_Refresh;
         wxTextCtrl* m_TextCtrl_MasterServerAddress;
-        CustomDataView*   m_DataViewListCtrl_Servers;
+        CustomDataView* m_DataViewListCtrl_Servers;
         wxDataViewColumn* m_DataViewListColumn_Ping;
         wxDataViewColumn* m_DataViewListColumn_Players;
         wxDataViewColumn* m_DataViewListColumn_ServerName;
@@ -104,12 +101,14 @@ class ServerBrowser : public wxFrame
         void m_DataViewListCtrl_Servers_OnDataViewListCtrlItemActivated(wxDataViewEvent& event);
         void m_DataViewListCtrl_Servers_OnMotion(wxMouseEvent& event);
 
+    protected:
+
     public:
         ROMDownloadWindow* m_DownloadWindow;
-        ServerBrowser(wxWindow* parent = NULL, wxWindowID id = wxID_ANY, const wxString& title = wxEmptyString, const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 800,600 ), long style = wxDEFAULT_FRAME_STYLE|wxTAB_TRAVERSAL );
+        ServerBrowser(wxWindow* parent = NULL, wxWindowID id = wxID_ANY, const wxString& title = "NetLib Browser", const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(800, 600), long style = wxDEFAULT_FRAME_STYLE|wxTAB_TRAVERSAL);
         ~ServerBrowser();
 
-        void CreateClient(wxString rom, wxString address);
+        void CreateClient(wxString rom, wxString addressport);
         void ConnectMaster();
         void ClearServers();
         void ThreadEvent(wxThreadEvent& event);
@@ -136,21 +135,20 @@ class ServerFinderThread : public wxThread
         FileDownload* BeginFileDownload(S64Packet* pkt, wxString filepath);
         void          HandleFileData(S64Packet* pkt, FileDownload** filedlp);
         void          NotifyMainOfDeath();
-        void          UpdateDLProgress(int progress);
 };
 
 class ManualConnectWindow : public wxDialog
 {
     private:
-
-    protected:
         wxTextCtrl* m_TextCtrl_Server;
         wxFilePickerCtrl* m_FilePicker_ROM;
         wxButton* m_Button_Connect;
 
         void m_Button_Connect_OnButtonClick(wxCommandEvent& event);
 
+    protected:
+
     public:
-        ManualConnectWindow( wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxT("Manual Server Connect"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(300, 144), long style = wxDEFAULT_DIALOG_STYLE|wxRESIZE_BORDER );
+        ManualConnectWindow(wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxT("Manual Server Connect"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(300, 144), long style = wxDEFAULT_DIALOG_STYLE|wxRESIZE_BORDER);
         ~ManualConnectWindow();
 };

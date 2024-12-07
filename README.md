@@ -10,7 +10,7 @@ This repository is organized as such:
 
 ### How to use
 
-**How to play:**
+##### How to play:
 1. If you haven't used [UNFLoader](https://github.com/buu342/N64-UNFLoader) before, it is recommended you do so to ensure your USB communication is working.
 2. Connect your flashcart to a computer that has an internet connection. 
 3. Put your flashcart in a state where it's ready for USB uploading. 
@@ -18,10 +18,14 @@ This repository is organized as such:
 5. Find a server (or manually connect to one).
 6. Play on your console.
 
-**How to host a server:**
+
+##### How to host a server:
+
 Simply launch one of the example servers. Check the [Examples folder](https://github.com/buu342/N64-NetLib/tree/main/Examples) for further READMEs.
 
-**How to develop:**
+
+##### How to develop:
+
 Check [the Wiki](https://github.com/buu342/N64-NetLib/wiki).
 
 ### FAQ

@@ -1,3 +1,9 @@
+/***************************************************************
+                       romdownloader.cpp
+
+ROM download window progress bar
+***************************************************************/
+
 #include "romdownloader.h"
 #include "helper.h"
 #include "packets.h"

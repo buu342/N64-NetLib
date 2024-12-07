@@ -8,6 +8,7 @@ This file handles the wxWidgets initialization.
 #include <wx/stdpaths.h>
 #include <wx/socket.h>
 #include <wx/config.h>
+#include <wx/fileconf.h>
 #include <wx/dir.h>
 
 #include "Resources/resources.h"

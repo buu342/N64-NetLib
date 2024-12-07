@@ -1,3 +1,10 @@
+/***************************************************************
+                          packets.cpp
+
+Packets for server + game communication, as well as the UDP
+communication handler.
+***************************************************************/
+
 #include <stdio.h>
 #include "packets.h"
 #include "helper.h"
@@ -217,7 +224,7 @@ wxDatagramSocket* UDPHandler::GetSocket()
     UDPHandler::GetSocket
     Sends a packet to the server
     @param  The packet to send
-    @throws ClientTimeoutException
+    @throws ClientTimeoutException If a packet fails to send after MAX_RESENDCOUNT attempts
 ==============================*/
 
 void UDPHandler::SendPacket(AbstractPacket* pkt)
@@ -276,7 +283,7 @@ void UDPHandler::SendPacket(AbstractPacket* pkt)
     @param  The packet to handle
     @param  The ack maker function for this packet type
     @return Whether this packet's sequence was handled correctly
-    @throws ClientTimeoutException
+    @throws ClientTimeoutException If a packet fails to send after MAX_RESENDCOUNT attempts
 ==============================*/
 
 bool UDPHandler::HandlePacketSequence(AbstractPacket* pkt, AbstractPacket* (*ackmaker)())
@@ -397,7 +404,7 @@ NetLibPacket* UDPHandler::ReadNetLibPacket(uint8_t* data)
     Resends all packets which did not receive an ack after the resend time
     @param  The bytes with the packet information
     @return The created packet, or NULL
-    @throws ClientTimeoutException
+    @throws ClientTimeoutException If a packet fails to send after MAX_RESENDCOUNT attempts
 ==============================*/
 
 void UDPHandler::ResendMissingPackets()

@@ -76,7 +76,6 @@ class ClientWindow : public wxFrame
         void m_Button_Send_OnButtonClick(wxCommandEvent& event);
         void m_Button_Reconnect_OnButtonClick(wxCommandEvent& event);
 
-        void ConnectServer();
         void BeginWorking();
         void SetClientDeviceStatus(ClientDeviceStatus status);
         void SetROM(wxString rom);
