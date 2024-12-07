@@ -78,7 +78,7 @@ public class N64ROM {
 
     /**
      * Creates the SHA256 hash representation of the ROM file
-     * @param   The file to get the hash of
+     * @param file  The file to get the hash of
      * @return  The SHA256 hash representation of the ROM file
      */
     public static byte[] GetROMHash(File file) {
@@ -100,7 +100,7 @@ public class N64ROM {
     
     /**
      * Converts an array of bytes representing a hash into a string
-     * @param   The raw bytes to convert to a string
+     * @param bytes  The raw bytes to convert to a string
      * @return  The hash represented as a string
      */
     public static String BytesToHash(byte[] bytes) {

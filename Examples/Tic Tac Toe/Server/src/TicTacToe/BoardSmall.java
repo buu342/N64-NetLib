@@ -1,16 +1,27 @@
 package TicTacToe;
 
 public class BoardSmall {
+    
+    // Board state
     private int movecount;
     private Player winner;
     private Player moves[][];
     
+    /**
+     * A small 3x3 TicTacToe board
+     */
     public BoardSmall() {
         this.winner = null;
         this.moves = new Player[3][3];
         this.movecount = 0;
     }
     
+    /**
+     * Make a move on the board
+     * @param ply   The player who made the move
+     * @param xpos  The x position of the move (from 0 to 2)
+     * @param ypos  The y position of the move (from 0 to 2)
+     */
     public boolean MakeMove(Player ply, int xpos, int ypos) {
         if (this.moves[xpos][ypos] != null)
             return false;
@@ -20,6 +31,9 @@ public class BoardSmall {
         return true;
     }
     
+    /**
+     * Check if there's a winner in the game board
+     */
     private void CheckWinner() {
         boolean haswinner;
         
@@ -96,20 +110,38 @@ public class BoardSmall {
         }
     }
     
+    /**
+     * Get if the board has been completed
+     * @return  Whether or not the board was completed
+     */
     public boolean BoardFinished() {
         if (this.winner != null)
             return true;
         return (this.movecount == 9);
     }
-    
+
+    /**
+     * Get the winner of this board
+     * @return  The winning player, or null if there's a tie
+     */
     public Player GetWinner() {
         return this.winner;
     }
-    
+
+    /**
+     * Check which player made a move on this position of the board
+     * @param x  The x position of the move (from 0 to 2)
+     * @param y  The y position of the move (from 0 to 2)
+     * @return  The player who made a move in this position, or null if the position is empty
+     */
     public Player GetMove(int x, int y) {
         return this.moves[x][y];
     }
-    
+
+    /**
+     * Represent this game board as a string
+     * @return  The string representation of the board
+     */
     public String toString() {
         String mystr = "";
         for (int y=0; y<3; y++) {

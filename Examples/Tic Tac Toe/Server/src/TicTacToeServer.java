@@ -16,10 +16,12 @@ import com.dosse.upnp.UPnP;
 import NetLib.S64Packet;
 
 public class TicTacToeServer {
-    
+
+    // Constants
     private static final String MASTER_DEFAULTADDRESS = "127.0.0.1";
     private static final int    MASTER_DEFAULTPORT = 6464;
     
+    // Server settings
     private static int port = 6460;
     private static boolean useupnp = true;
     private static boolean register = true;
@@ -28,9 +30,17 @@ public class TicTacToeServer {
     private static String masteraddress = MASTER_DEFAULTADDRESS + ":" + MASTER_DEFAULTPORT;
     private static String romname = "";
     private static byte[] romhash;
-    private static TicTacToe.Game game;
-    private static Hashtable<String, ClientConnectionThread> connectiontable = new Hashtable<>();
     
+    // Game handler
+    private static TicTacToe.Game game;
+    
+    // Database
+    private static Hashtable<String, ClientConnectionThread> connectiontable = new Hashtable<>();
+
+    /**
+     * Program entrypoint
+     * @param args  A list of arguments passed to the program
+     */
     public static void main(String args[]) throws Exception {
         MasterConnectionThread master = null;
         DatagramSocket ds = null;
@@ -140,6 +150,10 @@ public class TicTacToeServer {
         }
     }
     
+    /**
+     * Parse command line arguments passed to the program
+     * @param args  A list of arguments passed to the program
+     */
     private static void ReadArguments(String args[]) {
         for (int i=0; i<args.length; i++) {
             switch (args[i]) {
@@ -189,6 +203,9 @@ public class TicTacToeServer {
         }
     }
     
+    /**
+     * Show the help text
+     */
     private static void ShowHelp() {
         System.out.println("Program arguments:");
         System.out.println("    -name <Server Name>\t\t(REQUIRED) Server name");
@@ -199,7 +216,12 @@ public class TicTacToeServer {
         System.out.println("    -master <Address:Port>\tMaster server connection (default '" + MASTER_DEFAULTADDRESS + ":" + MASTER_DEFAULTPORT + "')");
         System.out.println("    -help\t\t\tDisplay this");   
     }
-    
+
+    /**
+     * Validate the given file to ensure it's an N64 ROM
+     * @param rompath  The path to the file
+     * @return  The name of the ROM file, or ""
+     */
     private static String ValidateN64ROM(String rompath) {    
         try {
             byte[] rombytes;
@@ -226,7 +248,13 @@ public class TicTacToeServer {
         }
         return "";
     }
-    
+
+    /**
+     * Creates the SHA256 hash representation of the ROM file
+     * @param rompath   The path to the file to get the hash of
+     * @param rombytes  The raw bytes of the file
+     * @return  The SHA256 hash representation of the ROM file
+     */
     private static byte[] GenerateHashFromROM(String rompath, byte[] rombytes) throws Exception {
         int count;
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
@@ -238,7 +266,11 @@ public class TicTacToeServer {
         bis.close();
         return digest.digest();
     }
-    
+
+    /**
+     * Convert this server's information into a byte array, to send to the Master Server
+     * @return  The byte array representation of the server, or null
+     */
     public static byte[] ToByteArray_Master() {
         try {
             ByteArrayOutputStream bytes = new ByteArrayOutputStream();
@@ -253,7 +285,12 @@ public class TicTacToeServer {
             return null;
         }
     }
-    
+
+    /**
+     * Convert this server's information into a byte array, to send to a client
+     * @param identifier  The server identifier to echo back to the client
+     * @return  The byte array representation of the server, or null
+     */
     public static byte[] ToByteArray_Client(String identifier) {
         try {
             ByteArrayOutputStream bytes = new ByteArrayOutputStream();

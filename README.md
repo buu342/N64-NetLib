@@ -57,7 +57,6 @@ One minor flaw currently present in the server code is that there is no ban syst
 
 ### Credits
 
-* The Java servers use [WaifUPnP](https://github.com/adolfintel/WaifUPnP) for UPnP
 * Huge thanks to Zandronum developers (Specifically robikz and Kaminsky) for answering some questions I had about their implementation
 * Also extending my thanks over to BigBass, networkfusion, s4sy, and Magstriker for helping me test this over the internet
 * Command_tab for squatting the domains used for the master server + samples

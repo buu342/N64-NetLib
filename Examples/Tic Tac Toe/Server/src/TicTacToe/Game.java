@@ -6,19 +6,28 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class Game implements Runnable  {
     
+    // Game state
     private GameState state = GameState.GAMESTATE_LOBBY;
     private Player players[];
     private BoardLarge board;
     private Player turn;
-    private Queue<NetLibPacket> messages;
     
+    // Thread communication
+    private Queue<NetLibPacket> messages;
+
+    /**
+     * Object representation of the Ultimate TicTacToe game
+     */
     public Game() {
     	this.messages = new ConcurrentLinkedQueue<NetLibPacket>();
         this.players = new Player[2];
         this.turn = null;
         System.out.println("Tic Tac Toe initialized");
     }
-    
+
+    /**
+     * Run this thread
+     */
     public void run() {
         try {
             Thread.currentThread().setName("Game");
@@ -155,7 +164,11 @@ public class Game implements Runnable  {
             e.printStackTrace();
         }
     }
-    
+
+    /**
+     * Connect a player to the game
+     * @return  The player struct for this client, or null if the server is full
+     */
     public synchronized Player ConnectPlayer() {
         boolean foundslot = false;
         Player ply = new Player();
@@ -172,12 +185,21 @@ public class Game implements Runnable  {
         return null;
     }
     
+    /**
+     * Send a message to this thread
+     * @param sender  The player who sent the packet
+     * @param pkt     The NetLibPacket to send
+     */
     public void SendMessage(Player sender, NetLibPacket pkt) {
         pkt.SetSender(sender.GetNumber());
     	this.messages.add(pkt);
     	System.out.println(pkt);
     }
     
+    /**
+     * Get the number of players active in the server
+     * @return  The number of active players in the server
+     */
     public int PlayerCount() {
         int count = 0;
         for (int i=0; i<this.players.length; i++)
@@ -186,10 +208,18 @@ public class Game implements Runnable  {
         return count;
     }
     
+    /**
+     * Get the array of players
+     * @return  The players array
+     */
     public Player[] GetPlayers() {
     	return this.players;
     }
-    
+
+    /**
+     * Disconnect a player from the server
+     * @param ply  The player who disconnected
+     */
     public synchronized void DisconnectPlayer(Player ply) {
         for (int i=0; i<this.players.length; i++) {
             if (this.players[i] == ply) {
@@ -204,6 +234,12 @@ public class Game implements Runnable  {
         }
     }
     
+    /**
+     * Notify all players that someone changed their ready state
+     * @param target  The player who this packet is intended for
+     * @param who     The player who is changing their ready state
+     * @param ready   The ready state of the player
+     */
     private void NotifyReady(Player target, Player who, boolean ready) {
         NetLibPacket pkt = new NetLibPacket(PacketIDs.PACKETID_PLAYERREADY.GetInt(), new byte[]{
             (byte)who.GetNumber(), 
@@ -213,6 +249,10 @@ public class Game implements Runnable  {
         System.out.println("Player " + who.GetNumber() + " ready: " + ready);
     }
     
+    /**
+     * Notify all players that the game state changed
+     * @param state  The new game state
+     */
     private void ChangeGameState(GameState state) {
         this.state = state;
         NetLibPacket pkt = new NetLibPacket(PacketIDs.PACKETID_GAMESTATECHANGE.GetInt(), new byte[]{
@@ -223,6 +263,13 @@ public class Game implements Runnable  {
                 ply.SendMessage(null, pkt);
     }
     
+    /**
+     * Notify all players that a move has been made
+     * @param who       The player who made the move
+     * @param boardnum  The small TicTacToe board number that the player played in (from 1 to 9)
+     * @param movex     The x position of the move on the small board (from 0 to 2)
+     * @param movey     The y position of the move on the small board (from 0 to 2)
+     */
     private void NotifyMove(Player who, int boardnum, int movex, int movey) {
         NetLibPacket pkt = new NetLibPacket(PacketIDs.PACKETID_PLAYERMOVE.GetInt(), new byte[]{
             (byte)who.GetNumber(),
@@ -235,6 +282,10 @@ public class Game implements Runnable  {
                 ply.SendMessage(null, pkt);
     }
     
+    /**
+     * Notify all players that it's a different player's turn
+     * @param who  The player who's turn it is
+     */
     private void ChangePlayerTurn(Player who) {
         NetLibPacket pkt = new NetLibPacket(PacketIDs.PACKETID_PLAYERTURN.GetInt(), new byte[]{
             (byte)who.GetNumber(),
@@ -246,6 +297,11 @@ public class Game implements Runnable  {
         this.turn = who;
     }
     
+    /**
+     * Notify all players that a board has been completed
+     * @param boardnum  The number of the small TicTacToe board that completed (from 1 to 9)
+     * @param state     The winner state of the board
+     */
     private void NotifyBoardComplete(int boardnum, int state) {
         NetLibPacket pkt = new NetLibPacket(PacketIDs.PACKETID_BOARDCOMPLETED.GetInt(), new byte[]{
             (byte)boardnum,

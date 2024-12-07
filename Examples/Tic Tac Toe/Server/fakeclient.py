@@ -4,9 +4,6 @@ import time
 import socket
 import threading
 
-g_sequencenum_local = 0
-g_sequencenum_remote = 0
-
 HOST = "127.0.0.1"
 PORT = 6460
 
@@ -18,6 +15,9 @@ PACKETID_PLAYERINFO = 2
 PACKETID_PLAYERDISCONNECT = 3
 PACKETID_SERVERFULL = 4
 PACKETID_PLAYERREADY = 5
+
+g_sequencenum_local = 0
+g_sequencenum_remote = 0
 
 thread_messagequeue = []
 

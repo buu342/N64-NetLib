@@ -10,12 +10,21 @@ public class MasterConnectionThread extends Thread {
 
     private static final int TIME_HEARTBEAT = 1000*60*3;
 
+    // Networking
     String address;
     int port;
     DatagramSocket socket;
     UDPHandler handler;
+    
+    // Thread communication
     ConcurrentLinkedQueue<byte[]> msgqueue = new ConcurrentLinkedQueue<byte[]>();
     
+    /**
+     * Thread for handling Master Server's UDP communication
+     * @param socket   Socket to use for communication
+     * @param address  Client address
+     * @param port     Client port
+     */
     MasterConnectionThread(DatagramSocket socket, String address, int port) {
         this.socket = socket;
         this.address = address;
@@ -23,12 +32,21 @@ public class MasterConnectionThread extends Thread {
         this.handler = null;
     }
     
+    /**
+     * Send a message to this thread
+     * The message should be the raw bytes received from the client
+     * @param data  The data received from the client
+     * @param size  The size of the received data
+     */
     public void SendMessage(byte data[], int size) {
         byte[] copy = new byte[size];
         System.arraycopy(data, 0, copy, 0, size);
         this.msgqueue.add(copy);
     }
-    
+
+    /**
+     * Run this thread
+     */
     public void run() {
         Thread.currentThread().setName("Master Server Connection");
         this.handler = new UDPHandler(this.socket, this.address, this.port);
@@ -39,6 +57,8 @@ public class MasterConnectionThread extends Thread {
             while (true) {
                 S64Packet pkt;
                 byte[] reply = null;
+                
+                // Keep sending until we got an ACK from the master server
                 while (reply == null) {
                     Thread.sleep(UDPHandler.TIME_RESEND);
                     reply = this.msgqueue.poll();
@@ -65,6 +85,8 @@ public class MasterConnectionThread extends Thread {
                 while (true) {
                     S64Packet pkt;
                     byte[] reply = null;
+                    
+                    // Keep sending until we got an ACK from the master server
                     while (reply == null) {
                         Thread.sleep(UDPHandler.TIME_RESEND);
                         reply = this.msgqueue.poll();

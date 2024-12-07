@@ -6,6 +6,9 @@ public class BoardLarge {
     private BoardSmall forcedboard;
     private Player winner;
     
+    /**
+     * A large 9x9 Ultimate TicTacToe board
+     */
     public BoardLarge() {
         this.winner = null;
         this.boards = new BoardSmall[3][3];
@@ -16,6 +19,14 @@ public class BoardLarge {
                 this.boards[x][y] = new BoardSmall();
     }
     
+    /**
+     * Make a move on the board
+     * @param ply     The player who made the move
+     * @param xboard  The x position of the small TicTacToe board on the large board (from 0 to 2)
+     * @param yboard  The y position of the small TicTacToe board on the large board (from 0 to 2)
+     * @param xpos    The x position of the move on the small board (from 0 to 2)
+     * @param ypos    The y position of the move on the small board (from 0 to 2)
+     */
     public boolean MakeMove(Player ply, int xboard, int yboard, int xpos, int ypos) {
         boolean wasvalid = false;
         if (xboard > 2 || yboard > 2 || xpos > 2 || ypos > 2)
@@ -38,6 +49,9 @@ public class BoardLarge {
         return wasvalid;
     }
     
+    /**
+     * Check if there's a winner in the game board
+     */
     private void CheckWinner() {
         boolean haswinner;
         
@@ -113,21 +127,39 @@ public class BoardLarge {
             return;
         }
     }
-    
+
+    /**
+     * Get if the board has been completed
+     * @return  Whether or not the board was completed
+     */
     public boolean BoardFinished() {
         if (this.winner != null)
             return true;
         return (this.movecount == 9);
     }
-    
+
+    /**
+     * Get the winner of this board
+     * @return  The winning player, or null if there's a tie
+     */
     public Player GetWinner() {
         return this.winner;
     }
-    
+
+    /**
+     * Get the small board at the given position of the large board
+     * @param x  The x position of the small board on the large board (from 0 to 2)
+     * @param y  The y position of the small board on the large board (from 0 to 2)
+     * @return  The small board in this coordinate
+     */
     public BoardSmall GetBoard(int xpos, int ypos) {
         return this.boards[xpos][ypos];
     }
-    
+
+    /**
+     * Get the number of the board where the next player is forced to play on
+     * @return  The number of the board that the next player is forced to play on (from 1 to 9), or 0
+     */
     public int GetForcedBoardNumber() {
         int boardnum = 1;
         if (this.forcedboard == null)
@@ -141,7 +173,11 @@ public class BoardLarge {
         }
         return boardnum;
     }
-    
+
+    /**
+     * Represent this game board as a string
+     * @return  The string representation of the board
+     */
     public String toString() {
         String mystr = "";
         for (int y=0; y<9; y++) {
