@@ -7,21 +7,32 @@ import java.net.InetAddress;
 import java.util.LinkedList;
 
 public class UDPHandler {
-    
+
+    // Constants
     public static final int TIME_RESEND   = 1000;
     public static final int MAX_RESEND    = 5;
     
+    // Debug constants
     private static final boolean DEBUGPRINTS = false;
     
+    // Connection data
     String address;
     int port;
     DatagramSocket socket;
+    
+    // Packet sequence system
     int localseqnum; // Java doesn't support unsigned shorts, so we'll have to mimic them with ints
     int remoteseqnum;
     int ackbitfield;
     LinkedList<AbstractPacket> acksleft_rx;
     LinkedList<AbstractPacket> acksleft_tx;
-    
+
+    /**
+     * A UDP connection handler, with a basic reliability system
+     * @param socket  The socket to use in the connection
+     * @param type    The address of the destination 
+     * @param data    The port of the destination
+     */
     public UDPHandler(DatagramSocket socket, String address, int port) {
         this.socket = socket;
         this.address = address;
@@ -33,15 +44,29 @@ public class UDPHandler {
         this.acksleft_tx = new LinkedList<>();
     }
     
+    /**
+     * Retrieves the server address of the destination
+     * @return The server address of the destination
+     */
     public String GetAddress() {
         return this.address;
     }
-
+    
+    /**
+     * Retrieves the server port of the destination
+     * @return The server port of the destination
+     */
     public int GetPort() {
         return this.port;
     }
     
-    public void SendPacket(AbstractPacket pkt) throws IOException, ClientTimeoutException {
+    /**
+     * Send the packet over the internet
+     * @param pkt  The packet to send
+     * @throws ClientTimeoutException  If the packet is sent MAX_RESEND times without an acknowledgement
+     * @throws IOException             If an I/O error occurs
+     */
+    public void SendPacket(AbstractPacket pkt) throws ClientTimeoutException, IOException {
         byte[] data;
         DatagramPacket out;
         short ackbitfield = 0;
@@ -84,9 +109,16 @@ public class UDPHandler {
             }
         }
     }
-    
-    private boolean HandlePacketSequence(AbstractPacket pkt, AbstractPacket ackbeat) throws IOException, ClientTimeoutException
-    {
+
+    /**
+     * Handles the packet sequence embedded in the packet
+     * @param pkt      The packet to check the sequence data in
+     * @param ackbeat  An ackbeat packet to send if necessary
+     * @return  Whether this packet's sequence was handled correctly
+     * @throws ClientTimeoutException  If the packet is sent MAX_RESEND times without an acknowledgement
+     * @throws IOException             If an I/O error occurs
+     */
+    private boolean HandlePacketSequence(AbstractPacket pkt, AbstractPacket ackbeat) throws IOException, ClientTimeoutException {
         LinkedList<AbstractPacket> found = new LinkedList<AbstractPacket>();
         
         // If a packet with this sequence number already exists in our RX list, ignore this packet
@@ -121,7 +153,14 @@ public class UDPHandler {
             this.SendPacket(ackbeat);
         return true;
     }
-    
+
+    /**
+     * Reads an S64 packet from the byte array
+     * @param data  The byte data to read the packet from
+     * @return  The extracted S64 packet
+     * @throws ClientTimeoutException  If the packet is sent MAX_RESEND times without an acknowledgement
+     * @throws IOException             If an I/O error occurs
+     */
     public S64Packet ReadS64Packet(byte[] data) throws IOException, ClientTimeoutException {
         S64Packet pkt;
         if (!S64Packet.IsS64PacketHeader(data))
@@ -142,6 +181,13 @@ public class UDPHandler {
         return pkt;
     }
 
+    /**
+     * Reads a NetLib packet from the byte array
+     * @param data  The byte data to read the packet from
+     * @return  The extracted NetLib packet
+     * @throws ClientTimeoutException  If the packet is sent MAX_RESEND times without an acknowledgement
+     * @throws IOException             If an I/O error occurs
+     */
     public NetLibPacket ReadNetLibPacket(byte[] data) throws IOException, ClientTimeoutException {
         NetLibPacket pkt;
         if (!NetLibPacket.IsNetLibPacketHeader(data))
@@ -161,11 +207,15 @@ public class UDPHandler {
         // Done
         return pkt;
     }
-    
+
+    /**
+     * Resend packets which haven't received an ack for TIME_RESEND milliseconds
+     * @throws ClientTimeoutException  If the packet is sent MAX_RESEND times without an acknowledgement
+     * @throws IOException             If an I/O error occurs
+     */
     public void ResendMissingPackets() throws IOException, ClientTimeoutException {
         for (AbstractPacket pkt2ack : this.acksleft_tx)
             if (pkt2ack.GetSendTime() > TIME_RESEND)
                 this.SendPacket(pkt2ack);
     }
-
 }

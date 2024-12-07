@@ -64,7 +64,7 @@ static inline int sequence_delta(uint32_t s1, uint32_t s2)
 
 /*==============================
     sequence_increment
-    Increments a seqeuence number, handling rollover
+    Increments a sequence number, handling rollover
     @param  The sequence number to increment
     @return The incremented number
 ==============================*/
@@ -131,8 +131,8 @@ static AbstractPacket* MakeAck_NetLibPacket()
     UDPHandler (Constructor)
     Initializes the class
     @param The socket for the handler to use
-    @param The address for the handler to connect to
-    @param The port for the handler to connect to
+    @param The address of the destination
+    @param The port of the destination
 ==============================*/
 
 UDPHandler::UDPHandler(wxDatagramSocket* socket, wxString address, int port)
@@ -186,8 +186,8 @@ UDPHandler::~UDPHandler()
 
 /*==============================
     UDPHandler::GetAddress
-    Retreives the server address to connect to
-    @return The server address to connect to
+    Retrieves the server address of the destination
+    @return The server address of the destination
 ==============================*/
 
 wxString UDPHandler::GetAddress()
@@ -198,8 +198,8 @@ wxString UDPHandler::GetAddress()
 
 /*==============================
     UDPHandler::GetPort
-    Retreives the server port to use
-    @return The server port to use
+    Retrieves the server of the destination
+    @return The server of the destination
 ==============================*/
 
 int UDPHandler::GetPort()
@@ -210,7 +210,7 @@ int UDPHandler::GetPort()
 
 /*==============================
     UDPHandler::GetSocket
-    Retreives the socket to use for networking
+    Retrieves the socket to use for networking
     @return The socket to use
 ==============================*/
 
@@ -427,7 +427,7 @@ void UDPHandler::ResendMissingPackets()
     @param The packet data
     @param The flags to append to the packet
     @param The sequence number of the packet
-    @param The seqeuence number of the last received packet
+    @param The sequence number of the last received packet
     @param The ack bitfield of the last received packets
 ==============================*/
 
@@ -637,7 +637,7 @@ void AbstractPacket::UpdateSendAttempt()
     @param The data itself
     @param The flags to append to the packet
     @param The sequence number of the packet
-    @param The seqeuence number of the last received packet
+    @param The sequence number of the last received packet
     @param The ack bitfield of the last received packets
 ==============================*/
 
@@ -877,7 +877,7 @@ wxString S64Packet::AsString()
     @param The flags to append to the packet
     @param The recipients field for the packet
     @param The sequence number of the packet
-    @param The seqeuence number of the last received packet
+    @param The sequence number of the last received packet
     @param The ack bitfield of the last received packets
 ==============================*/
 
