@@ -381,7 +381,7 @@ void text_setcolor(u8 r, u8 g, u8 b, u8 a)
     text_getx
     Returns the current global starting X
     coordinate for text rendering
-    @returns The starting X coordinate
+    @return The starting X coordinate
 ==============================*/
 
 s16 text_getx()
@@ -394,7 +394,7 @@ s16 text_getx()
     text_gety
     Returns the current global starting Y
     coordinate for text rendering
-    @returns The starting Y coordinate
+    @return The starting Y coordinate
 ==============================*/
 
 s16 text_gety()

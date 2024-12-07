@@ -1,4 +1,4 @@
-# NetLib Browser
+# N64 NetLib
 
 A set of tools and libraries to connect your Nintendo 64 homebrew to the internet for multiplayer using your flashcart's USB slot.
 

@@ -12,6 +12,11 @@ Room that shows you have been disconnected from the game
 #include "text.h"
 #include "stages.h"
 
+
+/*********************************
+             Globals
+*********************************/
+
 static NUContData global_contdata;
 
 
@@ -39,6 +44,7 @@ void stage_disconnected_update(void)
 {
     nuContDataGetEx(&global_contdata, 0);
     
+    // If the player presses A, attempt to reconnect
     if (global_contdata.button & A_BUTTON)
         stages_changeto(STAGE_INIT);
 }

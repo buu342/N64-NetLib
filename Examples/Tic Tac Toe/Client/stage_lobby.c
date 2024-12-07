@@ -13,6 +13,11 @@ and ready up
 #include "helper.h"
 #include "text.h"
 
+
+/*********************************
+             Globals
+*********************************/
+
 // Controller data
 static NUContData global_contdata;
 static vu8 global_isready;

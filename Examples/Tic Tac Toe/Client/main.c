@@ -29,6 +29,7 @@ static void callback_reconnect();
              Globals
 *********************************/
 
+// Stage globals
 volatile StageNum global_curstage = STAGE_INIT;
 volatile StageNum global_nextstage = STAGE_NONE;
 StageDef global_stagetable[STAGE_COUNT];
@@ -84,6 +85,7 @@ void mainproc(void)
     // Initialize the heap
     InitHeap(heapmem, sizeof(heapmem));
     
+    // Game loop
     while(1)
     {
         global_stagetable[global_curstage].funcptr_init();
@@ -189,8 +191,8 @@ void stages_changeto(StageNum num)
 
 /*==============================
     stages_getcurrent
-    Gets  the current stage
-    @returns The stage number
+    Gets the current stage
+    @return The stage number
 ==============================*/
 
 StageNum stages_getcurrent()
@@ -198,10 +200,22 @@ StageNum stages_getcurrent()
     return global_curstage;
 }
 
+
+/*==============================
+    callback_disconnect
+    Callback function for when the player disconnects
+==============================*/
+
 static void callback_disconnect()
 {
     stages_changeto(STAGE_DISCONNECTED);
 }
+
+
+/*==============================
+    callback_reconnect
+    Callback function for when the player reconnects
+==============================*/
 
 static void callback_reconnect()
 {

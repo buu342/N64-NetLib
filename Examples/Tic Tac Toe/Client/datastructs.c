@@ -19,7 +19,7 @@ Contains useful data structures
     Appends data to a linked list
     @param The linked list to append to
     @param The data to append
-    @returns The created node
+    @return The created node
 ==============================*/
 
 listNode* list_append(linkedList* list, void* data)
@@ -77,7 +77,7 @@ void list_combine(linkedList* dest, linkedList* list)
     Removes data from a linked list
     @param The linked list to append to
     @param The data to append
-    @returns The removed node
+    @return The removed node
 ==============================*/
 
 listNode* list_remove(linkedList* list, void* data)
@@ -191,7 +191,7 @@ void list_destroy_deep(linkedList* list)
     Gets the n'th node from a list
     @param The linked list to search
     @param The index to find
-    @returns The relevant node, or NULL
+    @return The relevant node, or NULL
 ==============================*/
 
 listNode* list_node_from_index(linkedList* list, int index)
@@ -271,7 +271,7 @@ listNode* list_swapindex_withlist(linkedList* dest, int index, linkedList* list)
     @param The dictionary to append to
     @param The key of the data
     @param The data to append
-    @returns The created node
+    @return The created node
 ==============================*/
 
 dictNode* dict_append(Dictionary* dict, int key, void* value)
@@ -301,7 +301,7 @@ dictNode* dict_append(Dictionary* dict, int key, void* value)
     Gets a value from a dictionary, given its key
     @param The dictionary to search
     @param The key to compare
-    @returns The node with the value, or NULL
+    @return The node with the value, or NULL
 ==============================*/
 
 dictNode* dict_get(Dictionary* dict, int key)
@@ -397,7 +397,7 @@ dictNode* htable_append(hashTable* htable, int key, void* value)
     Gets an element from a hashtable, given a key
     @param The hashtable to search
     @param The key to compare
-    @returns The node with the value, or NULL
+    @return The node with the value, or NULL
 ==============================*/
 
 dictNode* htable_get(hashTable* htable, int key)

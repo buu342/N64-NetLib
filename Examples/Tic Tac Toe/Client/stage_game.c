@@ -19,10 +19,20 @@ The main game
 #include "assets/spr_circle_large.h"
 #include "assets/spr_tie_large.h"
 
+
+/*********************************
+        Function Prototypes
+*********************************/
+
 static void board_render();
 static void refresh_gametext();
 static void controller_movement();
 static void cursor_toboard(u8 board);
+
+
+/*********************************
+             Globals
+*********************************/
 
 // Controller data
 static NUContData global_contdata;
@@ -190,7 +200,11 @@ static void cursor_toboard(u8 board)
 
 /*==============================
     clamp
-    TODO
+    Clamps a value between two numbers
+    @param  The value to clamp
+    @param  The minimum value
+    @param  The maximum value
+    @return The clamped value
 ==============================*/
 
 static s8 clamp(s8 val, s8 min, s8 max)
@@ -204,7 +218,8 @@ static s8 clamp(s8 val, s8 min, s8 max)
 
 /*==============================
     controller_movement
-    Handle controller movement with an input window to allow for diagonal movements
+    Handle controller movement with an input window
+    to allow for diagonal movements
 ==============================*/
 
 static void controller_movement()
@@ -279,6 +294,7 @@ static void controller_movement()
         
         // Network the current cursor position
         netlib_start(PACKETID_PLAYERCURSOR);
+            netlib_setflags(FLAG_UNRELIABLE); // This packet isn't really important so no worries if it gets dropped
             netlib_writebyte(global_selectionx);
             netlib_writebyte(global_selectiony);
         netlib_broadcast();
@@ -310,6 +326,12 @@ void stage_game_draw(void)
     gSPEndDisplayList(glistp++);
     nuGfxTaskStart(glist, (s32)(glistp - glist) * sizeof(Gfx), NU_GFX_UCODE_F3DEX, NU_SC_SWAPBUFFER);
 }
+
+
+/*==============================
+    board_render
+    Renders the game board
+==============================*/
 
 static void board_render()
 {

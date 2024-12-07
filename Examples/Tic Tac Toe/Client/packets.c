@@ -1,18 +1,36 @@
+/***************************************************************
+                           packets.c
+                               
+Various callback functions for the different packet types in
+this game.
+***************************************************************/
+
 #include "netlib.h"
 #include "stages.h"
 #include "packets.h"
 #include "helper.h"
 
-void netcallback_playerinfo(size_t size);
-void netcallback_disconnect(size_t size);
-void netcallback_serverfull(size_t size);
-void netcallback_heartbeat(size_t size);
-void netcallback_playerready(size_t size);
-void netcallback_gamestate(size_t size);
-void netcallback_playerturn(size_t size);
-void netcallback_playermove(size_t size);
-void netcallback_playercursor(size_t size);
-void netcallback_boardcompleted(size_t size);
+
+/*********************************
+        Function Prototypes
+*********************************/
+
+static void netcallback_playerinfo(size_t size);
+static void netcallback_disconnect(size_t size);
+static void netcallback_serverfull(size_t size);
+static void netcallback_heartbeat(size_t size);
+static void netcallback_playerready(size_t size);
+static void netcallback_gamestate(size_t size);
+static void netcallback_playerturn(size_t size);
+static void netcallback_playermove(size_t size);
+static void netcallback_playercursor(size_t size);
+static void netcallback_boardcompleted(size_t size);
+
+
+/*==============================
+    netcallback_initall
+    Initializes all the packet callback functions
+==============================*/
 
 void netcallback_initall()
 {
@@ -28,7 +46,14 @@ void netcallback_initall()
     netlib_register(PACKETID_BOARDCOMPLETED, &netcallback_boardcompleted);
 }
 
-void netcallback_playerinfo(size_t size)
+
+/*==============================
+    netcallback_playerinfo
+    Handles the PACKETID_PLAYERINFO packet
+    @param The size of the incoming data
+==============================*/
+
+static void netcallback_playerinfo(size_t size)
 {
     u8 plynum;
     netlib_readbyte(&plynum);
@@ -42,7 +67,14 @@ void netcallback_playerinfo(size_t size)
         stage_lobby_playerchange();
 }
 
-void netcallback_disconnect(size_t size)
+
+/*==============================
+    netcallback_disconnect
+    Handles the PACKETID_PLAYERDISCONNECT packet
+    @param The size of the incoming data
+==============================*/
+
+static void netcallback_disconnect(size_t size)
 {
     u8 plynum;
     netlib_readbyte(&plynum);
@@ -52,19 +84,40 @@ void netcallback_disconnect(size_t size)
         stage_lobby_playerchange();
 }
 
-void netcallback_serverfull(size_t size)
+
+/*==============================
+    netcallback_serverfull
+    Handles the PACKETID_SERVERFULL packet
+    @param The size of the incoming data
+==============================*/
+
+static void netcallback_serverfull(size_t size)
 {
     if (stages_getcurrent() == STAGE_INIT)
         stage_init_serverfull();
 }
 
-void netcallback_heartbeat(size_t size)
+
+/*==============================
+    netcallback_heartbeat
+    Handles the PACKETID_ACKBEAT packet
+    @param The size of the incoming data
+==============================*/
+
+static void netcallback_heartbeat(size_t size)
 {
     netlib_start(PACKETID_ACKBEAT);
     netlib_sendtoserver();
 }
 
-void netcallback_playerready(size_t size)
+
+/*==============================
+    netcallback_playerready
+    Handles the PACKETID_PLAYERREADY packet
+    @param The size of the incoming data
+==============================*/
+
+static void netcallback_playerready(size_t size)
 {
     u8 plynum, ready;
     netlib_readbyte(&plynum);
@@ -74,7 +127,14 @@ void netcallback_playerready(size_t size)
         stage_lobby_playerchange();
 }
 
-void netcallback_gamestate(size_t size)
+
+/*==============================
+    netcallback_gamestate
+    Handles the PACKETID_GAMESTATECHANGE packet
+    @param The size of the incoming data
+==============================*/
+
+static void netcallback_gamestate(size_t size)
 {
     if (stages_getcurrent() == STAGE_LOBBY)
         stage_lobby_statechange();
@@ -82,22 +142,50 @@ void netcallback_gamestate(size_t size)
         stage_game_statechange();
 }
 
-void netcallback_playerturn(size_t size)
+
+/*==============================
+    netcallback_playerturn
+    Handles the PACKETID_PLAYERTURN packet
+    @param The size of the incoming data
+==============================*/
+
+static void netcallback_playerturn(size_t size)
 {
     stage_game_playerturn();
 }
 
-void netcallback_playermove(size_t size)
+
+/*==============================
+    netcallback_playermove
+    Handles the PACKETID_PLAYERMOVE packet
+    @param The size of the incoming data
+==============================*/
+
+static void netcallback_playermove(size_t size)
 {
     stage_game_makemove();
 }
 
-void netcallback_playercursor(size_t size)
+
+/*==============================
+    netcallback_playercursor
+    Handles the PACKETID_PLAYERCURSOR packet
+    @param The size of the incoming data
+==============================*/
+
+static void netcallback_playercursor(size_t size)
 {
     stage_game_playercursor();
 }
 
-void netcallback_boardcompleted(size_t size)
+
+/*==============================
+    netcallback_boardcompleted
+    Handles the PACKETID_BOARDCOMPLETED packet
+    @param The size of the incoming data
+==============================*/
+
+static void netcallback_boardcompleted(size_t size)
 {
     stage_game_boardcompleted();
 }

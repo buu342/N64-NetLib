@@ -1,6 +1,12 @@
 #ifndef _N64_PACKETS_H
 #define _N64_PACKETS_H
+    
+    
+    /*********************************
+               Enumerations
+    *********************************/
 
+    // Packet types
     typedef enum {
         PACKETID_ACKBEAT = 0,
         PACKETID_CLIENTCONNECT = 1, // Unused in the client app
@@ -15,6 +21,7 @@
         PACKETID_BOARDCOMPLETED = 10,
     } NetPacketIDs;
     
+    // Game states
     typedef enum {
         GAMESTATE_LOBBY = 0,
         GAMESTATE_READY = 1,
@@ -24,7 +31,12 @@
         GAMESTATE_ENDED_TIE = 5,
         GAMESTATE_ENDED_DISCONNECT = 6,
     } GameState;
-
-    void netcallback_initall();
+    
+    
+    /*********************************
+                Functions
+    *********************************/
+    
+    extern void netcallback_initall();
 
 #endif

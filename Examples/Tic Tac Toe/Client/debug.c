@@ -469,7 +469,7 @@ https://github.com/buu342/N64-UNFLoader
             @param The buffer to copy the partial string to
             @param The string to copy
             @param The length of the string
-            @returns The end of the buffer that was written to
+            @return The end of the buffer that was written to
         ==============================*/
         
         static void* printf_handler(void *buf, const char *str, size_t len)
@@ -1121,7 +1121,7 @@ https://github.com/buu342/N64-UNFLoader
                 @param Unused
                 @param The buffer with the string
                 @param The amount of characters to write
-                @returns The end of the buffer that was written to
+                @return The end of the buffer that was written to
             ==============================*/
             
             static void* debug_osSyncPrintf_implementation(void *unused, const char *str, size_t len)
@@ -1459,7 +1459,7 @@ https://github.com/buu342/N64-UNFLoader
                 Gets a register type from a given index
                 @param The affected thread context
                 @param The register index
-                @returns The regType that matches the given index
+                @return The regType that matches the given index
             ==============================*/
             
             static regType register_fromindex(__OSThreadContext* context, int index)
@@ -1503,7 +1503,7 @@ https://github.com/buu342/N64-UNFLoader
                 Gets a register type from a given index
                 @param The affected thread context
                 @param The register index
-                @returns The regType that matches the given index
+                @return The regType that matches the given index
             ==============================*/
             
             static regType register_fromindex(reg_block_t* context, int index)
@@ -1548,7 +1548,7 @@ https://github.com/buu342/N64-UNFLoader
             compressed with Run-Length Encoding
             @param The buffer to write to
             @param The register type
-            @returns The number of bytes written
+            @return The number of bytes written
         ==============================*/
         
         static u32 debug_rdb_printreg_rle(char* buf, regType reg)
@@ -1677,7 +1677,7 @@ https://github.com/buu342/N64-UNFLoader
             into a number. This exists because strtol is broken
             on ModernSDK.
             @param The string with the hexadecimal number
-            @returns The converted value
+            @return The converted value
         ==============================*/
         
         static u64 hex2u64(char* addr)
@@ -1762,7 +1762,7 @@ https://github.com/buu342/N64-UNFLoader
             debug_rdb_translateaddr
             Translates an address from GDB into a valid value
             @param   The address that we received
-            @returns The corrected address
+            @return The corrected address
         ==============================*/
 
         static u32 debug_rdb_translateaddr(u32 addr)
