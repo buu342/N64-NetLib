@@ -6,24 +6,30 @@ import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
-
 import N64.N64ROM;
 import N64.N64Server;
 import NetLib.S64Packet;
 
 public class MasterServer {
     
+	// Constants
     private static final int TIME_KEEPSERVERS = 1000*60*10;
     private static final int DEFAULTPORT = 6464;
     
-    private static int port = DEFAULTPORT;
+    // Database
     private static ConcurrentHashMap<String, N64ROM> romtable = new ConcurrentHashMap<>();
     private static ConcurrentHashMap<String, N64Server> servertable = new ConcurrentHashMap<>();
     private static Hashtable<String, ClientConnectionThread> connectiontable = new Hashtable<>();
 
+    // Default globals
+    private static int port = DEFAULTPORT;
     private static String romdir = "roms/";
     
-    public static void main(String args[]) throws IOException {
+    /**
+     * Program entrypoint
+     * @param args  A list of arguments passed to the program
+     */
+    public static void main(String args[])  {
         byte[] data = new byte[S64Packet.PACKET_MAXSIZE];
         DatagramSocket ds = null;
         
@@ -93,6 +99,10 @@ public class MasterServer {
         }
     }
     
+    /**
+     * Parse command line arguments passed to the program
+     * @param args  A list of arguments passed to the program
+     */
     private static void ReadArguments(String args[]) {
         for (int i=0; i<args.length; i++) {
             switch (args[i]) {
@@ -120,6 +130,9 @@ public class MasterServer {
         }
     }
     
+    /**
+     * Show the help text
+     */
     private static void ShowHelp() {
         System.out.println("Program arguments:");
         System.out.println("    -help\t\tDisplay this");
@@ -127,6 +140,9 @@ public class MasterServer {
         System.out.println("    -dir <Path/To/Dir>\tROM Directory (default 'roms')");
     }
     
+    /**
+     * Read the ROMs folder
+     */
     private static void ReadROMs() {
         File[] files;
         File folder = new File(romdir + "/");
@@ -151,6 +167,10 @@ public class MasterServer {
         System.out.println("Done parsing ROMs folder. "+romtable.size()+" ROMs found.");
     }
     
+    /**
+     * Finds a ROM with a given name and puts it in our ROM table
+     * @param name  The name of the ROM
+     */
     public static void FindROMWithName(String name) {
         File file = new File(romdir + "/" + name);
         if (file.exists()) {
