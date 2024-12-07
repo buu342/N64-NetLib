@@ -2,19 +2,54 @@
 #include "netlib.h"
 #include "usb.h"
 
-#define NETLIB_VERSION      1
-#define PACKET_HEADERSIZE   18
-#define DATATYPE_NETPACKET  0x27
 
+/*********************************
+           Definitions
+*********************************/
+
+// The version of the NetLib packet supported by this library
+#define NETLIB_VERSION      1
+
+// The size of the NetLib packet header (AKA the minimum size of a packet)
+#define PACKET_HEADERSIZE   18
+
+// The datatype to use for UNFLoader
+#define DATATYPE_NETPACKET  0x27
+    
+    
+/*********************************
+             Globals
+*********************************/
+
+// Write buffers
 static volatile size_t global_writecursize;
 static volatile byte   global_writebuffer[MAX_PACKETSIZE];
+
+// Client info
 static volatile ClientNumber global_clnumber;
+
+// Library state
 static vu8  global_polling;
 static vu8  global_sendafterpoll;
 static vu8  global_disconnected;
+
+// Callback functions
 static void (*global_funcptr_disconnect)();
 static void (*global_funcptr_reconnect)();
 static void (*global_funcptrs[MAX_UNIQUEPACKETS])(size_t) = {0};
+
+
+/*********************************
+         Helper Functions
+*********************************/
+
+/*==============================
+    memcpy_v
+    memcpy, but for volatile values
+    @param The destination buffer
+    @param The source buffer
+    @param The number of bytes to copy
+==============================*/
 
 static volatile void* memcpy_v(volatile void* dest, const volatile void* src, size_t n)
 {
@@ -27,6 +62,18 @@ static volatile void* memcpy_v(volatile void* dest, const volatile void* src, si
     }
     return dest;
 }
+    
+    
+/*********************************
+        Initialization and
+      Configuration Functions
+*********************************/
+
+/*==============================
+    netlib_initialize
+    Initializes the NetLib library.
+    Also initializes the USB library internally
+==============================*/
 
 void netlib_initialize()
 {
@@ -47,25 +94,62 @@ void netlib_initialize()
     global_funcptr_reconnect = NULL;
 }
 
+
+/*==============================
+    netlib_setclient
+    Sets our own client number
+    @param Our client number
+==============================*/
+
 void netlib_setclient(ClientNumber num)
 {
     global_clnumber = num;
 }
 
+/*==============================
+    netlib_getclient
+    Gets our own client number
+    @return Our client number
+==============================*/
+
 ClientNumber netlib_getclient()
 {
     return global_clnumber;
 }
+
+/*==============================
+    netlib_callback_disconnect
+    Set the callback function for when we disconnect
+    @param A pointer to function to call when we disconnect
+==============================*/
     
 void netlib_callback_disconnect(void (*callback)())
 {
     global_funcptr_disconnect = callback;
 }
 
+/*==============================
+    netlib_callback_reconnect
+    Set the callback function for when we reconnect
+    @param A pointer to function to call when we reconnect
+==============================*/
+
 void netlib_callback_reconnect(void (*callback)())
 {
     global_funcptr_reconnect = callback;
 }
+    
+    
+/*********************************
+     N64 -> Network Functions
+*********************************/
+
+/*==============================
+    netlib_start
+    Begins a new net packet. If another net packet is already
+    started and hasn't been sent yet, it will be discarded.
+    @param The type of the packet
+==============================*/
 
 void netlib_start(NetPacket type)
 {
@@ -73,6 +157,13 @@ void netlib_start(NetPacket type)
     global_writebuffer[5] = (byte)0; // Flags
     global_writecursize = PACKET_HEADERSIZE;
 }
+
+
+/*==============================
+    netlib_writebyte
+    Appends a byte to the current net packet
+    @param The byte to append to the packet
+==============================*/
 
 void netlib_writebyte(uint8_t data)
 {
@@ -88,6 +179,13 @@ void netlib_writebyte(uint8_t data)
     global_writebuffer[global_writecursize++] = (byte)data;
 }
 
+
+/*==============================
+    netlib_writeword
+    Appends a word to the current net packet
+    @param The word to append to the packet
+==============================*/
+
 void netlib_writeword(uint16_t data)
 {
     #if SAFETYCHECKS
@@ -102,6 +200,13 @@ void netlib_writeword(uint16_t data)
     global_writebuffer[global_writecursize++] = (data >> 8) & 0xFF;
     global_writebuffer[global_writecursize++] = data & 0xFF;
 }
+
+
+/*==============================
+    netlib_writedword
+    Appends a double word to the current net packet
+    @param The double word to append to the packet
+==============================*/
 
 void netlib_writedword(uint32_t data)
 {
@@ -120,6 +225,13 @@ void netlib_writedword(uint32_t data)
     global_writebuffer[global_writecursize++] = data & 0xFF;
 }
 
+
+/*==============================
+    netlib_writefloat
+    Appends a float to the current net packet
+    @param The float to append to the packet
+==============================*/
+
 void netlib_writefloat(float data)
 {
     #if SAFETYCHECKS
@@ -134,6 +246,13 @@ void netlib_writefloat(float data)
     memcpy_v(&global_writebuffer[global_writecursize], &data, sizeof(float));
     global_writecursize += sizeof(float);
 }
+
+
+/*==============================
+    netlib_writedouble
+    Appends a double to the current net packet
+    @param The double to append to the packet
+==============================*/
 
 void netlib_writedouble(double data)
 {
@@ -150,6 +269,14 @@ void netlib_writedouble(double data)
     global_writecursize += sizeof(double);
 }
 
+
+/*==============================
+    netlib_writebytes
+    Appends a set of bytes to the current net packet
+    @param The data to append to the packet
+    @param The size of said data
+==============================*/
+
 void netlib_writebytes(byte* data, size_t size)
 {
     #if SAFETYCHECKS
@@ -165,10 +292,22 @@ void netlib_writebytes(byte* data, size_t size)
     global_writecursize += size;
 }
 
+
+/*==============================
+    netlib_setflags
+    Set the flag(s) of this packet
+    @param The flag(s) to set
+==============================*/
+
 void netlib_setflags(PacketFlag flags)
 {
     global_writebuffer[5] = flags;
 }
+
+/*==============================
+    netlib_broadcast
+    Sends the current net packet to all connected players
+==============================*/
 
 void netlib_broadcast()
 {
@@ -186,6 +325,13 @@ void netlib_broadcast()
         global_sendafterpoll = TRUE;
 }
 
+
+/*==============================
+    netlib_send
+    Sends the current net packet to a single player
+    @param The player to send the packet to
+==============================*/
+
 void netlib_send(ClientNumber client)
 {
     u32 mask = 1 << client;
@@ -202,6 +348,12 @@ void netlib_send(ClientNumber client)
         global_sendafterpoll = TRUE;
 }
 
+
+/*==============================
+    netlib_sendtoserver
+    Sends the current net packet to the server
+==============================*/
+
 void netlib_sendtoserver()
 {
     u32 mask = 0; // Zero is a server send
@@ -217,11 +369,30 @@ void netlib_sendtoserver()
     else
         global_sendafterpoll = TRUE;
 }
+   
+    
+/*********************************
+     Network -> N64 Functions
+*********************************/
+
+/*==============================
+    netlib_register
+    Registers a callback function to be used to handle
+    packets of a specific type.
+    @param The type of the packet
+    @param A pointer to the callback function to execute
+==============================*/
 
 void netlib_register(NetPacket type, void (*callback)(size_t))
 {
     global_funcptrs[type] = callback;
 }
+
+
+/*==============================
+    netlib_poll
+    Polls the USB for NetLib packets.
+==============================*/
 
 void netlib_poll()
 {
@@ -233,7 +404,7 @@ void netlib_poll()
     
     // Check the USB did not time out from being disconnected
     // If it did (or reconnected), then execute the callback functions
-    if (!global_disconnected && usb_timedout())
+    if (!global_disconnected && (usb_getcart() == CART_NONE || usb_timedout()))
     {
         global_disconnected = TRUE;
         if (global_funcptr_disconnect != NULL)
@@ -302,32 +473,74 @@ void netlib_poll()
     global_polling = FALSE;
 }
 
+
+/*==============================
+    netlib_readbyte
+    Reads a byte from the received net packet
+    @param A pointer to the byte to read into
+==============================*/
+
 void netlib_readbyte(uint8_t* output)
 {
     usb_read(output, sizeof(uint8_t));
 }
+
+
+/*==============================
+    netlib_readword
+    Reads a word from the received net packet
+    @param A pointer to the word to read into
+==============================*/
 
 void netlib_readword(uint16_t* output)
 {
     usb_read(output, sizeof(uint16_t));
 }
 
+
+/*==============================
+    netlib_readdword
+    Reads a double word from the received net packet
+    @param A pointer to the double word to read into
+==============================*/
+
 void netlib_readdword(uint32_t* output)
 {
     usb_read(output, sizeof(uint32_t));
 }
 
+/*==============================
+    netlib_readfloat
+    Reads a float from the received net packet
+    @param A pointer to the float to read into
+==============================*/
+
 void netlib_readfloat(float* output)
 {
     usb_read(output, sizeof(float));
 }
+    
+    
+/*==============================
+    netlib_readdouble
+    Reads a double from the received net packet
+    @param A pointer to the double to read into
+==============================*/
 
 void netlib_readdouble(double* output)
 {
     usb_read(output, sizeof(double));
 }
 
-void netlib_readbytes(byte* output, size_t maxsize)
+
+/*==============================
+    netlib_readbytes
+    Reads a set of bytes from the received net packet
+    @param A pointer to the buffer to read into
+    @param The number of bytes to read into this buffer
+==============================*/
+
+void netlib_readbytes(byte* output, size_t size)
 {
-    usb_read(output, maxsize);
+    usb_read(output, size);
 }
