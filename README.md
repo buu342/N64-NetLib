@@ -1,6 +1,6 @@
-# N64 Networking Library 
+# NetLib Browser
 
-A set of tools and libraries to connect your Nintendo 64 homebrew to the internet for multiplayer.
+A set of tools and libraries to connect your Nintendo 64 homebrew to the internet for multiplayer using your flashcart's USB slot.
 
 This repository is organized as such:
 * `Client App` - This is the clientside app that users will need to find a server, upload the ROM via USB to the N64, and keep tethered for the communication to work.
@@ -8,7 +8,21 @@ This repository is organized as such:
 * `Examples` - Example ROM and server applications that showcase the library in action.
 * `Master Server` - This is the master server application which every server will connect to. This will store a live database of known servers, allowing the clientside app to discover said servers.
 
-### Compilation
+### How to use
+
+**How to play:**
+1. If you haven't used [UNFLoader](https://github.com/buu342/N64-UNFLoader) before, it is recommended you do so to ensure your USB communication is working.
+2. Connect your flashcart to a computer that has an internet connection. 
+3. Put your flashcart in a state where it's ready for USB uploading. 
+4. Open the NetLibBrowser application on your PC.
+5. Find a server (or manually connect to one).
+6. Play on your console.
+
+**How to host a server:**
+Simply launch one of the example servers. Check the [Examples folder](https://github.com/buu342/N64-NetLib/tree/main/Examples) for further READMEs.
+
+**How to develop:**
+Check [the Wiki](https://github.com/buu342/N64-NetLib/wiki).
 
 ### FAQ
 
@@ -22,7 +36,7 @@ This repository is organized as such:
 **A:** In theory, yes. I haven't tried it though, and I haven't designed the browser application for that in mind.
 
 **Q: Can I make this work with X retail game?**</br>
-**A:** If you have the source code for said game, sure. But even then, such a thing would likely require a massive rewrite of the game's engine, as it very likely wasn't designed with networking in mind. In real life, game networking is *much more complex than just "sending a player's controller input over the wire"*. See [this article](https://developer.valvesoftware.com/wiki/Source_Multiplayer_Networking) for more information.
+**A:** If you have the source code for said game, sure. But even then, such a thing would require a massive rewrite of the game's engine, as it very likely wasn't designed with networking in mind. In real life, game networking is *much more complex than just "sending a player's controller input over the wire"*. See [this article](https://developer.valvesoftware.com/wiki/Source_Multiplayer_Networking) for more information.
 
 **Q: How can I get my ROM uploaded to the official master server?**</br>
 **A:** Get in touch! Create a GitHub issue or send me an email.
@@ -36,3 +50,10 @@ This project aims to keep the system extensible (IE anyone can make their own cu
 Of course, I share no responsibility for the use of unofficial Client Apps. 
 
 One minor flaw currently present in the server code is that there is no ban system in place, so there is currently no way to ignore clients who keep unecessarily pinging the server. This is a minor thing (considering how niche of a project this is) and I intend to fix it in the future.
+
+### Credits
+
+* The Java servers use [WaifUPnP](https://github.com/adolfintel/WaifUPnP) for UPnP
+* Huge thanks to Zandronum developers (Specifically robikz and Kaminsky) for answering some questions I had about their implementation
+* Also extending my thanks over to BigBass, networkfusion, s4sy, and Magstriker for helping me test this over the internet
+* Command_tab for squatting the domains used for the master server + samples

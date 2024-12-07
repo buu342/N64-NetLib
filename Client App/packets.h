@@ -6,11 +6,21 @@
 #include <wx/msgqueue.h>
 #include <deque>
 
+
+/******************************
+             Macros
+******************************/
+
 #define S64PACKET_HEADER "S64"
 #define S64PACKET_VERSION 1
 
 #define NETLIBPACKET_HEADER "NLP"
 #define NETLIBPACKET_VERSION 1
+
+
+/******************************
+             Types
+******************************/
 
 typedef enum {
     FLAG_UNRELIABLE  = 0x01,
@@ -22,6 +32,12 @@ class AbstractPacket;
 class S64Packet;
 class NetLibPacket;
 
+
+/*********************************
+             Classes
+*********************************/
+
+// Main UDP Handler class
 class UDPHandler
 {
     private:
@@ -51,6 +67,8 @@ class UDPHandler
         void ResendMissingPackets();
 };
 
+// An abstract packet class to reduce code repetition
+// Do not use directly
 class AbstractPacket
 {
     private:
@@ -118,7 +136,7 @@ class S64Packet : public AbstractPacket
         wxString AsString();
 };
 
-// Netlib packet
+// NetLib packet for N64 games
 class NetLibPacket : public AbstractPacket
 {
     private:
@@ -144,6 +162,7 @@ class NetLibPacket : public AbstractPacket
         wxString AsString();
 };
 
+// Exception thrown by the UDPHandler
 class ClientTimeoutException : public std::exception
 {
     private:

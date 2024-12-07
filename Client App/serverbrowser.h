@@ -30,8 +30,18 @@ typedef struct IUnknown IUnknown;
 #include "packets.h"
 #include "romdownloader.h"
 
+
+/******************************
+             Macros
+******************************/
+
 #define DEFAULT_MASTERSERVER_ADDRESS "localhost"
 #define DEFAULT_MASTERSERVER_PORT    6464
+
+
+/******************************
+             Types
+******************************/
 
 typedef struct
 {
@@ -56,6 +66,11 @@ typedef struct
 } FileDownload;
 
 class ServerFinderThread;
+
+
+/*********************************
+             Classes
+*********************************/
 
 class ServerBrowser : public wxFrame
 {

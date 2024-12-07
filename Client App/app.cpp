@@ -14,6 +14,11 @@ This file handles the wxWidgets initialization.
 
 wxIMPLEMENT_APP(App);
 
+
+/******************************
+            Globals
+******************************/
+
 wxBitmap icon_refresh = wxNullBitmap;
 
 
@@ -42,15 +47,16 @@ App::~App()
 /*==============================
     App::OnInit
     Called when the application is initialized
-    @returns Whether the application initialized correctly
+    @return Whether the application initialized correctly
 ==============================*/
 
 bool App::OnInit()
 {
-    wxString cfgname = "config.cfg";
     wxString cfgpath;
     wxFileConfig* cfgfile;
+    const wxString cfgname = "config.cfg";
 
+    // Ensure the window loaded properly
     if (!wxApp::OnInit())
         return false;
 
@@ -65,7 +71,6 @@ bool App::OnInit()
         wxDir::Make(cfgpath, wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL);
     cfgfile = new wxFileConfig(wxEmptyString, wxEmptyString, cfgpath + cfgname);
     wxConfigBase::Set(cfgfile);
-    printf("%s\n", static_cast<const char*>(cfgpath.c_str()));
 
     // Create icons
     icon_refresh = wxBITMAP_PNG_FROM_DATA(icon_refresh);

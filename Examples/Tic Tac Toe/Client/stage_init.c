@@ -27,7 +27,7 @@ void stage_init_init(void)
     text_setfont(&font_default);
     text_setalign(ALIGN_CENTER);
     text_setcolor(255, 255, 255, 255);
-    text_create("Waiting for Server...", SCREEN_WD/2, SCREEN_HT/2 - 64);
+    text_create("Connecting to Server...", SCREEN_WD/2, SCREEN_HT/2 - 64);
     text_setfont(&font_small);
     text_create("Ensure the USB is connected", SCREEN_WD/2, SCREEN_HT/2 + 16);
     text_create("and the client is running", SCREEN_WD/2, SCREEN_HT/2 + 32);

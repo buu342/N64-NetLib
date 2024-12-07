@@ -20,19 +20,29 @@ typedef struct IUnknown IUnknown;
 #include <wx/dialog.h>
 #include <wx/socket.h>
 
+
+/******************************
+             Types
+******************************/
+
 class ROMDownloadThread;
+
+
+/*********************************
+             Classes
+*********************************/
 
 class ROMDownloadWindow : public wxDialog
 {
     private:
-
-    protected:
         wxFlexGridSizer* m_Sizer_Main;
         wxStaticText* m_Text_Download;
         wxGauge* m_Gauge_Download;
         wxButton* m_Button_Cancel;
 
         void ThreadEvent(wxThreadEvent& event);
+
+    protected:
 
     public:
         ROMDownloadWindow(wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxEmptyString, const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxDefaultSize, long style = wxDEFAULT_DIALOG_STYLE);

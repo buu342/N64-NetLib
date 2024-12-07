@@ -10,6 +10,9 @@ Room that shows you have been disconnected from the game
 #include "packets.h"
 #include "helper.h"
 #include "text.h"
+#include "stages.h"
+
+static NUContData global_contdata;
 
 
 /*==============================
@@ -22,7 +25,8 @@ void stage_disconnected_init(void)
     text_setfont(&font_default);
     text_setalign(ALIGN_CENTER);
     text_setcolor(255, 255, 255, 255);
-    text_create("You have been\ndisconnected", SCREEN_WD/2, SCREEN_HT/2 - 64);
+    text_create("You have been\ndisconnected", SCREEN_WD/2, SCREEN_HT/2+16);
+    text_create("Press A to retry", SCREEN_WD/2, SCREEN_HT/2 - 32);
 }
 
 
@@ -33,7 +37,10 @@ void stage_disconnected_init(void)
 
 void stage_disconnected_update(void)
 {
-    // Nothing to do
+    nuContDataGetEx(&global_contdata, 0);
+    
+    if (global_contdata.button & A_BUTTON)
+        stages_changeto(STAGE_INIT);
 }
 
 

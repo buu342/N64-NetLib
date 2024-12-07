@@ -233,7 +233,7 @@ void netlib_poll()
     
     // Check the USB did not time out from being disconnected
     // If it did (or reconnected), then execute the callback functions
-    if (!global_disconnected && usb_timedout())
+    if (!global_disconnected && (usb_getcart() == CART_NONE || usb_timedout()))
     {
         global_disconnected = TRUE;
         if (global_funcptr_disconnect != NULL)

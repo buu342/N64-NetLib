@@ -24,6 +24,11 @@ typedef struct IUnknown IUnknown;
 #include <stdint.h>
 #include "packets.h"
 
+
+/******************************
+             Types
+******************************/
+
 typedef enum {
     CLSTATUS_STARTED = 0,
     CLSTATUS_FOUNDCART,
@@ -38,11 +43,14 @@ class DeviceThread;
 class ServerConnectionThread;
 class UploadThread;
 
+
+/*********************************
+             Classes
+*********************************/
+
 class ClientWindow : public wxFrame
 {
     private:
-
-    protected:
         wxDatagramSocket* m_Socket;
         wxString m_ServerAddress;
         int m_ServerPort;
@@ -56,11 +64,11 @@ class ClientWindow : public wxFrame
         wxString m_ROMPath;
         DeviceThread* m_DeviceThread;
         ClientDeviceStatus m_DeviceStatus;
-        wxCriticalSection m_DeviceThreadCS;
         ServerConnectionThread* m_ServerThread;
-        wxCriticalSection m_ServerThreadCS;
 
         void ThreadEvent(wxThreadEvent& event);
+
+    protected:
 
     public:
         ClientWindow( wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxEmptyString, const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 640,480 ), long style = wxDEFAULT_FRAME_STYLE|wxTAB_TRAVERSAL );

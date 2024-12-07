@@ -4,6 +4,11 @@ typedef struct IUnknown IUnknown;
 
 #include <wx/dataview.h>
 
+
+/*********************************
+             Classes
+*********************************/
+
 class CustomDataView : public wxDataViewListCtrl
 {
     public:
