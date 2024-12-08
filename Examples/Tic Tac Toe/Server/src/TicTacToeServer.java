@@ -10,9 +10,7 @@ import java.security.MessageDigest;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.Map.Entry;
-
 import com.dosse.upnp.UPnP;
-
 import NetLib.S64Packet;
 
 public class TicTacToeServer {

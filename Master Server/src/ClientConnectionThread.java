@@ -170,10 +170,19 @@ public class ClientConnectionThread extends Thread {
      * Handle a S64Packet with the type "HEARTBEAT"
      * This packet is sent by servers to show they are still alive
      */
-    private void HandleServerHeartbeat() {
-        N64Server server =  this.servers.get(this.handler.GetAddress() + ":" + this.handler.GetPort());
-        if (server != null)
+    private void HandleServerHeartbeat() throws ClientTimeoutException, IOException {
+    	String addrport = this.handler.GetAddress() + ":" + this.handler.GetPort();
+        N64Server server =  this.servers.get(addrport);
+        
+        // If the server exists, update the last interaction time
+        if (server != null) {
             server.UpdateLastInteractionTime();
+        	return;
+        }
+        
+        // Otherwise, send a register command so that the server knows it needs to re-register
+        this.handler.SendPacket(new S64Packet("REGISTER", null, PacketFlag.FLAG_UNRELIABLE.GetInt()));
+        System.out.println("Client " + addrport + " sent a heartbeat, but isn't registered.");
     }
     
     /**

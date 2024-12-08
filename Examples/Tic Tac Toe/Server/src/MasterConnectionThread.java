@@ -1,6 +1,6 @@
+import java.io.IOException;
 import java.net.DatagramSocket;
 import java.util.concurrent.ConcurrentLinkedQueue;
-
 import NetLib.ClientTimeoutException;
 import NetLib.PacketFlag;
 import NetLib.S64Packet;
@@ -50,61 +50,81 @@ public class MasterConnectionThread extends Thread {
     public void run() {
         Thread.currentThread().setName("Master Server Connection");
         this.handler = new UDPHandler(this.socket, this.address, this.port);
-        
-        // Send the register packet to the master server
-        try {
-            this.handler.SendPacket(new S64Packet("REGISTER", TicTacToeServer.ToByteArray_Master(), PacketFlag.FLAG_EXPLICITACK.GetInt()));
-            while (true) {
-                S64Packet pkt;
-                byte[] reply = null;
-                
-                // Keep sending until we got an ACK from the master server
-                while (reply == null) {
-                    Thread.sleep(UDPHandler.TIME_RESEND);
-                    reply = this.msgqueue.poll();
-                    if (reply == null)
-                        this.handler.ResendMissingPackets();
-                }
-                pkt = this.handler.ReadS64Packet(reply);
-                if (pkt == null)
-                    continue;
-                if (pkt.GetType().equals("ACK"))
-                    break;
-            }
-            System.out.println("Register successful.");
-        } catch (Exception e) {
-            System.err.println("Unable to register to master server -> " + e);
-            return;
-        }
+        boolean firsttime = true;
         
         // Send heartbeat packets every 5 minutes
         while (true) {
             try {
-                Thread.sleep(TIME_HEARTBEAT);
-                this.handler.SendPacket(new S64Packet("HEARTBEAT", TicTacToeServer.ToByteArray_Master(), PacketFlag.FLAG_EXPLICITACK.GetInt()));
-                while (true) {
-                    S64Packet pkt;
-                    byte[] reply = null;
-                    
-                    // Keep sending until we got an ACK from the master server
-                    while (reply == null) {
-                        Thread.sleep(UDPHandler.TIME_RESEND);
-                        reply = this.msgqueue.poll();
-                        if (reply == null)
-                            this.handler.ResendMissingPackets();
+                byte[] reply = null;
+                reply = this.msgqueue.poll();
+                
+                // Send a register packet if this is the first time, or if the master server asked us to
+                if (firsttime || reply != null) {
+                    try {
+                    	boolean doregister = true;
+                    	
+                    	// If we received a packet from the master server, check it's a register packet
+                    	if (!firsttime && reply != null) {
+                    		S64Packet pkt = this.handler.ReadS64Packet(reply);
+                    		if (!pkt.GetType().equals("REGISTER"))
+                    			doregister = false;
+                    	}
+                    	
+                    	// Do the register
+                    	if (doregister)
+                    	{
+                    		this.handler.SendPacket(new S64Packet("REGISTER", TicTacToeServer.ToByteArray_Master(), PacketFlag.FLAG_EXPLICITACK.GetInt()));
+                        	this.WaitAck();
+                            System.out.println("Register successful.");
+                    	}
+                    } catch (Exception e) {
+                        System.err.println("Unable to register to master server -> " + e);
+                        if (firsttime)
+                        	return;
                     }
-                    pkt = this.handler.ReadS64Packet(reply);
-                    if (pkt == null)
-                        continue;
-                    if (pkt.GetType().equals("ACK"))
-                        break;
+                    firsttime = false;
                 }
+                
+
+                // Sleep a bit since we only need to heartbeat every X minutes
+                Thread.sleep(TIME_HEARTBEAT);
+                
+                // Send the heartbeat
+                this.handler.SendPacket(new S64Packet("HEARTBEAT", TicTacToeServer.ToByteArray_Master(), PacketFlag.FLAG_EXPLICITACK.GetInt()));
+                this.WaitAck();
+                
             } catch (ClientTimeoutException e) {
                 System.err.println("Master server did not respond to heartbeat.");
-                break;
+                
             } catch (Exception e) {
                 e.printStackTrace();
             }
+        }
+    }
+    
+    /**
+     * Wait for an acknowledgement packet from the master server
+     * @throws ClientTimeoutException     If the packet is sent MAX_RESEND times without an acknowledgement
+     * @throws IOException                If an I/O error occurs
+     * @throws InterruptedException       If this function is interrupted during sleep
+     */
+    private void WaitAck() throws InterruptedException, IOException, ClientTimeoutException {
+    	while (true) {
+            S64Packet pkt;
+            byte[] reply = null;
+            
+            // Keep sending until we got an ACK from the master server
+            while (reply == null) {
+                Thread.sleep(UDPHandler.TIME_RESEND);
+                reply = this.msgqueue.poll();
+                if (reply == null)
+                    this.handler.ResendMissingPackets();
+            }
+            pkt = this.handler.ReadS64Packet(reply);
+            if (pkt == null)
+                continue;
+            if (pkt.GetType().equals("ACK"))
+                break;
         }
     }
 }
