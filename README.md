@@ -33,6 +33,9 @@ Check [the Wiki](https://github.com/buu342/N64-NetLib/wiki).
 **Q: What flashcarts are supported?**</br>
 **A:** [Whatever flashcarts UNFLoader supports](https://github.com/buu342/N64-UNFLoader?tab=readme-ov-file#unfloader), as this project uses UNFLoader's libraries for USB communication.
 
+**Q: Does this work with Morita Shogi 64 or the 64DD Modem cartridge?**</br>
+**A:** I do not own these devices, so I have no way to write support for them. 
+
 **Q: Do I need to register my server with the master server in order for friends to join?**</br>
 **A:** Nope. You can manually connect to known server addresses in the browser application. You will need to have the ROM that the server is using in order to be able to join it, however.
 

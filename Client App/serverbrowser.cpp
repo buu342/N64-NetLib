@@ -394,14 +394,14 @@ void ServerBrowser::m_DataViewListCtrl_Servers_OnMotion(wxMouseEvent& event)
             if (wxFileExists(rompath))
             {
                 if (is_samerom(romname, romhash))
-                    this->m_DataViewListCtrl_Servers->SetToolTip("You have this ROM!");
+                    this->m_DataViewListCtrl_Servers->SetToolTip("You have this ROM!\n"+romhash);
                 else
-                    this->m_DataViewListCtrl_Servers->SetToolTip("Your ROM differs from the server.");
+                    this->m_DataViewListCtrl_Servers->SetToolTip("Your ROM differs from the server.\n" + romhash);
             }
             else if (!romavailable)
-                this->m_DataViewListCtrl_Servers->SetToolTip("This ROM is not available for download.");
+                this->m_DataViewListCtrl_Servers->SetToolTip("This ROM is not available for download.\n" + romhash);
             else
-                this->m_DataViewListCtrl_Servers->SetToolTip("This ROM is available for download from the master server.");
+                this->m_DataViewListCtrl_Servers->SetToolTip("This ROM is available for download from the master server.\n" + romhash);
             
         }
     }
