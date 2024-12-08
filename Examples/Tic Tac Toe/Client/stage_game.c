@@ -489,7 +489,7 @@ static void refresh_gametext()
         
     // Small text
     text_setfont(&font_small);
-    if (global_gamestate == GAMESTATE_PLAYING && global_forcedboard != 0)
+    if (global_playerturn != 0 && global_gamestate == GAMESTATE_PLAYING && global_forcedboard != 0)
         text_create("Forced to play in highlighted board", SCREEN_WD/2, SCREEN_HT/2 + 64 + 24);
     else if (global_gamestate == GAMESTATE_ENDED_DISCONNECT)
         text_create("Player disconnected", SCREEN_WD/2, SCREEN_HT/2 + 64 + 24);

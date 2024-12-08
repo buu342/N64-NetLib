@@ -1,5 +1,5 @@
 @echo off
-echo Compiling Sausage64
+echo Compiling Ultimate Tic Tac Toe Client
 
 
 :Setup
