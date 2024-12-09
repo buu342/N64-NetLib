@@ -203,7 +203,7 @@ void ClientWindow::StartThread_Device(bool startnow)
 
 void ClientWindow::StartThread_Server(bool startnow)
 {
-    if (this->m_ServerThread == NULL)
+    if (startnow && this->m_ServerThread == NULL)
     {
         this->m_ServerThread = new ServerConnectionThread(this);
         if (this->m_ServerThread->Run() != wxTHREAD_NO_ERROR)
@@ -275,7 +275,7 @@ void ClientWindow::m_Button_Send_OnButtonClick(wxCommandEvent& event)
         this->StartThread_Device(false);
     }
     else if (this->m_Button_Send->GetLabel() == "Cancel")
-        this->StopThread_Device(false);
+        global_msgqueue_usbthread_input.Post(TEVENT_CANCELLOAD);
 
     // Unused parameter
     (void)event;
@@ -607,20 +607,18 @@ void* DeviceThread::Entry()
                 this->SetUploadProgress(device_getuploadprogress());
             }
 
+            // Take a small break;
+            wxMilliSleep(10);
+
             // Check for a thread kill request
-            if (TestDestroy())
+            if (TestDestroy() || this->HandleMainInput())
             {
-                this->m_UploadThread->Delete();
+                device_cancelupload();
+                wxMilliSleep(500);
                 this->SetClientDeviceStatus(CLSTATUS_UPLOADDONE);
                 this->WriteConsoleError("\nUpload interrupted.\n");
                 return NULL;
             }
-
-            // Take a small break;
-            wxMilliSleep(10);
-
-            // Check for input messages from the main thread
-            this->HandleMainInput();
         }
         this->SetClientDeviceStatus(CLSTATUS_UPLOADDONE);
 
@@ -697,9 +695,10 @@ void* DeviceThread::Entry()
 /*==============================
     DeviceThread::HandleMainInput
     Handle input from the main thread
+    @return Whether to stop the thread
 ==============================*/
 
-void DeviceThread::HandleMainInput()
+bool DeviceThread::HandleMainInput()
 {
     ThreadEventType usrinput;
     while (global_msgqueue_usbthread_input.ReceiveTimeout(0, usrinput) == wxMSGQUEUE_NO_ERROR)
@@ -710,13 +709,12 @@ void DeviceThread::HandleMainInput()
                 this->m_Window = NULL;
                 break;
             case TEVENT_CANCELLOAD:
-                device_cancelupload();
-                this->SetClientDeviceStatus(CLSTATUS_UPLOADDONE);
-                break;
+                return true;
             default:
                 break;
         }
     }
+    return false;
 }
 
 
