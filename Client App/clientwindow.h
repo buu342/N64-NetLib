@@ -67,8 +67,8 @@ class ClientWindow : public wxFrame
         ServerConnectionThread* m_ServerThread;
 
         void ThreadEvent(wxThreadEvent& event);
-        void StartThread_Device(bool startnow);
-        void StartThread_Server(bool startnow);
+        void StartThread_Device();
+        void StartThread_Server();
         void StopThread_Device(bool nullwindow);
         void StopThread_Server(bool nullwindow);
         void SetClientDeviceStatus(ClientDeviceStatus status);
@@ -82,12 +82,12 @@ class ClientWindow : public wxFrame
         void m_Button_Reconnect_OnButtonClick(wxCommandEvent& event);
 
         void BeginWorking();
+        void LoadROM();
         void SetROM(wxString rom);
         void SetSocket(wxDatagramSocket* socket);
         void SetAddress(wxString addr);
         void SetPortNumber(int port);
         wxDatagramSocket* GetSocket();
-        wxString GetROM();
         wxString GetAddress();
         int GetPort();
 };
@@ -99,7 +99,7 @@ class DeviceThread : public wxThread
         UploadThread* m_UploadThread;
         bool m_FirstPrint;
 
-        bool HandleMainInput();
+        bool HandleMainInput(wxString* rompath);
         void ParseUSB_TextPacket(uint8_t* buff, uint32_t size);
         void ParseUSB_NetLibPacket(uint8_t* buff);
         void ParseUSB_HeartbeatPacket(uint8_t* buff, uint32_t size);

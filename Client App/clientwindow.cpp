@@ -40,9 +40,14 @@ typedef enum {
 
     // User Input events
     TEVENT_PROGEND,
-    TEVENT_LOADFAIL,
+    TEVENT_LOADROM,
     TEVENT_CANCELLOAD,
 } ThreadEventType;
+
+typedef struct {
+    ThreadEventType type;
+    char* data;
+} InputMessage;
 
 
 /******************************
@@ -51,8 +56,8 @@ typedef enum {
 
 static wxMessageQueue<NetLibPacket*> global_msgqueue_usbthread_pkt;
 static wxMessageQueue<NetLibPacket*> global_msgqueue_serverthread_pkt;
-static wxMessageQueue<ThreadEventType> global_msgqueue_usbthread_input;
-static wxMessageQueue<ThreadEventType> global_msgqueue_serverthread_input;
+static wxMessageQueue<InputMessage*> global_msgqueue_usbthread_input;
+static wxMessageQueue<InputMessage*> global_msgqueue_serverthread_input;
 
 
 /*=============================================================
@@ -162,20 +167,34 @@ ClientWindow::~ClientWindow()
 
 void ClientWindow::BeginWorking()
 {
-    this->StartThread_Device(true);
-    this->StartThread_Server(true);
+    this->StartThread_Device();
+    this->StartThread_Server();
+    this->LoadROM();
+}
+
+
+/*==============================
+    ClientWindow::LoadROM
+    Sends the USB thread a ROM load message
+==============================*/
+
+void ClientWindow::LoadROM()
+{
+    InputMessage* usrinput = new InputMessage{TEVENT_LOADROM, NULL};
+    usrinput->data = (char*)malloc(this->m_ROMPath.Length()+1);
+    strcpy(usrinput->data, this->m_ROMPath.mb_str());
+    global_msgqueue_usbthread_input.Post(usrinput);
 }
 
 
 /*==============================
     ClientWindow::StartThread_Device
     Starts the USB device thread
-    @param Whether to start the thread right now (if possible)
 ==============================*/
 
-void ClientWindow::StartThread_Device(bool startnow)
+void ClientWindow::StartThread_Device()
 {
-    if (startnow && this->m_DeviceThread == NULL)
+    if (this->m_DeviceThread == NULL)
     {
         this->m_DeviceThread = new DeviceThread(this);
         if (this->m_DeviceThread->Run() != wxTHREAD_NO_ERROR)
@@ -184,26 +203,17 @@ void ClientWindow::StartThread_Device(bool startnow)
             this->m_DeviceThread = NULL;
         }
     }
-    else
-    {
-        wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
-        evt.SetInt(TEVENT_START_DEVICE);
-        if (this->m_DeviceThread != NULL)
-            wxMilliSleep(100);
-        wxQueueEvent(this, evt.Clone());
-    }
 }
 
 
 /*==============================
     ClientWindow::StartThread_Server
     Starts the server socket thread
-    @param Whether to start the thread right now (if possible)
 ==============================*/
 
-void ClientWindow::StartThread_Server(bool startnow)
+void ClientWindow::StartThread_Server()
 {
-    if (startnow && this->m_ServerThread == NULL)
+    if (this->m_ServerThread == NULL && this->GetAddress() != "")
     {
         this->m_ServerThread = new ServerConnectionThread(this);
         if (this->m_ServerThread->Run() != wxTHREAD_NO_ERROR)
@@ -213,14 +223,6 @@ void ClientWindow::StartThread_Server(bool startnow)
         }
         else
             this->m_Button_Reconnect->Disable();
-    }
-    else
-    {
-        wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
-        evt.SetInt(TEVENT_START_SERVER);
-        if (this->m_ServerThread != NULL)
-            wxMilliSleep(100);
-        wxQueueEvent(this, evt.Clone());
     }
 }
 
@@ -237,7 +239,7 @@ void ClientWindow::StopThread_Device(bool nullwindow)
     if (this->m_DeviceThread != NULL)
     {
         if (nullwindow)
-            global_msgqueue_usbthread_input.Post(TEVENT_PROGEND);
+            global_msgqueue_usbthread_input.Post(new InputMessage{TEVENT_PROGEND, NULL});
         this->m_DeviceThread->Delete();
     }
 }
@@ -255,7 +257,7 @@ void ClientWindow::StopThread_Server(bool nullwindow)
     if (this->m_ServerThread != NULL)
     {
         if (nullwindow)
-            global_msgqueue_serverthread_input.Post(TEVENT_PROGEND);
+            global_msgqueue_serverthread_input.Post(new InputMessage{TEVENT_PROGEND, NULL});
         this->m_ServerThread->Delete();
     }
 }
@@ -269,13 +271,19 @@ void ClientWindow::StopThread_Server(bool nullwindow)
 
 void ClientWindow::m_Button_Send_OnButtonClick(wxCommandEvent& event)
 {
-    if (this->m_Button_Send->GetLabel() == "Reupload")
+    // Start the device thread if it's dead for some reason
+    this->StartThread_Device();
+
+    // Handle the input
+    switch (this->m_DeviceStatus)
     {
-        this->StopThread_Device(false);
-        this->StartThread_Device(false);
+        case CLSTATUS_UPLOADING:
+            global_msgqueue_usbthread_input.Post(new InputMessage{TEVENT_CANCELLOAD, NULL});
+            break;
+        case CLSTATUS_UPLOADDONE:
+            this->LoadROM();
+            break;
     }
-    else if (this->m_Button_Send->GetLabel() == "Cancel")
-        global_msgqueue_usbthread_input.Post(TEVENT_CANCELLOAD);
 
     // Unused parameter
     (void)event;
@@ -290,7 +298,7 @@ void ClientWindow::m_Button_Send_OnButtonClick(wxCommandEvent& event)
 
 void ClientWindow::m_Button_Reconnect_OnButtonClick(wxCommandEvent& event)
 {
-    this->StartThread_Server(false);
+    this->StartThread_Server();
 
     // Unused parameter
     (void)event;
@@ -364,16 +372,8 @@ void ClientWindow::ThreadEvent(wxThreadEvent& event)
                 int prog = event.GetExtraLong();
                 this->m_Gauge_Upload->SetValue(prog);
             }
-            break;
-        case TEVENT_START_DEVICE:
-            this->StartThread_Device(this->m_DeviceThread == NULL);
-            break;
-        case TEVENT_DEATH_DEVICE:
+            break;        case TEVENT_DEATH_DEVICE:
             this->m_DeviceThread = NULL;
-            break;
-        case TEVENT_START_SERVER:
-            if (this->GetAddress() != "")
-                this->StartThread_Server(this->m_DeviceThread == NULL);
             break;
         case TEVENT_DEATH_SERVER:
             this->m_ServerThread = NULL;
@@ -452,18 +452,6 @@ void ClientWindow::SetPortNumber(int port)
 
 
 /*==============================
-    ClientWindow::GetROM
-    Retreives the path to the ROM to upload
-    @return The path to the ROM to upload
-==============================*/
-
-wxString ClientWindow::GetROM()
-{
-    return this->m_ROMPath;
-}
-
-
-/*==============================
     ClientWindow::GetSocket
     Retreives the socket to use for networking
     @return The socket to use
@@ -512,8 +500,8 @@ int ClientWindow::GetPort()
 DeviceThread::DeviceThread(ClientWindow* win)
 {
     this->m_Window = win;
-    this->m_FirstPrint = TRUE;
     this->m_UploadThread = NULL;
+    this->m_FirstPrint = true;
     global_msgqueue_usbthread_pkt.Clear();
     device_initialize();
 }
@@ -540,9 +528,9 @@ DeviceThread::~DeviceThread()
 
 void* DeviceThread::Entry()
 {
+    wxString rompath = "";
     float oldprogress = 0;
     DeviceError deverr = device_find();
-    wxString rompath = this->m_Window->GetROM();
 
     // Search for a cart
     this->WriteConsole("Searching for a valid flashcart\n");
@@ -589,58 +577,58 @@ void* DeviceThread::Entry()
         }
         return NULL;
     }
+    device_setprotocol(USBPROTOCOL_LATEST);
 
-    // Load the ROM if it exists
-    if (rompath != "" && wxFileExists(rompath))
-    {
-        this->WriteConsole("Loading '" + rompath + "' via USB\n");
-        this->SetClientDeviceStatus(CLSTATUS_UPLOADING);
-
-        // Create upload thread and update the status bar as it's uploading
-        this->UploadROM(rompath);
-        while (oldprogress < 100.0f && this->m_Window != NULL)
-        {
-            float curprog = device_getuploadprogress();
-            if (curprog != oldprogress)
-            {
-                oldprogress = curprog;
-                this->SetUploadProgress(device_getuploadprogress());
-            }
-
-            // Take a small break;
-            wxMilliSleep(10);
-
-            // Check for a thread kill request
-            if (TestDestroy() || this->HandleMainInput())
-            {
-                device_cancelupload();
-                wxMilliSleep(500);
-                this->SetClientDeviceStatus(CLSTATUS_UPLOADDONE);
-                this->WriteConsoleError("\nUpload interrupted.\n");
-                return NULL;
-            }
-        }
-        this->SetClientDeviceStatus(CLSTATUS_UPLOADDONE);
-
-        // Finished uploading
-        this->WriteConsole("Finished uploading.\n");
-        if (device_getcart() != CART_EVERDRIVE)
-            this->WriteConsole("You may now boot the console.\n");
-    }
-    else
-    {
-        // If no ROM was uploaded, assume async, and switch to latest protocol
-        device_setprotocol(USBPROTOCOL_LATEST);
-    }
-
-    // Now just read from USB in a loop
-    this->WriteConsole("USB polling begun\n");
+    // Handle USB communication in a loop
     while (!TestDestroy() && device_isopen() && this->m_Window != NULL)
     {
         uint8_t* outbuff = NULL;
         uint32_t dataheader = 0;
 
-        // Ensure there were no errors during the reading process
+        // Handle ROM uploading
+        if (rompath != "")
+        {
+            this->WriteConsole("Loading '" + rompath + "' via USB\n");
+            this->SetClientDeviceStatus(CLSTATUS_UPLOADING);
+
+            // Create upload thread and update the status bar as it's uploading
+            this->UploadROM(rompath);
+            while (oldprogress < 100.0f && this->m_Window != NULL)
+            {
+                float curprog = device_getuploadprogress();
+                if (curprog != oldprogress)
+                {
+                    oldprogress = curprog;
+                    this->SetUploadProgress(device_getuploadprogress());
+                }
+
+                // Take a small break;
+                wxMilliSleep(10);
+
+                // Check for a thread kill request
+                if (TestDestroy() || this->HandleMainInput(&rompath))
+                {
+                    device_cancelupload();
+                    wxMilliSleep(500);
+                    this->WriteConsoleError("\nUpload interrupted.\n");
+                    rompath = "";
+                    this->m_FirstPrint = true;
+                    break;
+                }
+            }
+            this->SetClientDeviceStatus(CLSTATUS_UPLOADDONE);
+
+            // Finished uploading
+            if (rompath != "")
+            {
+                this->WriteConsole("Finished uploading.\n");
+                if (device_getcart() != CART_EVERDRIVE)
+                    this->WriteConsole("You may now boot the console.\n");
+                rompath = "";
+            }
+        }
+
+        // Ensure there were no errors during the USB reading process
         if (device_receivedata(&dataheader, &outbuff) != DEVICEERR_OK)
         {
             this->WriteConsoleError("\nError receiving data from the flashcart.\n");
@@ -656,7 +644,7 @@ void* DeviceThread::Entry()
             // Decide what to do with the data based off the command type
             switch ((int)command)
             {
-                case DATATYPE_TEXT: this->ParseUSB_TextPacket(outbuff, size); break;
+                case DATATYPE_TEXT:      this->ParseUSB_TextPacket(outbuff, size); break;
                 case DATATYPE_NETPACKET: this->ParseUSB_NetLibPacket(outbuff); break;
                 case DATATYPE_HEARTBEAT: this->ParseUSB_HeartbeatPacket(outbuff, size); break;
                 default:
@@ -683,7 +671,7 @@ void* DeviceThread::Entry()
         }
 
         // Check for messages from the main thread
-        this->HandleMainInput();
+        this->HandleMainInput(&rompath);
     }
 
     // Finished
@@ -695,26 +683,34 @@ void* DeviceThread::Entry()
 /*==============================
     DeviceThread::HandleMainInput
     Handle input from the main thread
+    @param  A pointer to the ROM path string
     @return Whether to stop the thread
 ==============================*/
 
-bool DeviceThread::HandleMainInput()
+bool DeviceThread::HandleMainInput(wxString* rompath)
 {
-    ThreadEventType usrinput;
+    bool kill = false;
+    InputMessage* usrinput;
     while (global_msgqueue_usbthread_input.ReceiveTimeout(0, usrinput) == wxMSGQUEUE_NO_ERROR)
     {
-        switch (usrinput)
+        switch (usrinput->type)
         {
             case TEVENT_PROGEND:
                 this->m_Window = NULL;
                 break;
+            case TEVENT_LOADROM:
+                *rompath = wxString(usrinput->data);
+                break;
             case TEVENT_CANCELLOAD:
-                return true;
+                kill = true;
+                break;
             default:
                 break;
         }
+        free(usrinput->data);
+        delete usrinput;
     }
-    return false;
+    return kill;
 }
 
 
@@ -1135,10 +1131,10 @@ void* ServerConnectionThread::Entry()
 
 void ServerConnectionThread::HandleMainInput()
 {
-    ThreadEventType usrinput;
+    InputMessage* usrinput;
     while (global_msgqueue_serverthread_input.ReceiveTimeout(0, usrinput) == wxMSGQUEUE_NO_ERROR)
     {
-        switch (usrinput)
+        switch (usrinput->type)
         {
             case TEVENT_PROGEND:
                 this->m_Window = NULL;
@@ -1146,6 +1142,8 @@ void ServerConnectionThread::HandleMainInput()
             default:
                 break;
         }
+        free(usrinput->data);
+        delete usrinput;
     }
 }
 

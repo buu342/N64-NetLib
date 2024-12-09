@@ -877,6 +877,9 @@ void* ServerFinderThread::Entry()
 /*==============================
     ServerFinderThread::HandleMainInput
     Handle input from the main thread
+    @param A pointer to the UDP handler
+    @param A pointer to the pointer of the file download struct
+    @param A pointer to the string with the file download path
 ==============================*/
 
 void ServerFinderThread::HandleMainInput(UDPHandler* handler, FileDownload** filedl, wxString* filedl_path)
