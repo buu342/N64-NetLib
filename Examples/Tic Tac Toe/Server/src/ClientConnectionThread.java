@@ -171,11 +171,9 @@ public class ClientConnectionThread extends Thread {
                 }
                 
                 // Respond with the player's own info
-                this.SendPlayerInfoPacket(this.player, this.player);
+                this.ClientConnectInfoPacket(this.player);
                 
                 // Also send the rest of the connected player's information (and notify other players of us)
-                // TODO: These packets could arrive out of order. 
-                //       We should probably use a different packet type for the client data vs other players
                 for (TicTacToe.Player ply : this.game.GetPlayers()) {
                     if (ply != null && ply.GetNumber() != this.player.GetNumber()) {
                         this.SendPlayerInfoPacket(this.player, ply);
@@ -235,12 +233,24 @@ public class ClientConnectionThread extends Thread {
     /**
      * Send a player information packet to a given target
      * @param target  The destination client for the packet
+     * @throws ClientTimeoutException     If the packet is sent MAX_RESEND times without an acknowledgement
+     * @throws IOException                If an I/O error occurs
+     */
+    private void ClientConnectInfoPacket(TicTacToe.Player target) throws IOException, ClientTimeoutException {
+    	NetLibPacket pkt = new NetLibPacket(PacketIDs.PACKETID_CLIENTCONNECT.GetInt(), new byte[]{(byte)target.GetNumber()});
+        pkt.AddRecipient(target.GetNumber());
+        this.handler.SendPacket(pkt);
+    }
+
+    /**
+     * Send a player information packet to a given target
+     * @param target  The destination client for the packet
      * @param target  The player who's information we want to give out
      * @throws ClientTimeoutException     If the packet is sent MAX_RESEND times without an acknowledgement
      * @throws IOException                If an I/O error occurs
      */
     private void SendPlayerInfoPacket(TicTacToe.Player target, TicTacToe.Player who) throws IOException, ClientTimeoutException {
-    	NetLibPacket pkt = new NetLibPacket(PacketIDs.PACKETID_PLAYERINFO.GetInt(), new byte[]{(byte)who.GetNumber()});
+        NetLibPacket pkt = new NetLibPacket(PacketIDs.PACKETID_PLAYERINFO.GetInt(), new byte[]{(byte)who.GetNumber()});
         pkt.AddRecipient(target.GetNumber());
         if (target == who)
             this.handler.SendPacket(pkt);

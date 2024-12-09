@@ -17,7 +17,6 @@ Handles the first level of the game.
              Globals
 *********************************/
 
-static volatile bool global_hasrequestedinfo;
 static volatile bool global_disconnected;
 
 
@@ -38,7 +37,8 @@ void stage_init_init(void)
     text_create("and the client is running", SCREEN_WD/2, SCREEN_HT/2 + 32);
     
     // Get player info from the server
-    global_hasrequestedinfo = FALSE;
+    netlib_start(PACKETID_CLIENTCONNECT);
+    netlib_sendtoserver();
     global_disconnected = FALSE;
 }
 
@@ -52,17 +52,6 @@ void stage_init_update(void)
 {
     if (!global_disconnected)
     {
-        // Tell the server we're connecting
-        if (!usb_timedout() && !global_hasrequestedinfo)
-        {
-            global_hasrequestedinfo = TRUE;
-            netlib_start(PACKETID_CLIENTCONNECT);
-            netlib_sendtoserver();
-        }
-        
-        // Poll for incoming data
-        netlib_poll();
-
         // If we have an assigned player number, we are ready to connect to the lobby
         if (netlib_getclient() != 0)
         {

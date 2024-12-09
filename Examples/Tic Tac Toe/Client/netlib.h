@@ -76,7 +76,7 @@
     /*==============================
         netlib_setclient
         Sets our own client number
-        @param Our client number
+        @param Our client number, zero for none
     ==============================*/
     
     extern void netlib_setclient(ClientNumber num);
@@ -94,10 +94,11 @@
     /*==============================
         netlib_callback_disconnect
         Set the callback function for when we disconnect
+        @param How many ms without messages for a timeout to happen
         @param A pointer to function to call when we disconnect
     ==============================*/
     
-    extern void netlib_callback_disconnect(void (*callback)());
+    extern void netlib_callback_disconnect(u32 timeout, void (*callback)());
     
     
     /*==============================

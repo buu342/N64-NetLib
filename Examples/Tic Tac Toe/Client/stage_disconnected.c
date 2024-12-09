@@ -30,8 +30,8 @@ void stage_disconnected_init(void)
     text_setfont(&font_default);
     text_setalign(ALIGN_CENTER);
     text_setcolor(255, 255, 255, 255);
-    text_create("You have been\ndisconnected", SCREEN_WD/2, SCREEN_HT/2+16);
-    text_create("Press A to retry", SCREEN_WD/2, SCREEN_HT/2 - 32);
+    text_create("You have been disconnected", SCREEN_WD/2, SCREEN_HT/2 - 32);
+    text_create("Press A to retry", SCREEN_WD/2, SCREEN_HT/2 + 16);
 }
 
 

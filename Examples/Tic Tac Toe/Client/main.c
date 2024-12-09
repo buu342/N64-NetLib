@@ -75,8 +75,8 @@ void mainproc(void)
     
     // Initialize the net library
     netlib_initialize();
-    netlib_callback_reconnect(&callback_disconnect);
-    netlib_callback_disconnect(&callback_reconnect);
+    netlib_callback_disconnect(1000*5, &callback_disconnect);
+    netlib_callback_reconnect(&callback_reconnect);
     netcallback_initall();
 
     // Initialize the font system
@@ -208,6 +208,7 @@ StageNum stages_getcurrent()
 
 static void callback_disconnect()
 {
+    netlib_setclient(0);
     stages_changeto(STAGE_DISCONNECTED);
 }
 

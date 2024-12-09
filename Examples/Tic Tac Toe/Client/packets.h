@@ -9,7 +9,7 @@
     // Packet types
     typedef enum {
         PACKETID_ACKBEAT = 0,
-        PACKETID_CLIENTCONNECT = 1, // Unused in the client app
+        PACKETID_CLIENTCONNECT = 1,
         PACKETID_PLAYERINFO = 2,
         PACKETID_PLAYERDISCONNECT = 3,
         PACKETID_SERVERFULL = 4,

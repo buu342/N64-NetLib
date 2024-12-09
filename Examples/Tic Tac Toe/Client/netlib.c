@@ -21,6 +21,9 @@
              Globals
 *********************************/
 
+// Configuration
+static u32 global_timeouttime;
+
 // Write buffers
 static volatile size_t global_writecursize;
 static volatile byte   global_writebuffer[MAX_PACKETSIZE];
@@ -29,6 +32,7 @@ static volatile byte   global_writebuffer[MAX_PACKETSIZE];
 static volatile ClientNumber global_clnumber;
 
 // Library state
+static vu64 global_lastpkt;
 static vu8  global_polling;
 static vu8  global_sendafterpoll;
 static vu8  global_disconnected;
@@ -92,6 +96,8 @@ void netlib_initialize()
     global_disconnected = FALSE;
     global_funcptr_disconnect = NULL;
     global_funcptr_reconnect = NULL;
+    global_lastpkt = 0;
+    global_timeouttime = 0;
 }
 
 
@@ -120,11 +126,17 @@ ClientNumber netlib_getclient()
 /*==============================
     netlib_callback_disconnect
     Set the callback function for when we disconnect
+    @param How many ms without messages for a timeout to happen
     @param A pointer to function to call when we disconnect
 ==============================*/
     
-void netlib_callback_disconnect(void (*callback)())
+void netlib_callback_disconnect(u32 timeout, void (*callback)())
 {
+    #ifndef LIBDRAGON
+        global_timeouttime = OS_USEC_TO_CYCLES(timeout*1000);
+    #else
+        global_timeouttime = TIMER_TICKS(1000000);
+    #endif
     global_funcptr_disconnect = callback;
 }
 
@@ -397,25 +409,31 @@ void netlib_register(NetPacket type, void (*callback)(size_t))
 void netlib_poll()
 {
     unsigned int header;
-    
-    // Perform the poll
-    global_polling = TRUE;
-    header = usb_poll();
+    u64 curtime;
+    #ifndef LIBDRAGON
+        curtime = osGetTime();
+    #else
+        curtime = timer_ticks();
+    #endif
     
     // Check the USB did not time out from being disconnected
     // If it did (or reconnected), then execute the callback functions
-    if (!global_disconnected && (usb_getcart() == CART_NONE || usb_timedout()))
+    if (!global_disconnected && ((global_lastpkt+global_timeouttime) < curtime || usb_timedout() || usb_getcart == CART_NONE))
     {
         global_disconnected = TRUE;
         if (global_funcptr_disconnect != NULL)
             global_funcptr_disconnect();
     }
-    else if (global_disconnected && !usb_timedout())
+    else if (global_disconnected && (global_lastpkt+global_timeouttime) > curtime && usb_getcart != CART_NONE)
     {
         global_disconnected = FALSE;
         if (global_funcptr_reconnect != NULL)
             global_funcptr_reconnect();
     }
+    
+    // Perform the poll
+    global_polling = TRUE;
+    header = usb_poll();
     
     // Read all net packets
     while (USBHEADER_GETTYPE(header) == DATATYPE_NETPACKET)
@@ -458,6 +476,9 @@ void netlib_poll()
             }
         #endif
         global_funcptrs[type](size);
+        
+        // Refresh the packet time
+        global_lastpkt = curtime;
         
         // Poll again
         usb_purge();

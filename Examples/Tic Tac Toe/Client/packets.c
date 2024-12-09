@@ -15,6 +15,7 @@ this game.
         Function Prototypes
 *********************************/
 
+static void netcallback_playerconnect(size_t size);
 static void netcallback_playerinfo(size_t size);
 static void netcallback_disconnect(size_t size);
 static void netcallback_serverfull(size_t size);
@@ -35,6 +36,7 @@ static void netcallback_boardcompleted(size_t size);
 void netcallback_initall()
 {
     netlib_register(PACKETID_ACKBEAT, &netcallback_heartbeat);
+    netlib_register(PACKETID_CLIENTCONNECT, &netcallback_playerconnect);
     netlib_register(PACKETID_PLAYERINFO, &netcallback_playerinfo);
     netlib_register(PACKETID_PLAYERDISCONNECT, &netcallback_disconnect);
     netlib_register(PACKETID_SERVERFULL, &netcallback_serverfull);
@@ -53,14 +55,30 @@ void netcallback_initall()
     @param The size of the incoming data
 ==============================*/
 
+static void netcallback_playerconnect(size_t size)
+{
+    u8 plynum;
+    netlib_readbyte(&plynum);
+    
+    // Set our own player info
+    netlib_setclient(plynum);
+    global_players[plynum-1].ready = FALSE;
+    global_players[plynum-1].connected = TRUE;
+}
+
+
+/*==============================
+    netcallback_playerinfo
+    Handles the PACKETID_PLAYERINFO packet
+    @param The size of the incoming data
+==============================*/
+
 static void netcallback_playerinfo(size_t size)
 {
     u8 plynum;
     netlib_readbyte(&plynum);
     
-    // If the client number is not set, then we are receiving our player info.
-    if (netlib_getclient() == 0)
-        netlib_setclient(plynum);
+    // Set the other player info based on the packet data
     global_players[plynum-1].ready = FALSE;
     global_players[plynum-1].connected = TRUE;
     if (stages_getcurrent() == STAGE_LOBBY)
