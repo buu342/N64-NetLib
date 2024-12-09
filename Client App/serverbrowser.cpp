@@ -24,7 +24,15 @@ The server browser window
 
 typedef enum {
     TEVENT_ADDSERVER,
+    TEVENT_THREADSTART,
     TEVENT_THREADENDED,
+
+    // User Input events
+    TEVENT_PROGEND,
+    TEVENT_DOLIST,
+    TEVENT_DODL,
+    TEVENT_CANCELDL,
+    TEVENT_FILENAME,
 } ThreadEventType;
 
 typedef enum {
@@ -37,12 +45,17 @@ typedef enum {
     COLUMN_ROMONMASTER = 6
 } ServerListColumn;
 
+typedef struct {
+    ThreadEventType type;
+    char* data;
+} InputMessage;
+
 
 /******************************
             Globals
 ******************************/
 
-static wxMessageQueue<S64Packet*> global_msgqueue_serverthread;
+static wxMessageQueue<InputMessage*> global_msgqueue_serverthread_input;
 
 
 /*=============================================================
@@ -241,6 +254,7 @@ ServerBrowser::ServerBrowser(wxWindow* parent, wxWindowID id, const wxString& ti
     this->Centre(wxBOTH);
 
     // Connect Events
+    this->Connect(wxEVT_CLOSE_WINDOW, wxCloseEventHandler(ServerBrowser::m_Event_OnClose));
     this->Connect(wxID_ANY, wxEVT_THREAD, wxThreadEventHandler(ServerBrowser::ThreadEvent));
     this->m_Menu_File->Bind(wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler(ServerBrowser::m_MenuItem_File_Connect_OnMenuSelection), this, m_MenuItem_File_Connect->GetId());
     this->m_Menu_File->Bind(wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler(ServerBrowser::m_MenuItem_File_Quit_OnMenuSelection), this, m_MenuItem_File_Quit->GetId());
@@ -250,7 +264,7 @@ ServerBrowser::ServerBrowser(wxWindow* parent, wxWindowID id, const wxString& ti
     this->m_DataViewListCtrl_Servers->Connect(wxEVT_MOTION, wxMouseEventHandler(ServerBrowser::m_DataViewListCtrl_Servers_OnMotion), NULL, this);
 
     // Connect to the master server
-    this->ConnectMaster();
+    this->ConnectMaster(true);
 }
 
 
@@ -261,22 +275,76 @@ ServerBrowser::ServerBrowser(wxWindow* parent, wxWindowID id, const wxString& ti
 
 ServerBrowser::~ServerBrowser()
 {
-    // Tell the server thread we're dying
-    global_msgqueue_serverthread.Post(new S64Packet("PROGEND", 0, NULL));
+    // Disconnect events
+    this->Disconnect(wxEVT_CLOSE_WINDOW, wxCloseEventHandler(ServerBrowser::m_Event_OnClose));
+    this->Disconnect(wxID_ANY, wxEVT_THREAD, wxThreadEventHandler(ServerBrowser::ThreadEvent));
+    this->Disconnect(this->m_Tool_Refresh->GetId(), wxEVT_COMMAND_TOOL_CLICKED, wxCommandEventHandler(ServerBrowser::m_Tool_Refresh_OnToolClicked));
+    this->m_DataViewListCtrl_Servers->Disconnect(wxEVT_COMMAND_DATAVIEW_ITEM_ACTIVATED, wxDataViewEventHandler(ServerBrowser::m_DataViewListCtrl_Servers_OnDataViewListCtrlItemActivated), NULL, this);
+}
 
-    // Deallocate the thread. Use a CriticalSection to access it
+
+/*==============================
+    ServerBrowser::StartThread_Server
+    Starts the server finder thread
+    @param Whether to start the thread right now (if possible)
+==============================*/
+
+void ServerBrowser::StartThread_Finder(bool startnow)
+{
+    if (startnow && this->m_FinderThread == NULL)
+    {
+        this->m_FinderThread = new ServerFinderThread(this);
+        if (this->m_FinderThread->Run() != wxTHREAD_NO_ERROR)
+        {
+            delete this->m_FinderThread;
+            this->m_FinderThread = NULL;
+        }
+    }
+    else
+    {
+        wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
+        evt.SetInt(TEVENT_THREADSTART);
+        if (this->m_FinderThread != NULL)
+            wxMilliSleep(100);
+        wxQueueEvent(this, evt.Clone());
+    }
+}
+
+
+/*==============================
+    ServerBrowser::StopThread_Finder
+    Stops the server finder thread
+    @param Whether to nullify the client window pointer
+           Only necessary during this object's destruction
+==============================*/
+
+void ServerBrowser::StopThread_Finder(bool nullwindow)
+{
     if (this->m_FinderThread != NULL)
+    {
+        if (nullwindow)
+            global_msgqueue_serverthread_input.Post(new InputMessage{TEVENT_PROGEND, NULL});
         this->m_FinderThread->Delete();
-    this->m_FinderThread = NULL;
+    }
+}
+
+
+/*==============================
+    ServerBrowser::m_Event_OnClose
+    Event handler for window closing
+    @param The command event
+==============================*/
+
+void ServerBrowser::m_Event_OnClose(wxCloseEvent& event)
+{
+    this->StopThread_Finder(true);
 
     // Close the socket
     if (this->m_Socket != NULL)
         this->m_Socket->Destroy();
 
-    // Disconnect events
-    this->Disconnect(wxID_ANY, wxEVT_THREAD, wxThreadEventHandler(ServerBrowser::ThreadEvent));
-    this->Disconnect(this->m_Tool_Refresh->GetId(), wxEVT_COMMAND_TOOL_CLICKED, wxCommandEventHandler(ServerBrowser::m_Tool_Refresh_OnToolClicked));
-    this->m_DataViewListCtrl_Servers->Disconnect(wxEVT_COMMAND_DATAVIEW_ITEM_ACTIVATED, wxDataViewEventHandler(ServerBrowser::m_DataViewListCtrl_Servers_OnDataViewListCtrlItemActivated), NULL, this);
+    // Kill the window
+    event.Skip();
 }
 
 
@@ -289,7 +357,7 @@ ServerBrowser::~ServerBrowser()
 void ServerBrowser::m_Tool_Refresh_OnToolClicked(wxCommandEvent& event)
 {
     (void)event;
-    this->ConnectMaster();
+    this->ConnectMaster(false);
 }
 
 
@@ -331,7 +399,7 @@ void ServerBrowser::m_DataViewListCtrl_Servers_OnDataViewListCtrlItemActivated(w
             {
                 wxMessageDialog dialog(this, wxString("ROM download was unsuccessful."), wxString("ROM Download Failed"), wxICON_ERROR);
                 dialog.ShowModal();
-                global_msgqueue_serverthread.Post(new S64Packet("CANCELDL", 0, NULL)); // Notify the server thread in case it was mid-download
+                global_msgqueue_serverthread_input.Post(new InputMessage{TEVENT_CANCELDL, NULL}); // Notify the server thread in case it was mid-download
             }
             else
                 this->CreateClient(rompath, serveraddr);
@@ -457,9 +525,7 @@ void ServerBrowser::CreateClient(wxString rom, wxString addressport)
     ClientWindow* cw = new ClientWindow(this);
 
     // Kill the server finder thread so it doesn't steal packets from the client window
-    if (this->m_FinderThread != NULL)
-        this->m_FinderThread->Delete();
-    this->m_FinderThread = NULL;
+    this->StopThread_Finder(false);
 
     // Open a UDP socket if it's not open yet
     if (this->m_Socket == NULL)
@@ -486,9 +552,10 @@ void ServerBrowser::CreateClient(wxString rom, wxString addressport)
 /*==============================
     ServerBrowser::ConnectMaster
     Create the master server connection thread
+    @param Whether to start the thread right now (if possible)
 ==============================*/
 
-void ServerBrowser::ConnectMaster()
+void ServerBrowser::ConnectMaster(bool startnow)
 {
     // Clear the server list
     this->ClearServers();
@@ -502,20 +569,13 @@ void ServerBrowser::ConnectMaster()
         this->m_Socket = new wxDatagramSocket(localaddr , wxSOCKET_NOWAIT);
     }
 
-    // Create the finder thread if it doesn't exist yet
+    // Create the finder thread if it doesn't exist yet    
     if (this->m_FinderThread == NULL)
-    {
-        this->m_FinderThread = new ServerFinderThread(this);
-        if (this->m_FinderThread->Run() != wxTHREAD_NO_ERROR)
-        {
-            delete this->m_FinderThread;
-            this->m_FinderThread = NULL;
-        }
-    }
+       this->StartThread_Finder(startnow);
 
     // Send a message to the finder thread that we wanna connect to the master server
     printf("Requesting server list from Master Server\n");
-    global_msgqueue_serverthread.Post(new S64Packet("LIST", 0, NULL));
+    global_msgqueue_serverthread_input.Post(new InputMessage{TEVENT_DOLIST, NULL});
 }
 
 
@@ -528,6 +588,7 @@ void ServerBrowser::ConnectMaster()
 
 void ServerBrowser::RequestDownload(wxString hash, wxString filepath)
 {
+    InputMessage* usrinput;
     uint8_t romhash[32];
 
     // Get the hash as bytes
@@ -558,19 +619,18 @@ void ServerBrowser::RequestDownload(wxString hash, wxString filepath)
 
     // Create the finder thread if it doesn't exist yet
     if (this->m_FinderThread == NULL)
-    {
-        this->m_FinderThread = new ServerFinderThread(this);
-        if (this->m_FinderThread->Run() != wxTHREAD_NO_ERROR)
-        {
-            delete this->m_FinderThread;
-            this->m_FinderThread = NULL;
-        }
-    }
+        this->StartThread_Finder(false);
 
     // Send a message to the finder thread that we wanna connect to download a ROM
     printf("Requesting ROM download from Master Server into '%s'\n", static_cast<const char*>(filepath.c_str()));
-    global_msgqueue_serverthread.Post(new S64Packet("FILENAME", filepath.Length(), (uint8_t*)(const char*)filepath.mb_str()));
-    global_msgqueue_serverthread.Post(new S64Packet("DOWNLOAD", 32, romhash, FLAG_UNRELIABLE));
+    usrinput = new InputMessage{TEVENT_FILENAME, NULL};
+    usrinput->data = (char*)malloc(filepath.Length()+1);
+    strcpy(usrinput->data, filepath.mb_str());
+    global_msgqueue_serverthread_input.Post(usrinput);
+    usrinput = new InputMessage{TEVENT_DODL, NULL};
+    usrinput->data = (char*)malloc(32);
+    memcpy(usrinput->data, romhash, 32);
+    global_msgqueue_serverthread_input.Post(usrinput);
 }
 
 
@@ -595,6 +655,9 @@ void ServerBrowser::ThreadEvent(wxThreadEvent& event)
 {
     switch ((ThreadEventType)event.GetInt())
     {
+        case TEVENT_THREADSTART:
+            this->StartThread_Finder(this->m_FinderThread == NULL);
+            break;
         case TEVENT_THREADENDED:
         {
             this->m_FinderThread = NULL;
@@ -627,6 +690,8 @@ void ServerBrowser::ThreadEvent(wxThreadEvent& event)
             free(server);
             break;
         }
+        default:
+            break;
     }
 }
 
@@ -710,36 +775,11 @@ void* ServerFinderThread::Entry()
     wxString filedl_path = "";
 
     // Run in a loop until the main thread wants to kill us
-    while (!TestDestroy())
+    while (!TestDestroy() && this->m_Window != NULL)
     {
         try 
         {
             S64Packet* pkt = NULL;
-
-            // Check for messages from the main thread
-            while (global_msgqueue_serverthread.ReceiveTimeout(0, pkt) == wxMSGQUEUE_NO_ERROR)
-            {
-                if (pkt->GetType() == "FILENAME") // Special case, not a real packet we want to send
-                {
-                    filedl_path = wxString(pkt->GetData(), pkt->GetSize());
-                    delete pkt;
-                }
-                else if (pkt->GetType() == "CANCELDL") // Special case, not a real packet we want to send
-                {
-                    if (filedl != NULL)
-                    {
-                        filedl_path = "";
-                        free(filedl->filedata);
-                        delete filedl;
-                        filedl = NULL;
-                    }
-                }
-                else if (pkt->GetType() == "PROGEND") // Special case, not a real packet we want to send
-                    this->m_Window = NULL;
-                else
-                    handler->SendPacket(pkt);
-            }
-            handler->ResendMissingPackets();
 
             // Check for packets from the master server / servers we pinged
             sock->Read(buff, 4096);
@@ -764,12 +804,13 @@ void* ServerFinderThread::Entry()
                     else if (!strncmp(pkt->GetType(), "DISCOVER", 8))
                         this->DiscoveredServer(&serversleft, pkt);
                     else
-                        printf("Unexpected packet type received\n");
+                        printf("Unexpected packet type received '%s'\n", static_cast<const char*>(pkt->GetType().c_str()));
                 }
 
                 // Check for more packets
                 sock->Read(buff, 4096);
             }
+            handler->ResendMissingPackets();
 
             // If we have a file download in progress, request some chunks
             if (filedl != NULL)
@@ -790,6 +831,9 @@ void* ServerFinderThread::Entry()
             }
             else
                 wxMilliSleep(10);
+
+            // Check for messages from the main thread
+            this->HandleMainInput(handler, &filedl, &filedl_path);
         }
         catch (ClientTimeoutException& e)
         {
@@ -827,6 +871,48 @@ void* ServerFinderThread::Entry()
     delete handler;
     free(buff);
     return NULL;
+}
+
+
+/*==============================
+    ServerFinderThread::HandleMainInput
+    Handle input from the main thread
+==============================*/
+
+void ServerFinderThread::HandleMainInput(UDPHandler* handler, FileDownload** filedl, wxString* filedl_path)
+{
+    InputMessage* usrinput = NULL;
+    while (global_msgqueue_serverthread_input.ReceiveTimeout(0, usrinput) == wxMSGQUEUE_NO_ERROR)
+    {
+        switch (usrinput->type)
+        {
+            case TEVENT_PROGEND:
+                this->m_Window = NULL;
+                break;
+            case TEVENT_DOLIST:
+                handler->SendPacket(new S64Packet("LIST", 0, NULL, FLAG_UNRELIABLE));
+                break;
+            case TEVENT_DODL:
+                handler->SendPacket(new S64Packet("DOWNLOAD", 32, (uint8_t*)usrinput->data, FLAG_UNRELIABLE));
+                break;
+            case TEVENT_CANCELDL:
+                if (*filedl != NULL)
+                {
+                    *filedl_path = "";
+                    free((*filedl)->filedata);
+                    delete *filedl;
+                    *filedl = NULL;
+                }
+                break;
+            case TEVENT_FILENAME:
+                *filedl_path = wxString(usrinput->data);
+                break;
+            default:
+                break;
+        }
+        free(usrinput->data);
+        delete usrinput;
+    }
 }
 
 
@@ -1050,7 +1136,7 @@ void ServerFinderThread::HandleFileData(S64Packet* pkt, FileDownload** filedlp)
 
 
 /*==============================
-    DeviceThread::NotifyMainOfDeath
+    ServerFinderThread::NotifyMainOfDeath
     Notify the main thread that this one died so that pointers can be nullified
 ==============================*/
 

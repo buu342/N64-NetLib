@@ -94,6 +94,7 @@ class ServerBrowser : public wxFrame
         wxDataViewColumn* m_DataViewListColumn_Hash;
         wxDataViewColumn* m_DataViewListColumn_FileExistsOnMaster;
 
+        void m_Event_OnClose( wxCloseEvent& event );
         void m_MenuItem_File_Connect_OnMenuSelection(wxCommandEvent& event);
         void m_MenuItem_File_Quit_OnMenuSelection(wxCommandEvent& event);
         void m_Tool_Refresh_OnToolClicked(wxCommandEvent& event);
@@ -101,18 +102,20 @@ class ServerBrowser : public wxFrame
         void m_DataViewListCtrl_Servers_OnDataViewListCtrlItemActivated(wxDataViewEvent& event);
         void m_DataViewListCtrl_Servers_OnMotion(wxMouseEvent& event);
 
+        void StartThread_Finder(bool startnow);
+        void StopThread_Finder(bool nullwindow);
+        void ClearServers();
+        void ThreadEvent(wxThreadEvent& event);
+        void RequestDownload(wxString hash, wxString filepath);
+        void ConnectMaster(bool startnow);
+
     protected:
 
     public:
         ROMDownloadWindow* m_DownloadWindow;
         ServerBrowser(wxWindow* parent = NULL, wxWindowID id = wxID_ANY, const wxString& title = "NetLib Browser", const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(800, 600), long style = wxDEFAULT_FRAME_STYLE|wxTAB_TRAVERSAL);
         ~ServerBrowser();
-
         void CreateClient(wxString rom, wxString addressport);
-        void ConnectMaster();
-        void ClearServers();
-        void ThreadEvent(wxThreadEvent& event);
-        void RequestDownload(wxString hash, wxString filepath);
         wxString          GetAddress();
         int               GetPort();
         wxDatagramSocket* GetSocket();
@@ -122,6 +125,13 @@ class ServerFinderThread : public wxThread
 {
     private:
         ServerBrowser* m_Window;
+        
+        void          HandleMainInput(UDPHandler* handler, FileDownload** filedl, wxString* filedl_path);
+        FoundServer   ParsePacket_Server(wxDatagramSocket* socket, S64Packet* pkt);
+        void          DiscoveredServer(std::unordered_map<wxString, std::pair<FoundServer, wxLongLong>>* serverlist, S64Packet* pkt);
+        FileDownload* BeginFileDownload(S64Packet* pkt, wxString filepath);
+        void          HandleFileData(S64Packet* pkt, FileDownload** filedlp);
+        void          NotifyMainOfDeath();
 
     protected:
 
@@ -130,11 +140,6 @@ class ServerFinderThread : public wxThread
         ~ServerFinderThread();
 
         virtual void* Entry() wxOVERRIDE;
-        FoundServer   ParsePacket_Server(wxDatagramSocket* socket, S64Packet* pkt);
-        void          DiscoveredServer(std::unordered_map<wxString, std::pair<FoundServer, wxLongLong>>* serverlist, S64Packet* pkt);
-        FileDownload* BeginFileDownload(S64Packet* pkt, wxString filepath);
-        void          HandleFileData(S64Packet* pkt, FileDownload** filedlp);
-        void          NotifyMainOfDeath();
 };
 
 class ManualConnectWindow : public wxDialog

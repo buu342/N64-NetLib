@@ -31,10 +31,17 @@ typedef enum {
     TEVENT_WRITECONSOLEERROR,
     TEVENT_SETSTATUS,
     TEVENT_UPLOADPROGRESS,
+    TEVENT_START_DEVICE,
+    TEVENT_START_SERVER,
     TEVENT_DEATH_DEVICE,
     TEVENT_DEATH_SERVER,
     TEVENT_NETPACKET_USB_TO_SERVER,
     TEVENT_NETPACKET_SERVER_TO_USB,
+
+    // User Input events
+    TEVENT_PROGEND,
+    TEVENT_LOADFAIL,
+    TEVENT_CANCELLOAD,
 } ThreadEventType;
 
 
@@ -42,8 +49,10 @@ typedef enum {
             Globals
 ******************************/
 
-static wxMessageQueue<NetLibPacket*> global_msgqueue_usbthread;
-static wxMessageQueue<NetLibPacket*> global_msgqueue_serverthread;
+static wxMessageQueue<NetLibPacket*> global_msgqueue_usbthread_pkt;
+static wxMessageQueue<NetLibPacket*> global_msgqueue_serverthread_pkt;
+static wxMessageQueue<ThreadEventType> global_msgqueue_usbthread_input;
+static wxMessageQueue<ThreadEventType> global_msgqueue_serverthread_input;
 
 
 /*=============================================================
@@ -64,6 +73,7 @@ static wxMessageQueue<NetLibPacket*> global_msgqueue_serverthread;
 ClientWindow::ClientWindow(wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style) : wxFrame(parent, id, title, pos, size, style)
 {
     this->m_ServerThread = NULL;
+    this->m_DeviceThread = NULL;
     this->SetSizeHints(wxDefaultSize, wxDefaultSize);
 
     // Initialize the main window sizer
@@ -86,7 +96,7 @@ ClientWindow::ClientWindow(wxWindow* parent, wxWindowID id, const wxString& titl
 
     // Text input for USB sending (currently unused)
     this->m_TextCtrl_Input = new wxTextCtrl(this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
-    this->m_TextCtrl_Input->Enable(false);
+    this->m_TextCtrl_Input->Disable();
     this->m_Sizer_Input->Add(this->m_TextCtrl_Input, wxGBPosition(0, 0), wxGBSpan(1, 1), wxALL|wxEXPAND, 5);
 
     // USB upload progress bar
@@ -135,19 +145,9 @@ ClientWindow::~ClientWindow()
     this->m_Button_Reconnect->Disconnect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(ClientWindow::m_Button_Reconnect_OnButtonClick), NULL, this);
     this->m_Button_Send->Disconnect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(ClientWindow::m_Button_Send_OnButtonClick), NULL, this);
 
-    // Kill the USB server if it is running
-    if (this->m_DeviceThread != NULL)
-    {
-        this->m_DeviceThread->SetMainWindow(NULL);
-        this->m_DeviceThread->Delete();
-    }
-
-    // Kill the server thread if it is running
-    if (this->m_ServerThread != NULL)
-    {
-        this->m_ServerThread->SetMainWindow(NULL);
-        this->m_ServerThread->Delete();
-    }
+    // Kill threads
+    this->StopThread_Device(true);
+    this->StopThread_Server(true);
 
     // Safe to disconnect the thread handler event
     this->Disconnect(wxID_ANY, wxEVT_THREAD, wxThreadEventHandler(ClientWindow::ThreadEvent));
@@ -162,16 +162,48 @@ ClientWindow::~ClientWindow()
 
 void ClientWindow::BeginWorking()
 {
-    // Start the USB thread
-    this->m_DeviceThread = new DeviceThread(this);
-    if (this->m_DeviceThread->Run() != wxTHREAD_NO_ERROR)
-    {
-        delete this->m_DeviceThread;
-        this->m_DeviceThread = NULL;
-    }
+    this->StartThread_Device(true);
+    this->StartThread_Server(true);
+}
 
-    // Start the server thread (if an address was given)
-    if (this->GetAddress() != "")
+
+/*==============================
+    ClientWindow::StartThread_Device
+    Starts the USB device thread
+    @param Whether to start the thread right now (if possible)
+==============================*/
+
+void ClientWindow::StartThread_Device(bool startnow)
+{
+    if (startnow && this->m_DeviceThread == NULL)
+    {
+        this->m_DeviceThread = new DeviceThread(this);
+        if (this->m_DeviceThread->Run() != wxTHREAD_NO_ERROR)
+        {
+            delete this->m_DeviceThread;
+            this->m_DeviceThread = NULL;
+        }
+    }
+    else
+    {
+        wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
+        evt.SetInt(TEVENT_START_DEVICE);
+        if (this->m_DeviceThread != NULL)
+            wxMilliSleep(100);
+        wxQueueEvent(this, evt.Clone());
+    }
+}
+
+
+/*==============================
+    ClientWindow::StartThread_Server
+    Starts the server socket thread
+    @param Whether to start the thread right now (if possible)
+==============================*/
+
+void ClientWindow::StartThread_Server(bool startnow)
+{
+    if (this->m_ServerThread == NULL)
     {
         this->m_ServerThread = new ServerConnectionThread(this);
         if (this->m_ServerThread->Run() != wxTHREAD_NO_ERROR)
@@ -179,6 +211,52 @@ void ClientWindow::BeginWorking()
             delete this->m_ServerThread;
             this->m_ServerThread = NULL;
         }
+        else
+            this->m_Button_Reconnect->Disable();
+    }
+    else
+    {
+        wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
+        evt.SetInt(TEVENT_START_SERVER);
+        if (this->m_ServerThread != NULL)
+            wxMilliSleep(100);
+        wxQueueEvent(this, evt.Clone());
+    }
+}
+
+
+/*==============================
+    ClientWindow::StopThread_Device
+    Stops the USB device thread
+    @param Whether to nullify the client window pointer
+           Only necessary during this object's destruction
+==============================*/
+
+void ClientWindow::StopThread_Device(bool nullwindow)
+{
+    if (this->m_DeviceThread != NULL)
+    {
+        if (nullwindow)
+            global_msgqueue_usbthread_input.Post(TEVENT_PROGEND);
+        this->m_DeviceThread->Delete();
+    }
+}
+
+
+/*==============================
+    ClientWindow::StopThread_Server
+    Stops the server socket thread
+    @param Whether to nullify the client window pointer
+           Only necessary during this object's destruction
+==============================*/
+
+void ClientWindow::StopThread_Server(bool nullwindow)
+{
+    if (this->m_ServerThread != NULL)
+    {
+        if (nullwindow)
+            global_msgqueue_serverthread_input.Post(TEVENT_PROGEND);
+        this->m_ServerThread->Delete();
     }
 }
 
@@ -191,20 +269,13 @@ void ClientWindow::BeginWorking()
 
 void ClientWindow::m_Button_Send_OnButtonClick(wxCommandEvent& event)
 {
-    // Kill the USB thread
-    if (this->m_DeviceThread != NULL)
+    if (this->m_Button_Send->GetLabel() == "Reupload")
     {
-        this->m_DeviceThread->SetMainWindow(NULL);
-        this->m_DeviceThread->Delete();
+        this->StopThread_Device(false);
+        this->StartThread_Device(false);
     }
-
-    // Restart the USB thread
-    this->m_DeviceThread = new DeviceThread(this);
-    if (this->m_DeviceThread->Run() != wxTHREAD_NO_ERROR)
-    {
-        delete this->m_DeviceThread;
-        this->m_DeviceThread = NULL;
-    }
+    else if (this->m_Button_Send->GetLabel() == "Cancel")
+        this->StopThread_Device(false);
 
     // Unused parameter
     (void)event;
@@ -219,16 +290,7 @@ void ClientWindow::m_Button_Send_OnButtonClick(wxCommandEvent& event)
 
 void ClientWindow::m_Button_Reconnect_OnButtonClick(wxCommandEvent& event)
 {
-    // Restart the server thread (if necessary)
-    if (this->GetAddress() != "" && this->m_ServerThread == NULL)
-    {
-        this->m_ServerThread = new ServerConnectionThread(this);
-        if (this->m_ServerThread->Run() != wxTHREAD_NO_ERROR)
-        {
-            delete this->m_ServerThread;
-            this->m_ServerThread = NULL;
-        }
-    }
+    this->StartThread_Server(false);
 
     // Unused parameter
     (void)event;
@@ -247,20 +309,23 @@ void ClientWindow::SetClientDeviceStatus(ClientDeviceStatus status)
     switch(status)
     {
         case CLSTATUS_UPLOADING:
-            this->m_TextCtrl_Input->Hide();
-            this->m_TextCtrl_Input->Disable();
-            this->m_Sizer_Input->Detach(this->m_TextCtrl_Input);
-            this->m_Sizer_Input->Add(this->m_Gauge_Upload, wxGBPosition(0, 0), wxGBSpan(1, 1), wxALL|wxEXPAND, 5);
-            this->m_Gauge_Upload->Enable();
-            this->m_Gauge_Upload->Show();
+            if (this->m_TextCtrl_Input->IsShown())
+            {
+                this->m_TextCtrl_Input->Hide();
+                this->m_TextCtrl_Input->Disable();
+                this->m_Sizer_Input->Detach(this->m_TextCtrl_Input);
+                this->m_Sizer_Input->Add(this->m_Gauge_Upload, wxGBPosition(0, 0), wxGBSpan(1, 1), wxALL|wxEXPAND, 5);
+                this->m_Gauge_Upload->Enable();
+                this->m_Gauge_Upload->Show();
+            }
             this->m_Button_Send->SetLabel(wxT("Cancel"));
-            this->m_Button_Send->Enable();
+            //this->m_Button_Send->Enable();
             this->Layout();
             this->Refresh();
             break;
         case CLSTATUS_UPLOADDONE:
             this->m_Button_Send->SetLabel(wxT("Reupload"));
-            this->m_Button_Send->Enable();
+            //this->m_Button_Send->Enable();
             break;
         default:
             break;
@@ -300,11 +365,19 @@ void ClientWindow::ThreadEvent(wxThreadEvent& event)
                 this->m_Gauge_Upload->SetValue(prog);
             }
             break;
+        case TEVENT_START_DEVICE:
+            this->StartThread_Device(this->m_DeviceThread == NULL);
+            break;
         case TEVENT_DEATH_DEVICE:
             this->m_DeviceThread = NULL;
             break;
+        case TEVENT_START_SERVER:
+            if (this->GetAddress() != "")
+                this->StartThread_Server(this->m_DeviceThread == NULL);
+            break;
         case TEVENT_DEATH_SERVER:
             this->m_ServerThread = NULL;
+            this->m_Button_Reconnect->Enable();
             break;
         case TEVENT_NETPACKET_USB_TO_SERVER:
             {
@@ -312,7 +385,7 @@ void ClientWindow::ThreadEvent(wxThreadEvent& event)
                 if (this->m_ServerThread == NULL)
                     delete pkt;
                 else
-                    global_msgqueue_serverthread.Post(pkt);
+                    global_msgqueue_serverthread_pkt.Post(pkt);
             }
             break;
         case TEVENT_NETPACKET_SERVER_TO_USB:
@@ -321,8 +394,10 @@ void ClientWindow::ThreadEvent(wxThreadEvent& event)
                 if (this->m_DeviceThread == NULL)
                     delete pkt;
                 else
-                    global_msgqueue_usbthread.Post(pkt);
+                    global_msgqueue_usbthread_pkt.Post(pkt);
             }
+            break;
+        default:
             break;
     }
 }
@@ -439,7 +514,7 @@ DeviceThread::DeviceThread(ClientWindow* win)
     this->m_Window = win;
     this->m_FirstPrint = TRUE;
     this->m_UploadThread = NULL;
-    global_msgqueue_usbthread.Clear();
+    global_msgqueue_usbthread_pkt.Clear();
     device_initialize();
 }
 
@@ -523,7 +598,7 @@ void* DeviceThread::Entry()
 
         // Create upload thread and update the status bar as it's uploading
         this->UploadROM(rompath);
-        while (oldprogress < 100.0f)
+        while (oldprogress < 100.0f && this->m_Window != NULL)
         {
             float curprog = device_getuploadprogress();
             if (curprog != oldprogress)
@@ -536,10 +611,16 @@ void* DeviceThread::Entry()
             if (TestDestroy())
             {
                 this->m_UploadThread->Delete();
+                this->SetClientDeviceStatus(CLSTATUS_UPLOADDONE);
                 this->WriteConsoleError("\nUpload interrupted.\n");
                 return NULL;
             }
+
+            // Take a small break;
             wxMilliSleep(10);
+
+            // Check for input messages from the main thread
+            this->HandleMainInput();
         }
         this->SetClientDeviceStatus(CLSTATUS_UPLOADDONE);
 
@@ -556,7 +637,7 @@ void* DeviceThread::Entry()
 
     // Now just read from USB in a loop
     this->WriteConsole("USB polling begun\n");
-    while (!TestDestroy() && device_isopen())
+    while (!TestDestroy() && device_isopen() && this->m_Window != NULL)
     {
         uint8_t* outbuff = NULL;
         uint32_t dataheader = 0;
@@ -592,7 +673,7 @@ void* DeviceThread::Entry()
         else // No incoming USB data, that means we can send data (packets) to it safely
         {
             NetLibPacket* pkt;
-            if (global_msgqueue_usbthread.ReceiveTimeout(0, pkt) == wxMSGQUEUE_NO_ERROR)
+            if (global_msgqueue_usbthread_pkt.ReceiveTimeout(0, pkt) == wxMSGQUEUE_NO_ERROR)
             {
                 uint8_t* pktasbytes = pkt->GetAsBytes();
                 device_senddata(DATATYPE_NETPACKET, (byte*)pkt->GetAsBytes(), (uint32_t)pkt->GetAsBytes_Size());
@@ -602,11 +683,40 @@ void* DeviceThread::Entry()
             else
                 wxMilliSleep(10);
         }
+
+        // Check for messages from the main thread
+        this->HandleMainInput();
     }
 
     // Finished
     this->WriteConsoleError("\nUSB Disconnected.\n");
     return NULL;
+}
+
+
+/*==============================
+    DeviceThread::HandleMainInput
+    Handle input from the main thread
+==============================*/
+
+void DeviceThread::HandleMainInput()
+{
+    ThreadEventType usrinput;
+    while (global_msgqueue_usbthread_input.ReceiveTimeout(0, usrinput) == wxMSGQUEUE_NO_ERROR)
+    {
+        switch (usrinput)
+        {
+            case TEVENT_PROGEND:
+                this->m_Window = NULL;
+                break;
+            case TEVENT_CANCELLOAD:
+                device_cancelupload();
+                this->SetClientDeviceStatus(CLSTATUS_UPLOADDONE);
+                break;
+            default:
+                break;
+        }
+    }
 }
 
 
@@ -781,7 +891,7 @@ void DeviceThread::SetClientDeviceStatus(ClientDeviceStatus status)
 
 
 /*==============================
-    DeviceThread::SetClientDeviceStatus
+    DeviceThread::SetUploadProgress
     Send a upload progress notification to the main thread so the gauge can be updated
     @param The current progress (from 0 to 100)
 ==============================*/
@@ -794,18 +904,6 @@ void DeviceThread::SetUploadProgress(int progress)
     evt.SetInt(TEVENT_UPLOADPROGRESS);
     evt.SetExtraLong(progress);
     wxQueueEvent(this->m_Window, evt.Clone());
-}
-
-
-/*==============================
-    DeviceThread::SetMainWindow
-    Set the main window for the thread to use
-    @param The main window
-==============================*/
-
-void DeviceThread::SetMainWindow(ClientWindow* win)
-{
-    this->m_Window = win;
 }
 
 
@@ -902,7 +1000,8 @@ void* UploadThread::Entry()
     deverr = device_sendrom(fp, filesize);
     if (deverr != DEVICEERR_OK)
     {
-        this->WriteConsoleError(wxString::Format("\nError sending ROM. Returned error %d.\n", deverr));
+        if (deverr != DEVICEERR_UPLOADCANCELLED)
+            this->WriteConsoleError(wxString::Format("\nError sending ROM. Returned error %d.\n", deverr));
         fclose(fp);
         free(romstr);
         return NULL;
@@ -963,7 +1062,7 @@ void UploadThread::WriteConsoleError(wxString str)
 ServerConnectionThread::ServerConnectionThread(ClientWindow* win)
 {
     this->m_Window = win;
-    global_msgqueue_serverthread.Clear();
+    global_msgqueue_serverthread_pkt.Clear();
 }
 
 
@@ -992,14 +1091,14 @@ void* ServerConnectionThread::Entry()
 
     // Handle packets
     this->WriteConsole("Establishing connection to server once ROM is ready.\n");
-    while (!TestDestroy())
+    while (!TestDestroy() && this->m_Window != NULL)
     {
         try
         {
             NetLibPacket* pkt = NULL;
 
             // Check for messages from the main thread (which are relayed from USB)
-            while (global_msgqueue_serverthread.ReceiveTimeout(0, pkt) == wxMSGQUEUE_NO_ERROR)
+            while (global_msgqueue_serverthread_pkt.ReceiveTimeout(0, pkt) == wxMSGQUEUE_NO_ERROR)
                 handler->SendPacket(pkt);
 
             // Check for packets from the server and upload it to USB
@@ -1019,6 +1118,9 @@ void* ServerConnectionThread::Entry()
             this->WriteConsoleError("\nServer timed out. Disconnected.\n");
             break;
         }
+
+        // Check for input messages from the main thread
+        this->HandleMainInput();
     }
 
     // Cleanup
@@ -1029,14 +1131,24 @@ void* ServerConnectionThread::Entry()
 
 
 /*==============================
-    ServerConnectionThread::SetMainWindow
-    Set the main window for the thread to use
-    @param The main window
+    ServerConnectionThread::HandleMainInput
+    Handle input from the main thread
 ==============================*/
 
-void ServerConnectionThread::SetMainWindow(ClientWindow* win)
+void ServerConnectionThread::HandleMainInput()
 {
-    this->m_Window = win;
+    ThreadEventType usrinput;
+    while (global_msgqueue_serverthread_input.ReceiveTimeout(0, usrinput) == wxMSGQUEUE_NO_ERROR)
+    {
+        switch (usrinput)
+        {
+            case TEVENT_PROGEND:
+                this->m_Window = NULL;
+                break;
+            default:
+                break;
+        }
+    }
 }
 
 

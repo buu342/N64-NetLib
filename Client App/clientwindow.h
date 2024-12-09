@@ -67,6 +67,11 @@ class ClientWindow : public wxFrame
         ServerConnectionThread* m_ServerThread;
 
         void ThreadEvent(wxThreadEvent& event);
+        void StartThread_Device(bool startnow);
+        void StartThread_Server(bool startnow);
+        void StopThread_Device(bool nullwindow);
+        void StopThread_Server(bool nullwindow);
+        void SetClientDeviceStatus(ClientDeviceStatus status);
 
     protected:
 
@@ -77,7 +82,6 @@ class ClientWindow : public wxFrame
         void m_Button_Reconnect_OnButtonClick(wxCommandEvent& event);
 
         void BeginWorking();
-        void SetClientDeviceStatus(ClientDeviceStatus status);
         void SetROM(wxString rom);
         void SetSocket(wxDatagramSocket* socket);
         void SetAddress(wxString addr);
@@ -95,13 +99,7 @@ class DeviceThread : public wxThread
         UploadThread* m_UploadThread;
         bool m_FirstPrint;
 
-    protected:
-
-    public:
-        DeviceThread(ClientWindow* win);
-        ~DeviceThread();
-
-        virtual void* Entry() wxOVERRIDE;
+        void HandleMainInput();
         void ParseUSB_TextPacket(uint8_t* buff, uint32_t size);
         void ParseUSB_NetLibPacket(uint8_t* buff);
         void ParseUSB_HeartbeatPacket(uint8_t* buff, uint32_t size);
@@ -110,9 +108,16 @@ class DeviceThread : public wxThread
         void WriteConsoleError(wxString str);
         void SetClientDeviceStatus(ClientDeviceStatus status);
         void SetUploadProgress(int progress);
-        void SetMainWindow(ClientWindow* win);
         void UploadROM(wxString path);
         void NotifyDeath();
+
+    protected:
+
+    public:
+        DeviceThread(ClientWindow* win);
+        ~DeviceThread();
+
+        virtual void* Entry() wxOVERRIDE;
 };
 
 class UploadThread : public wxThread
@@ -121,6 +126,9 @@ class UploadThread : public wxThread
         ClientWindow* m_Window;
         wxString m_FilePath;
 
+        void WriteConsole(wxString str);
+        void WriteConsoleError(wxString str);
+
     protected:
 
     public:
@@ -128,8 +136,6 @@ class UploadThread : public wxThread
         ~UploadThread();
 
         virtual void* Entry() wxOVERRIDE;
-        void WriteConsole(wxString str);
-        void WriteConsoleError(wxString str);
 };
 
 class ServerConnectionThread : public wxThread
@@ -138,6 +144,12 @@ class ServerConnectionThread : public wxThread
         wxDatagramSocket* m_Socket;
         ClientWindow* m_Window;
 
+        void HandleMainInput();
+        void TransferPacket(NetLibPacket* pkt);
+        void WriteConsole(wxString str);
+        void WriteConsoleError(wxString str);
+        void NotifyDeath();
+
     protected:
 
     public:
@@ -145,9 +157,4 @@ class ServerConnectionThread : public wxThread
         ~ServerConnectionThread();
 
         virtual void* Entry() wxOVERRIDE;
-        void SetMainWindow(ClientWindow* win);
-        void TransferPacket(NetLibPacket* pkt);
-        void WriteConsole(wxString str);
-        void WriteConsoleError(wxString str);
-        void NotifyDeath();
 };
