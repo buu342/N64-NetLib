@@ -158,10 +158,11 @@ public class UDPHandler {
      * Reads an S64 packet from the byte array
      * @param data  The byte data to read the packet from
      * @return  The extracted S64 packet
-     * @throws ClientTimeoutException  If the packet is sent MAX_RESEND times without an acknowledgement
-     * @throws IOException             If an I/O error occurs
+     * @throws ClientTimeoutException     If the packet is sent MAX_RESEND times without an acknowledgement
+     * @throws IOException                If an I/O error occurs
+     * @throws BadPacketVersionException  If the packet is a higher version than supported
      */
-    public S64Packet ReadS64Packet(byte[] data) throws IOException, ClientTimeoutException {
+    public S64Packet ReadS64Packet(byte[] data) throws IOException, ClientTimeoutException, BadPacketVersionException {
         S64Packet pkt;
         if (!S64Packet.IsS64PacketHeader(data))
             return null;
@@ -185,10 +186,11 @@ public class UDPHandler {
      * Reads a NetLib packet from the byte array
      * @param data  The byte data to read the packet from
      * @return  The extracted NetLib packet
-     * @throws ClientTimeoutException  If the packet is sent MAX_RESEND times without an acknowledgement
-     * @throws IOException             If an I/O error occurs
+     * @throws ClientTimeoutException     If the packet is sent MAX_RESEND times without an acknowledgement
+     * @throws IOException                If an I/O error occurs
+     * @throws BadPacketVersionException  If the packet is a higher version than supported
      */
-    public NetLibPacket ReadNetLibPacket(byte[] data) throws IOException, ClientTimeoutException {
+    public NetLibPacket ReadNetLibPacket(byte[] data) throws IOException, ClientTimeoutException, BadPacketVersionException {
         NetLibPacket pkt;
         if (!NetLibPacket.IsNetLibPacketHeader(data))
             return null;

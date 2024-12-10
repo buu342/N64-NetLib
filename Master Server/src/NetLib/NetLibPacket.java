@@ -100,8 +100,10 @@ public class NetLibPacket extends AbstractPacket {
      * Converts a byte array to a NetLib packet object
      * @param pktdata  The data to convert
      * @return  The converted NetLib packet, or null
+     * @throws IOException                If an I/O error occurs
+     * @throws BadPacketVersionException  If the packet is a higher version than supported
      */
-    static public NetLibPacket ReadPacket(byte[] pktdata) throws IOException {
+    static public NetLibPacket ReadPacket(byte[] pktdata) throws IOException, BadPacketVersionException {
         int version, type, flags, recipients;
         short seqnum, ack, ackbitfield;
         int size;
@@ -114,6 +116,8 @@ public class NetLibPacket extends AbstractPacket {
             return null;
         }
         version = dis.read();
+        if (version > PACKET_VERSION)
+            throw new BadPacketVersionException(version);
 
         // Get other data
         type = dis.read();

@@ -676,6 +676,7 @@ bool S64Packet::IsS64Packet(uint8_t* bytes)
     Retrieves an S64Packet from the given bytes
     @param  The raw bytes
     @return The S64Packet contained in the bytes, or NULL
+    @throws BadPacketVersionException  If the packet is a higher version than supported
 ==============================*/
 
 S64Packet* S64Packet::FromBytes(uint8_t* bytes)
@@ -698,6 +699,8 @@ S64Packet* S64Packet::FromBytes(uint8_t* bytes)
     readcount += strlen(S64PACKET_HEADER);
     memcpy(&version, bytes+readcount, sizeof(version));
     readcount += sizeof(version);
+    if (version > S64PACKET_VERSION)
+        throw BadPacketVersionException(version);
     memcpy(&flags, bytes+readcount, sizeof(flags));
     readcount += sizeof(flags);
 
@@ -917,6 +920,7 @@ bool NetLibPacket::IsNetLibPacket(uint8_t* bytes)
     Retrieves an NetLibPacket from the given bytes
     @param  The raw bytes
     @return The NetLibPacket contained in the bytes, or NULL
+    @throws BadPacketVersionException  If the packet is a higher version than supported
 ==============================*/
 
 NetLibPacket* NetLibPacket::FromBytes(uint8_t* bytes)
@@ -935,6 +939,8 @@ NetLibPacket* NetLibPacket::FromBytes(uint8_t* bytes)
     readcount += strlen(NETLIBPACKET_HEADER);
     memcpy(&version, bytes+readcount, sizeof(version));
     readcount += sizeof(version);
+    if (version > S64PACKET_VERSION)
+        throw BadPacketVersionException(version);
 
     // Read the type and flags
     memcpy(&type, bytes+readcount, sizeof(type));

@@ -790,21 +790,29 @@ void* ServerFinderThread::Entry()
                 // Handle various packets that we received from a server
                 if (pkt != NULL)
                 {
-                    if (!strncmp(pkt->GetType(), "SERVER", 6))
+                    try
                     {
-                        FoundServer server = this->ParsePacket_Server(handler->GetSocket(), pkt);
-                        serversleft[server.fulladdress] = std::make_pair(server, wxGetLocalTimeMillis());
+                        if (!strncmp(pkt->GetType(), "SERVER", 6))
+                        {
+                            FoundServer server = this->ParsePacket_Server(handler->GetSocket(), pkt);
+                            serversleft[server.fulladdress] = std::make_pair(server, wxGetLocalTimeMillis());
+                        }
+                        else if (!strncmp(pkt->GetType(), "DONELISTING", 11))
+                            printf("Master server finished sending server list\n");
+                        else if (!strncmp(pkt->GetType(), "DOWNLOAD", 8))
+                            filedl = this->BeginFileDownload(pkt, filedl_path);
+                        else if (!strncmp(pkt->GetType(), "FILEDATA", 8))
+                            this->HandleFileData(pkt, &filedl);
+                        else if (!strncmp(pkt->GetType(), "DISCOVER", 8))
+                            this->DiscoveredServer(&serversleft, pkt);
+                        else
+                            printf("Unexpected packet type received '%s'\n", static_cast<const char*>(pkt->GetType().c_str()));
                     }
-                    else if (!strncmp(pkt->GetType(), "DONELISTING", 11))
-                        printf("Master server finished sending server list\n");
-                    else if (!strncmp(pkt->GetType(), "DOWNLOAD", 8))
-                        filedl = this->BeginFileDownload(pkt, filedl_path);
-                    else if (!strncmp(pkt->GetType(), "FILEDATA", 8))
-                        this->HandleFileData(pkt, &filedl);
-                    else if (!strncmp(pkt->GetType(), "DISCOVER", 8))
-                        this->DiscoveredServer(&serversleft, pkt);
-                    else
-                        printf("Unexpected packet type received '%s'\n", static_cast<const char*>(pkt->GetType().c_str()));
+                    catch (BadPacketVersionException& e)
+                    {
+                        printf("Got unsupported packet version %d\n", e.what());
+                        break;
+                    }
                 }
 
                 // Check for more packets

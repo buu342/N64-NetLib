@@ -1,4 +1,6 @@
 import java.net.DatagramSocket;
+
+import NetLib.BadPacketVersionException;
 import NetLib.ClientTimeoutException;
 import NetLib.NetLibPacket;
 import NetLib.PacketFlag;
@@ -118,6 +120,8 @@ public class ClientConnectionThread extends Thread {
                     game.DisconnectPlayer(this.player);
                 }
                 return;
+            } catch (BadPacketVersionException e) {
+                System.err.println(e);
             } catch (Exception e) {
                 e.printStackTrace();
             }

@@ -1,6 +1,7 @@
 import N64.InvalidROMException;
 import N64.N64ROM;
 import N64.N64Server;
+import NetLib.BadPacketVersionException;
 import NetLib.ClientTimeoutException;
 import NetLib.PacketFlag;
 import NetLib.S64Packet;
@@ -66,8 +67,8 @@ public class ClientConnectionThread extends Thread {
      * Run this thread
      */
     public void run() {
-        try {
-            while (!Thread.currentThread().isInterrupted()) {
+        while (!Thread.currentThread().isInterrupted()) {
+            try {
                 // Check packets that came from a user (by reading the message queue)
                 byte[] data = this.msgqueue.poll();
                 if (data != null) {
@@ -100,9 +101,11 @@ public class ClientConnectionThread extends Thread {
                 } else {
                     Thread.sleep(10);
                 }
+            } catch (BadPacketVersionException e) {
+                System.err.println(e);
+            } catch (Exception e) {
+                e.printStackTrace();
             }
-        } catch (Exception e) {
-            e.printStackTrace();
         }
     }
     

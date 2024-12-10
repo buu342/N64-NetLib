@@ -93,8 +93,10 @@ public class S64Packet extends AbstractPacket {
      * Converts a byte array to an S64 packet object
      * @param pktdata  The data to convert
      * @return  The converted S64 packet, or null
+     * @throws IOException                If an I/O error occurs
+     * @throws BadPacketVersionException  If the packet is a higher version than supported
      */
-    static public S64Packet ReadPacket(byte[] pktdata) throws IOException {
+    static public S64Packet ReadPacket(byte[] pktdata) throws IOException, BadPacketVersionException {
         int version;
         int typesize;
         int size;
@@ -112,6 +114,8 @@ public class S64Packet extends AbstractPacket {
             return null;
         }
         version = dis.read();
+        if (version > PACKET_VERSION)
+            throw new BadPacketVersionException(version);
         flags = dis.read();
 
         // Get other data

@@ -162,7 +162,7 @@ class NetLibPacket : public AbstractPacket
         wxString AsString();
 };
 
-// Exception thrown by the UDPHandler
+// Exceptions thrown by the UDPHandler
 class ClientTimeoutException : public std::exception
 {
     private:
@@ -171,4 +171,14 @@ class ClientTimeoutException : public std::exception
     public:
         ClientTimeoutException(wxString address) {this->m_Address = address;}
         wxString what() {return this->m_Address;}
+};
+
+class BadPacketVersionException : public std::exception
+{
+    private:
+        int m_Version;
+
+    public:
+        BadPacketVersionException(int version) {this->m_Version = version;};
+        int what() {return this->m_Version;}
 };

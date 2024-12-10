@@ -1,6 +1,8 @@
 import java.io.IOException;
 import java.net.DatagramSocket;
 import java.util.concurrent.ConcurrentLinkedQueue;
+
+import NetLib.BadPacketVersionException;
 import NetLib.ClientTimeoutException;
 import NetLib.PacketFlag;
 import NetLib.S64Packet;
@@ -77,6 +79,9 @@ public class MasterConnectionThread extends Thread {
                         	this.WaitAck();
                             System.out.println("Register successful.");
                     	}
+                    } catch (BadPacketVersionException e) {
+                        System.err.println("Unable to register to master server -> " + e);
+                        return;
                     } catch (Exception e) {
                         System.err.println("Unable to register to master server -> " + e);
                         if (firsttime)
@@ -95,7 +100,6 @@ public class MasterConnectionThread extends Thread {
                 
             } catch (ClientTimeoutException e) {
                 System.err.println("Master server did not respond to heartbeat.");
-                
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -107,8 +111,9 @@ public class MasterConnectionThread extends Thread {
      * @throws ClientTimeoutException     If the packet is sent MAX_RESEND times without an acknowledgement
      * @throws IOException                If an I/O error occurs
      * @throws InterruptedException       If this function is interrupted during sleep
+     * @throws BadPacketVersionException  If the packet is a higher version than supported
      */
-    private void WaitAck() throws InterruptedException, IOException, ClientTimeoutException {
+    private void WaitAck() throws InterruptedException, IOException, ClientTimeoutException, BadPacketVersionException {
     	while (true) {
             S64Packet pkt;
             byte[] reply = null;
