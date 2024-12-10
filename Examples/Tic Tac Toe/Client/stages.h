@@ -68,6 +68,7 @@
     
     // Netlib callback functions
     extern void stage_init_serverfull();
+    extern void stage_lobby_statechange();
     extern void stage_lobby_playerchange();
     extern void stage_game_statechange();
     extern void stage_game_playerturn();

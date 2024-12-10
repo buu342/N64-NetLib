@@ -5,6 +5,7 @@ The main game
 ***************************************************************/
 
 #include <nusys.h>
+#include <string.h> // For memset
 #include "config.h"
 #include "netlib.h"
 #include "stages.h"
@@ -38,15 +39,15 @@ static void cursor_toboard(u8 board);
 static NUContData global_contdata;
 
 // Game data
-static vu8 global_playerturn;
-static vu8 global_gamestate;
-static vu8 global_gridstate_large[3][3];
-static vu8 global_gridstate_small[9][3][3];
-static vu8 global_forcedboard;
-static vu8 global_selectionx;
-static vu8 global_selectiony;
-static vs8 global_opponentx;
-static vs8 global_opponenty;
+static u8 global_playerturn;
+static u8 global_gamestate;
+static u8 global_gridstate_large[3][3];
+static u8 global_gridstate_small[9][3][3];
+static u8 global_forcedboard;
+static u8 global_selectionx;
+static u8 global_selectiony;
+static s8 global_opponentx;
+static s8 global_opponenty;
 
 
 /*==============================
@@ -63,8 +64,8 @@ void stage_game_init(void)
     global_selectiony = 4;
     global_opponentx = -1;
     global_opponenty = -1;
-    memset(global_gridstate_large, 0, sizeof(u8)*3*3);
-    memset(global_gridstate_small, 0, sizeof(u8)*3*3*9);
+    memset((u8*)global_gridstate_large, 0, sizeof(u8)*3*3);
+    memset((u8*)global_gridstate_small, 0, sizeof(u8)*3*3*9);
     refresh_gametext();
 }
 
@@ -76,7 +77,7 @@ void stage_game_init(void)
 
 void stage_game_update(void)
 {
-    static couldplaybefore = FALSE;
+    static u8 couldplaybefore = FALSE;
     
     if (global_gamestate == GAMESTATE_PLAYING && global_playerturn == netlib_getclient())
     {       
@@ -362,7 +363,7 @@ static void board_render()
     }
     
     // Show the cursor location
-    if (global_gamestate == GAMESTATE_PLAYING && global_playerturn == netlib_getclient() || (global_opponentx != -1 && global_opponenty != -1))
+    if (global_gamestate == GAMESTATE_PLAYING && (global_playerturn == netlib_getclient() || (global_opponentx != -1 && global_opponenty != -1)))
     {
         const int cursorx = (global_playerturn == netlib_getclient()) ? global_selectionx : global_opponentx;
         const int cursory = (global_playerturn == netlib_getclient()) ? global_selectiony : global_opponenty;

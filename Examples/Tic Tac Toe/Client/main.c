@@ -11,6 +11,7 @@ Program entrypoint.
 #include "helper.h"
 #include "stages.h"
 #include "netlib.h"
+#include "packets.h"
 #include "text.h"
 
 

@@ -25,17 +25,17 @@
 static u32 global_timeouttime;
 
 // Write buffers
-static volatile size_t global_writecursize;
-static volatile byte   global_writebuffer[MAX_PACKETSIZE];
+static size_t global_writecursize;
+static byte   global_writebuffer[MAX_PACKETSIZE];
 
 // Client info
-static volatile ClientNumber global_clnumber;
+static ClientNumber global_clnumber;
 
 // Library state
-static vu64 global_lastpkt;
-static vu8  global_polling;
-static vu8  global_sendafterpoll;
-static vu8  global_disconnected;
+static u64 global_lastpkt;
+static u8  global_polling;
+static u8  global_sendafterpoll;
+static u8  global_disconnected;
 
 // Callback functions
 static void (*global_funcptr_disconnect)();
@@ -323,7 +323,7 @@ void netlib_setflags(PacketFlag flags)
 
 void netlib_broadcast()
 {
-    u32 mask = 0xFFFFFFFF;
+    u32 mask = 0xFFFFFFFF  & ~(1 << (global_clnumber-1));
     u16 datasize = global_writecursize - PACKET_HEADERSIZE;
     
     // Write the client list and data size
@@ -397,6 +397,13 @@ void netlib_sendtoserver()
 
 void netlib_register(NetPacket type, void (*callback)(size_t))
 {
+    #if SAFETYCHECKS
+        if (type > MAX_UNIQUEPACKETS)
+        {
+            usb_write(DATATYPE_TEXT, "Warning: registering more callbacks than supporting. Registration discared!\n", 77);
+            return;
+        }
+    #endif
     global_funcptrs[type] = callback;
 }
 

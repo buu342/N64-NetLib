@@ -26,7 +26,16 @@ static volatile bool global_disconnected;
 ==============================*/
 
 void stage_init_init(void)
-{    
+{
+    int i;
+    
+    // Initialize game structs
+    for (i=0; i<2; i++)
+    {
+        global_players[i].connected = FALSE;
+        global_players[i].ready = FALSE;
+    }
+
     // Generate the wait text
     text_setfont(&font_default);
     text_setalign(ALIGN_CENTER);

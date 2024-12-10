@@ -217,6 +217,7 @@ https://github.com/buu342/N64-UNFLoader
 *********************************/
 
 static void usb_findcart(void);
+static u32  usb_getaddr();
 
 static void usb_64drive_write(int datatype, const void* data, int size);
 static u32  usb_64drive_poll(void);
@@ -246,7 +247,7 @@ void (*funcPointer_read)(void);
 static s8 usb_cart = CART_NONE;
 static u8 usb_buffer_align[BUFFER_SIZE+16]; // IDO doesn't support GCC's __attribute__((aligned(x))), so this is a workaround
 static u8* usb_buffer;
-static vu8 usb_didtimeout = FALSE;
+static char usb_didtimeout = FALSE;
 static int usb_datatype = 0;
 static int usb_datasize = 0;
 static int usb_dataleft = 0;
@@ -436,9 +437,6 @@ static char usb_timeout_check(u32 start_ticks, u32 duration)
 
 char usb_initialize(void)
 {
-    if (usb_cart != CART_NONE)
-        return;
-
     // Initialize the debug related globals
     usb_buffer = (u8*)OS_DCACHE_ROUNDUP_ADDR(usb_buffer_align);
     memset(usb_buffer, 0, BUFFER_SIZE);
@@ -564,6 +562,21 @@ static void usb_findcart(void)
 char usb_getcart(void)
 {
     return usb_cart;
+}
+
+
+/*==============================
+    usb_getaddr
+    Gets the base address for the USB data to be stored in
+    @return The base data address
+==============================*/
+
+u32 usb_getaddr()
+{
+    if (usb_cart == CART_64DRIVE && d64_extendedaddr)
+        return 0x10000000 - DEBUG_ADDRESS_SIZE;
+    else
+        return DEBUG_ADDRESS;
 }
 
 
@@ -813,6 +826,7 @@ static void usb_64drive_set_writable(u32 enable)
     usb_64drive_wait();
 }
 
+
 /*==============================
     usb_64drive_get_baseaddr
     Gets the 64Drive's base address for CI commands
@@ -965,7 +979,7 @@ static u32 usb_64drive_cui_read(u32 offset)
 static void usb_64drive_write(int datatype, const void* data, int size)
 {
     s32 left = size;
-    u32 pi_address = D64_BASE + DEBUG_ADDRESS;
+    u32 pi_address = D64_BASE + usb_getaddr();
 
     // Return if previous transfer timed out
     if ((usb_io_read(D64_REG_USBCOMSTAT) & D64_CUI_WRITE_MASK) == D64_CUI_WRITE_BUSY)
@@ -1003,7 +1017,7 @@ static void usb_64drive_write(int datatype, const void* data, int size)
     usb_64drive_set_writable(FALSE);
 
     // Send the data through USB
-    usb_64drive_cui_write(datatype, DEBUG_ADDRESS, size);
+    usb_64drive_cui_write(datatype, usb_getaddr(), size);
     usb_didtimeout = FALSE;
 }
 
@@ -1023,7 +1037,7 @@ static u32 usb_64drive_poll(void)
     if (usb_64drive_cui_poll())
     {
         // Read data to the buffer in 64drive SDRAM memory
-        header = usb_64drive_cui_read(DEBUG_ADDRESS);
+        header = usb_64drive_cui_read(usb_getaddr());
 
         // Get the data header
         usb_datatype = USBHEADER_GETTYPE(header);
@@ -1048,7 +1062,7 @@ static u32 usb_64drive_poll(void)
 static void usb_64drive_read(void)
 {
     // Set up DMA transfer between RDRAM and the PI
-    usb_dma_read(usb_buffer, D64_BASE + DEBUG_ADDRESS + usb_readblock, BUFFER_SIZE);
+    usb_dma_read(usb_buffer, D64_BASE + usb_getaddr() + usb_readblock, BUFFER_SIZE);
 }
 
 
@@ -1257,7 +1271,7 @@ static u32 usb_everdrive_poll(void)
         usb_everdrive_readusb(usb_buffer, bytes_do);
         
         // Copy received block to ROM
-        usb_dma_write(usb_buffer, ED_BASE + DEBUG_ADDRESS + offset, bytes_do);
+        usb_dma_write(usb_buffer, ED_BASE + usb_getaddr() + offset, bytes_do);
         offset += bytes_do;
         len -= bytes_do;
     }
@@ -1289,7 +1303,7 @@ static u32 usb_everdrive_poll(void)
 static void usb_everdrive_read(void)
 {
     // Set up DMA transfer between RDRAM and the PI
-    usb_dma_read(usb_buffer, ED_BASE + DEBUG_ADDRESS + usb_readblock, BUFFER_SIZE);
+    usb_dma_read(usb_buffer, ED_BASE + usb_getaddr() + usb_readblock, BUFFER_SIZE);
 }
 
 
@@ -1377,7 +1391,7 @@ static u32 usb_sc64_set_writable(u32 enable)
 static void usb_sc64_write(int datatype, const void* data, int size)
 {
     u32 left = size;
-    u32 pi_address = SC64_BASE + DEBUG_ADDRESS;
+    u32 pi_address = SC64_BASE + usb_getaddr();
     u32 writable_restore;
     u32 timeout;
     u32 args[2];
@@ -1415,7 +1429,7 @@ static void usb_sc64_write(int datatype, const void* data, int size)
     usb_sc64_set_writable(writable_restore);
 
     // Start sending data from buffer in SDRAM
-    args[0] = SC64_BASE + DEBUG_ADDRESS;
+    args[0] = SC64_BASE + usb_getaddr();
     args[1] = USBHEADER_CREATE(datatype, size);
     if (usb_sc64_execute_cmd(SC64_CMD_USB_WRITE, args, NULL))
     {
@@ -1470,7 +1484,7 @@ static u32 usb_sc64_poll(void)
     usb_readblock = -1;
 
     // Start receiving data to buffer in SDRAM
-    args[0] = SC64_BASE + DEBUG_ADDRESS;
+    args[0] = SC64_BASE + usb_getaddr();
     args[1] = size;
     if (usb_sc64_execute_cmd(SC64_CMD_USB_READ, args, NULL))
         return 0; // Return 0 if USB read was unsuccessful
@@ -1495,5 +1509,5 @@ static u32 usb_sc64_poll(void)
 static void usb_sc64_read(void)
 {
     // Set up DMA transfer between RDRAM and the PI
-    usb_dma_read(usb_buffer, SC64_BASE + DEBUG_ADDRESS + usb_readblock, BUFFER_SIZE);
+    usb_dma_read(usb_buffer, SC64_BASE + usb_getaddr() + usb_readblock, BUFFER_SIZE);
 }
