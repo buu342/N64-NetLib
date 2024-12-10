@@ -21,7 +21,7 @@ This repository is organized as such:
 
 ##### How to host a server:
 
-Simply launch one of the example servers. Check the [Examples folder](https://github.com/buu342/N64-NetLib/tree/main/Examples) for further READMEs.
+Simply launch one of the example servers. The example servers all support UPnP, if supported and enabled by your router. If it does not, you will need to [forward your ports](https://www.noip.com/support/knowledgebase/general-port-forwarding-guide). Check the [Examples folder](https://github.com/buu342/N64-NetLib/tree/main/Examples) for further READMEs.
 
 
 ##### How to develop:
