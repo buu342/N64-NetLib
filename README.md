@@ -45,8 +45,11 @@ Check [the Wiki](https://github.com/buu342/N64-NetLib/wiki).
 **Q: Can I make this work with X retail game?**</br>
 **A:** If you have the source code for said game, sure. But even then, such a thing would require a massive rewrite of the game's engine, as it very likely wasn't designed with networking in mind. In real life, game networking is *much more complex than just "sending a player's controller input over the wire"*. See [this article](https://developer.valvesoftware.com/wiki/Source_Multiplayer_Networking) for more information.
 
+**Q: I found a potential security flaw**</br>
+**A:** If you think the issue is severe, please reach out privately by email first. Otherwise, open an [issue](issues). Pull requests are also welcome and super appreciated!
+
 **Q: How can I get my ROM uploaded to the official master server?**</br>
-**A:** Get in touch! Create a GitHub issue or send me an email.
+**A:** Get in touch! Create a post in the [discussions](discussions) page (ideal) or send me an email.
 
 ### Security
 
