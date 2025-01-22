@@ -133,7 +133,6 @@ public class HelloWorldServer {
                     connectiontable.put(clientaddr, t);
                 }
                 t.SendMessage(data, udppkt.getLength());
-                t.UpdateClientMessageTime();
             } catch (Exception e) {
                 System.err.println("Error during client connection.");
                 e.printStackTrace();
