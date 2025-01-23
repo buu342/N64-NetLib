@@ -8,15 +8,11 @@
 #                    Code files and ROM name                   #
 ################################################################
 
-ROMNAME     = tictactoe
+ROMNAME     = hello
 BUILDDIR    = build
 ASMFILES    = asm/entry.s asm/rom_header.s asm/assets.s
 ASMOBJECTS  = $(ASMFILES:%.s=${BUILDDIR}/%.o)
-CODECFILES  = main.c graphic.c helper.c datastructs.c text.c netlib.c usb.c packets.c \
-              stage_init.c \
-              stage_lobby.c \
-              stage_game.c \
-              stage_disconnected.c 
+CODECFILES  = main.c graphic.c helper.c datastructs.c text.c netlib.c usb.c packets.c stage_hello.c
 CODEHFILES  =
 
 DEBUGFILES = debug.c

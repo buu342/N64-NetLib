@@ -1,5 +1,5 @@
-#ifndef TICTACTOE_DATASTRUCTS_H
-#define TICTACTOE_DATASTRUCTS_H
+#ifndef HELLOSERVER_DATASTRUCTS_H
+#define HELLOSERVER_DATASTRUCTS_H
 
     /*********************************
                   Macros

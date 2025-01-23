@@ -2,19 +2,15 @@
 #                    Code files and ROM name                   #
 ################################################################
 
-ROMNAME     = tictactoe
-CODECFILES  = main.c graphic.c helper.c datastructs.c text.c netlib.c usb.c packets.c \
-              stage_init.c \
-              stage_lobby.c \
-              stage_game.c \
-              stage_disconnected.c 
+ROMNAME     = hello
+CODECFILES  = main.c graphic.c helper.c datastructs.c text.c netlib.c usb.c packets.c stage_hello.c
 CODEHFILES  =
 
 DEBUGFILES = debug.c 
 
 TARGETS = $(ROMNAME).n64
 
-REGISTRATION = "TICTACTOE" B TT I
+REGISTRATION = "HELLOSERVER" B HS I
 
 
 ################################################################

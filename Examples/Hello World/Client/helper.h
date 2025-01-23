@@ -1,5 +1,5 @@
-#ifndef TICTACTOE_HELPER_H
-#define TICTACTOE_HELPER_H
+#ifndef HELLOSERVER_HELPER_H
+#define HELLOSERVER_HELPER_H
     
     
     /*********************************

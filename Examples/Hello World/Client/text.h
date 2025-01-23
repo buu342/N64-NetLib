@@ -1,5 +1,5 @@
-#ifndef TICTACTOE_TEXT_H
-#define TICTACTOE_TEXT_H
+#ifndef HELLOSERVER_TEXT_H
+#define HELLOSERVER_TEXT_H
 
 
     /*********************************

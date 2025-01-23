@@ -1,7 +1,7 @@
 /***************************************************************
-                          stage_init.c
+                          stage_hello.c
                                
-Handles the first level of the game.
+Handles the main level of the game.
 ***************************************************************/
 
 #include <nusys.h>
@@ -13,29 +13,13 @@ Handles the first level of the game.
 #include "text.h"
 
 
-/*********************************
-             Globals
-*********************************/
-
-static volatile bool global_disconnected;
-
-
 /*==============================
-    stage_init_init
+    stage_hello_init
     Initialize the stage
 ==============================*/
 
-void stage_init_init(void)
+void stage_hello_init(void)
 {
-    int i;
-    
-    // Initialize game structs
-    for (i=0; i<2; i++)
-    {
-        global_players[i].connected = FALSE;
-        global_players[i].ready = FALSE;
-    }
-
     // Generate the wait text
     text_setfont(&font_default);
     text_setalign(ALIGN_CENTER);
@@ -48,35 +32,26 @@ void stage_init_init(void)
     // Get player info from the server
     netlib_start(PACKETID_CLIENTCONNECT);
     netlib_sendtoserver();
-    global_disconnected = FALSE;
 }
 
 
 /*==============================
-    stage_init_update
+    stage_hello_update
     Update stage variables every frame
 ==============================*/
 
-void stage_init_update(void)
+void stage_hello_update(void)
 {
-    if (!global_disconnected)
-    {
-        // If we have an assigned player number, we are ready to connect to the lobby
-        if (netlib_getclient() != 0)
-        {
-            stages_changeto(STAGE_LOBBY);
-            return;
-        }
-    }
+
 }
 
 
 /*==============================
-    stage_init_draw
+    stage_hello_draw
     Draw the stage
 ==============================*/
 
-void stage_init_draw(void)
+void stage_hello_draw(void)
 {
     glistp = glist;
 
@@ -95,29 +70,11 @@ void stage_init_draw(void)
 
 
 /*==============================
-    stage_init_cleanup
+    stage_hello_cleanup
     Cleans up memory used by the stage
 ==============================*/
 
-void stage_init_cleanup(void)
+void stage_hello_cleanup(void)
 {
     text_cleanup();
-}
-
-
-/*==============================
-    stage_init_serverfull
-    Tells the player that the server is full
-==============================*/
-
-void stage_init_serverfull()
-{
-    global_disconnected = TRUE;
-    text_cleanup();
-    text_setfont(&font_default);
-    text_setalign(ALIGN_CENTER);
-    text_setcolor(255, 255, 255, 255);
-    text_create("Disconnected", SCREEN_WD/2, SCREEN_HT/2 - 64);
-    text_setfont(&font_small);
-    text_create("Server full", SCREEN_WD/2, SCREEN_HT/2 + 16);
 }

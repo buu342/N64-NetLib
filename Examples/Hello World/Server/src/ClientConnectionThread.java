@@ -1,16 +1,15 @@
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.net.DatagramSocket;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import NetLib.BadPacketVersionException;
 import NetLib.ClientTimeoutException;
 import NetLib.NetLibPacket;
 import NetLib.PacketFlag;
 import NetLib.S64Packet;
 import NetLib.UDPHandler;
-
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class ClientConnectionThread extends Thread {
 

@@ -1,5 +1,5 @@
-#ifndef TICTACTOE_CONFIG_H
-#define TICTACTOE_CONFIG_H
+#ifndef HELLOSERVER_CONFIG_H
+#define HELLOSERVER_CONFIG_H
 
     /*********************************
            Configuration Macros
