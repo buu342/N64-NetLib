@@ -42,7 +42,7 @@ void stage_hello_init(void)
 
 void stage_hello_update(void)
 {
-
+    // Nothing to do here, the main loop already polls for networking packets
 }
 
 
@@ -77,4 +77,29 @@ void stage_hello_draw(void)
 void stage_hello_cleanup(void)
 {
     text_cleanup();
+}
+
+
+/*==============================
+    stage_hello_connectpacket
+    Handles what happens when the player receives the connect
+    packet from the server
+==============================*/
+
+void stage_hello_connectpacket(void)
+{
+    char textbuff[32];
+    u32 read;
+    
+    // Read the magic value from the packet
+    netlib_readdword(&read);
+    
+    // Print to the screen
+    text_cleanup();
+    text_setfont(&font_default);
+    text_setalign(ALIGN_CENTER);
+    text_setcolor(255, 255, 255, 255);
+    text_create("Server replied back with:", SCREEN_WD/2, SCREEN_HT/2 - 64);
+    sprintf(textbuff, "%d", read);
+    text_create(textbuff, SCREEN_WD/2, SCREEN_HT/2 + 16);
 }

@@ -5,5 +5,6 @@
     extern void stage_hello_update();
     extern void stage_hello_draw();
     extern void stage_hello_cleanup();
+    extern void stage_hello_connectpacket();
     
 #endif

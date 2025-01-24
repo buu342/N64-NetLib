@@ -12,6 +12,10 @@ import NetLib.S64Packet;
 import NetLib.UDPHandler;
 
 public class ClientConnectionThread extends Thread {
+    
+    // Packet types. Ideally should be an enum, but this is a basic example
+    static final int PACKETID_ACKBEAT = 0;
+    static final int PACKETID_CLIENTCONNECT = 1;
 
     // Networking
     String address;
@@ -106,11 +110,13 @@ public class ClientConnectionThread extends Thread {
     private void HandleNetLibPackets(NetLibPacket pkt) throws IOException, InterruptedException, ClientTimeoutException {
         if (pkt == null)
             return;
-        if (pkt.GetType() == 0) {
+        if (pkt.GetType() == PACKETID_ACKBEAT) { // Heartbeat packet (shouldn't happen in this example but good practice to include it)
+            this.handler.SendPacket(new NetLibPacket(PACKETID_ACKBEAT, null)); // Just echo back a heartbeat
+        } else if (pkt.GetType() == PACKETID_CLIENTCONNECT) {
             int randnum = (int)(Math.random()*Integer.MAX_VALUE);
             ByteArrayOutputStream bytes = new ByteArrayOutputStream();
             bytes.write(ByteBuffer.allocate(4).putInt(randnum).array());
-            this.handler.SendPacket(new NetLibPacket(0, bytes.toByteArray()));
+            this.handler.SendPacket(new NetLibPacket(PACKETID_CLIENTCONNECT, bytes.toByteArray()));
             System.out.println("Sent client " + this.address + ":" + this.port + " the random value '" + randnum + "'.");
         } else {
             System.err.println("Received packet of unknown type " + pkt.GetType() + " from " + this.address + ":" + this.port + ".");

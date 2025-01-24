@@ -53,6 +53,9 @@ void mainproc(void)
     
     // Initialize and activate the graphics thread and Graphics Task Manager.
     nuGfxInit();
+
+    // Initialize the heap
+    InitHeap(heapmem, sizeof(heapmem));
     
     // Initialize the controller
     nuContInit();
@@ -66,17 +69,16 @@ void mainproc(void)
 
     // Initialize the font system
     text_initialize();
-
-    // Initialize the heap
-    InitHeap(heapmem, sizeof(heapmem));
     
     // Initialize the stage
     stage_hello_init();
     
     // Set callback functions for reset and graphics
+    nuPreNMIFuncSet((NUScPreNMIFunc)callback_prenmi);
     nuGfxFuncSet((NUGfxFunc)callback_vsync);
     
     // Game loop
+    nuGfxDisplayOn();
     while(1)
         ;
 }

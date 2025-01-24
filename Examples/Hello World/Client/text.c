@@ -69,7 +69,7 @@ void text_initialize()
 
 /*==============================
     text_reset
-    Sets the text settings ot their
+    Sets the text settings to their
     default values
 ==============================*/
 

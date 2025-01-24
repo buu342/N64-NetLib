@@ -38,7 +38,7 @@ void netcallback_initall()
 
 static void netcallback_heartbeat(size_t size)
 {
-    netlib_start(PACKETID_ACKBEAT);
+    netlib_start(PACKETID_ACKBEAT); // If we get an ack or heartbeat, send one back
     netlib_sendtoserver();
 }
 
@@ -51,5 +51,5 @@ static void netcallback_heartbeat(size_t size)
 
 static void netcallback_playerconnect(size_t size)
 {
-
+    stage_hello_connectpacket();
 }
