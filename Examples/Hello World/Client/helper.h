@@ -1,23 +1,6 @@
 #ifndef HELLOSERVER_HELPER_H
 #define HELLOSERVER_HELPER_H
     
-    
-    /*********************************
-                 Structs
-    *********************************/
-
-    typedef struct {
-        u8 connected;
-        u8 ready;
-    } Player;
-
-    
-    /*********************************
-                 Globals
-    *********************************/
-    
-    extern Player global_players[];
-    
 
     /*********************************
                 Functions
