@@ -13,7 +13,7 @@ import java.util.Map.Entry;
 import com.dosse.upnp.UPnP;
 import NetLib.S64Packet;
 
-public class TicTacToeServer {
+public class RealtimeServer {
 
     // Constants
     private static final String MASTER_DEFAULTADDRESS = "127.0.0.1";
@@ -30,7 +30,7 @@ public class TicTacToeServer {
     private static byte[] romhash;
     
     // Game handler
-    private static TicTacToe.Game game;
+    private static Realtime.Game game;
     
     // Database
     private static Hashtable<String, ClientConnectionThread> connectiontable = new Hashtable<>();
@@ -102,7 +102,7 @@ public class TicTacToeServer {
         }
         
         // Begin the game
-        game = new TicTacToe.Game();
+        game = new Realtime.Game();
         new Thread(game).start();
         
         // Allow clients to connect, and pass messages over to them

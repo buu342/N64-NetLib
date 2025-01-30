@@ -6,8 +6,9 @@ import NetLib.NetLibPacket;
 import NetLib.PacketFlag;
 import NetLib.S64Packet;
 import NetLib.UDPHandler;
-import TicTacToe.ClientDisconnectException;
-import TicTacToe.PacketIDs;
+import Realtime.ClientDisconnectException;
+import Realtime.PacketIDs;
+
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -29,8 +30,8 @@ public class ClientConnectionThread extends Thread {
     
     // Game
     int clientstate;
-    TicTacToe.Game game;
-    TicTacToe.Player player;
+    Realtime.Game game;
+    Realtime.Player player;
     
     // Thread communication
     volatile long lastmessage;
@@ -43,7 +44,7 @@ public class ClientConnectionThread extends Thread {
      * @param port     Client port
      * @param game     The TicTacToe game
      */
-    ClientConnectionThread(DatagramSocket socket, String address, int port, TicTacToe.Game game) {
+    ClientConnectionThread(DatagramSocket socket, String address, int port, Realtime.Game game) {
         this.socket = socket;
         this.address = address;
         this.port = port;
@@ -105,7 +106,7 @@ public class ClientConnectionThread extends Thread {
                 if (this.clientstate == CLIENTSTATE_CONNECTED)
                 {
                     // Notify other players of the disconnect
-                    for (TicTacToe.Player ply : this.game.GetPlayers()) {
+                    for (Realtime.Player ply : this.game.GetPlayers()) {
                         if (ply != null && ply.GetNumber() != this.player.GetNumber()) {
                             try {
                                 this.SendPlayerDisconnectPacket(ply, this.player);
@@ -139,7 +140,7 @@ public class ClientConnectionThread extends Thread {
             return;
         if (pkt.GetType().equals("DISCOVER")) {
             String identifier = new String(pkt.GetData(), StandardCharsets.UTF_8);
-            this.handler.SendPacket(new S64Packet("DISCOVER", TicTacToeServer.ToByteArray_Client(identifier), PacketFlag.FLAG_UNRELIABLE.GetInt()));
+            this.handler.SendPacket(new S64Packet("DISCOVER", RealtimeServer.ToByteArray_Client(identifier), PacketFlag.FLAG_UNRELIABLE.GetInt()));
             System.out.println("Client " + this.address + ":" + this.port + " discovered server");
         }
     }
@@ -178,7 +179,7 @@ public class ClientConnectionThread extends Thread {
                 this.ClientConnectInfoPacket(this.player);
                 
                 // Also send the rest of the connected player's information (and notify other players of us)
-                for (TicTacToe.Player ply : this.game.GetPlayers()) {
+                for (Realtime.Player ply : this.game.GetPlayers()) {
                     if (ply != null && ply.GetNumber() != this.player.GetNumber()) {
                         this.SendPlayerInfoPacket(this.player, ply);
                         this.SendPlayerInfoPacket(ply, this.player);
@@ -197,7 +198,7 @@ public class ClientConnectionThread extends Thread {
                 
                 // Relay packets to other clients or the server
                 if (pkt.GetRecipients() != 0) {
-                    for (TicTacToe.Player ply : this.game.GetPlayers())
+                    for (Realtime.Player ply : this.game.GetPlayers())
                         if (ply != this.player && (pkt.GetRecipients() & ply.GetBitMask()) != 0)
                             ply.SendMessage(this.player, pkt);
                 } else {
@@ -240,7 +241,7 @@ public class ClientConnectionThread extends Thread {
      * @throws ClientTimeoutException     If the packet is sent MAX_RESEND times without an acknowledgement
      * @throws IOException                If an I/O error occurs
      */
-    private void ClientConnectInfoPacket(TicTacToe.Player target) throws IOException, ClientTimeoutException {
+    private void ClientConnectInfoPacket(Realtime.Player target) throws IOException, ClientTimeoutException {
     	NetLibPacket pkt = new NetLibPacket(PacketIDs.PACKETID_CLIENTCONNECT.GetInt(), new byte[]{(byte)target.GetNumber()});
         pkt.AddRecipient(target.GetNumber());
         this.handler.SendPacket(pkt);
@@ -253,7 +254,7 @@ public class ClientConnectionThread extends Thread {
      * @throws ClientTimeoutException     If the packet is sent MAX_RESEND times without an acknowledgement
      * @throws IOException                If an I/O error occurs
      */
-    private void SendPlayerInfoPacket(TicTacToe.Player target, TicTacToe.Player who) throws IOException, ClientTimeoutException {
+    private void SendPlayerInfoPacket(Realtime.Player target, Realtime.Player who) throws IOException, ClientTimeoutException {
         NetLibPacket pkt = new NetLibPacket(PacketIDs.PACKETID_PLAYERINFO.GetInt(), new byte[]{(byte)who.GetNumber()});
         pkt.AddRecipient(target.GetNumber());
         if (target == who)
@@ -269,7 +270,7 @@ public class ClientConnectionThread extends Thread {
      * @throws ClientTimeoutException     If the packet is sent MAX_RESEND times without an acknowledgement
      * @throws IOException                If an I/O error occurs
      */
-    private void SendPlayerDisconnectPacket(TicTacToe.Player target, TicTacToe.Player who) throws IOException, ClientTimeoutException {
+    private void SendPlayerDisconnectPacket(Realtime.Player target, Realtime.Player who) throws IOException, ClientTimeoutException {
     	NetLibPacket pkt = new NetLibPacket(PacketIDs.PACKETID_PLAYERDISCONNECT.GetInt(), new byte[]{(byte)who.GetNumber()});
         pkt.AddRecipient(target.GetNumber());
         if (target == who)

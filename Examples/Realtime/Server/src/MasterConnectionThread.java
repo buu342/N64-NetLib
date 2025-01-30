@@ -75,7 +75,7 @@ public class MasterConnectionThread extends Thread {
                     	// Do the register
                     	if (doregister)
                     	{
-                    		this.handler.SendPacket(new S64Packet("REGISTER", TicTacToeServer.ToByteArray_Master(), PacketFlag.FLAG_EXPLICITACK.GetInt()));
+                    		this.handler.SendPacket(new S64Packet("REGISTER", RealtimeServer.ToByteArray_Master(), PacketFlag.FLAG_EXPLICITACK.GetInt()));
                         	this.WaitAck();
                             System.out.println("Register successful.");
                     	}
@@ -95,7 +95,7 @@ public class MasterConnectionThread extends Thread {
                 Thread.sleep(TIME_HEARTBEAT);
                 
                 // Send the heartbeat
-                this.handler.SendPacket(new S64Packet("HEARTBEAT", TicTacToeServer.ToByteArray_Master(), PacketFlag.FLAG_EXPLICITACK.GetInt()));
+                this.handler.SendPacket(new S64Packet("HEARTBEAT", RealtimeServer.ToByteArray_Master(), PacketFlag.FLAG_EXPLICITACK.GetInt()));
                 this.WaitAck();
                 
             } catch (ClientTimeoutException e) {

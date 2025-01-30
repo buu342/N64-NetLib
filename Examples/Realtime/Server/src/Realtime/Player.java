@@ -1,4 +1,4 @@
-package TicTacToe;
+package Realtime;
 
 import NetLib.NetLibPacket;
 import java.util.Queue;

@@ -1,4 +1,4 @@
-package TicTacToe;
+package Realtime;
 
 public enum GameState {
     GAMESTATE_LOBBY(0),
