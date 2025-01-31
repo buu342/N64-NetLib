@@ -1,12 +1,18 @@
 package Realtime;
 
 import NetLib.NetLibPacket;
-
 import java.util.LinkedList;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class Game implements Runnable  {
+    
+    private static int   TICKRATE = 15;
+    private static float DELTATIME = 1.0f/((float)TICKRATE);
+    private static long  MAXDELTA = (long)(0.25f*1E9);
+    
+    // Frame
+    private PreviewWindow window;
     
     // Game state
     private Player players[];
@@ -19,11 +25,11 @@ public class Game implements Runnable  {
      * Object representation of the Ultimate TicTacToe game
      */
     public Game() {
-        PreviewFrame frame = new PreviewFrame(this);
     	this.messages = new ConcurrentLinkedQueue<NetLibPacket>();
         this.players = new Player[32];
         this.objs = new LinkedList<MovingObject>();
         this.objs.add(new MovingObject(new Vector2D(320/2, 240/2)));
+        this.window = new PreviewWindow(this);
         System.out.println("Realtime initialized");
     }
 
@@ -32,19 +38,64 @@ public class Game implements Runnable  {
      */
     public void run() {
         try {
-            Thread.currentThread().setName("Game");
+            float accumulator = 0;
+            long oldtime = System.nanoTime();
             
+            Thread.currentThread().setName("Game");
             while (true) {
-
+                long curtime = System.nanoTime();
+                long frametime = curtime - oldtime;
+                
+                // In order to prevent problems if the game slows down significantly, we will clamp the maximum timestep the simulation can take
+                if (frametime > MAXDELTA)
+                    frametime = MAXDELTA;
+                oldtime = curtime;
+                
+                // Perform the update in discrete steps (ticks)
+                accumulator += ((float)frametime)/1E9;
+                while (accumulator >= DELTATIME) {
+                    do_update();
+                    accumulator -= DELTATIME;
+                }
+                
+                // Draw the frame
+                this.window.repaint();
+                
+                // TODO: Sleep if faster than a tick
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
+    
+    private void do_update() {
+        for (MovingObject obj : this.objs) {
+            if (obj != null) {
+                Vector2D target_offset = new Vector2D(obj.GetDirection().x*obj.GetSpeed(), obj.GetDirection().y*obj.GetSpeed());
+                if (obj.GetPos().x + obj.GetSize().x/2 + target_offset.x > 320) {
+                    target_offset.x -= 2*((obj.GetPos().x + obj.GetSize().x/2 + target_offset.x) - 320);
+                    obj.SetDirection(new Vector2D(-obj.GetDirection().x, obj.GetDirection().y));
+                }
+                if (obj.GetPos().x - obj.GetSize().x/2 + target_offset.x < 0) {
+                    target_offset.x -= 2*((obj.GetPos().x - obj.GetSize().x/2 + target_offset.x) - 0);
+                    obj.SetDirection(new Vector2D(-obj.GetDirection().x, obj.GetDirection().y));
+                }
+                if (obj.GetPos().y + obj.GetSize().y/2 + target_offset.y > 240) {
+                    target_offset.y -= 2*((obj.GetPos().y + obj.GetSize().y/2 + target_offset.y) - 240);
+                    obj.SetDirection(new Vector2D(obj.GetDirection().x, -obj.GetDirection().y));
+                }
+                if (obj.GetPos().y - obj.GetSize().y/2 + target_offset.y < 0) {
+                    target_offset.y -= 2*((obj.GetPos().y - obj.GetSize().y/2 + target_offset.y) - 0);
+                    obj.SetDirection(new Vector2D(obj.GetDirection().x, -obj.GetDirection().y));
+                }
+                obj.SetPos(Vector2D.Add(obj.GetPos(), target_offset));
+            }
+        }
+    }
 
     /**
      * Connect a player to the game
-     * @return  The player struct for this client, or null if the server is full
+     * @return  The player object for this client, or null if the server is full
      */
     public synchronized Player ConnectPlayer() {
         boolean foundslot = false;

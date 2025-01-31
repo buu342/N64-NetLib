@@ -14,6 +14,7 @@ public class MovingObject {
     public MovingObject(Vector2D pos) {
         this.pos = pos;
         this.dir = new Vector2D((float)Math.random(), (float)Math.random());
+        this.dir.Normalize();
         this.col = Color.red;
         this.speed = 5;
         this.size = new Vector2D(RECTSIZE, RECTSIZE);
@@ -37,5 +38,13 @@ public class MovingObject {
     
     public Color GetColor() {
         return this.col;
+    }
+    
+    public void SetPos(Vector2D pos) {
+        this.pos = pos;
+    }
+    
+    public void SetDirection(Vector2D dir) {
+        this.dir = dir;
     }
 }
