@@ -20,7 +20,8 @@ public class ClientConnectionThread extends Thread {
 
     // Client state constants (too lazy to make an enum)
     private static final int CLIENTSTATE_UNCONNECTED = 0;
-    private static final int CLIENTSTATE_CONNECTED = 1;
+    private static final int CLIENTSTATE_CONNECTING = 1;
+    private static final int CLIENTSTATE_CONNECTED = 2;
 
     // Networking
     String address;
@@ -159,8 +160,7 @@ public class ClientConnectionThread extends Thread {
         switch (this.clientstate) {
             // First, we have to receive a client connection request packet
             // This tells us that the player has the game booted on the N64,
-            // and that they're ready to be assigned player data
-            // as well as to receive information about other connected players
+            // and that they're ready to begin the clock synchronization
             case CLIENTSTATE_UNCONNECTED:
                 if (pkt.GetType() != PacketIDs.PACKETID_CLIENTCONNECT.GetInt()) {
                     System.err.println("Expected client connect packet, got " + pkt.GetType() + ". Disconnecting");
@@ -168,30 +168,43 @@ public class ClientConnectionThread extends Thread {
                 }
                 
                 // Try to connect the player to the game
-                this.player = this.game.ConnectPlayer();
-                if (this.player == null) {
+                if (this.game.CanConnectPlayer()) {
                     System.err.println("Server full");
                     this.SendServerFullPacket();
                     return;
                 }
                 
-                // Respond with the player's own info
-                this.ClientConnectInfoPacket(this.player);
-                
-                // Also send the rest of the connected player's information (and notify other players of us)
-                for (Realtime.Player ply : this.game.GetPlayers()) {
-                    if (ply != null && ply.GetNumber() != this.player.GetNumber()) {
-                        this.SendPlayerInfoPacket(this.player, ply);
-                        this.SendPlayerInfoPacket(ply, this.player);
+                // Allow this player to connect
+                this.NotifyValidConnection();
+                this.clientstate = CLIENTSTATE_CONNECTING;
+                break;
+            case CLIENTSTATE_CONNECTING:
+                if (pkt.GetType() == PacketIDs.PACKETID_CLOCKSYNC.GetInt()) {
+                    this.handler.SendPacket(new NetLibPacket(PacketIDs.PACKETID_CLOCKSYNC.GetInt(), null));
+                } else if (pkt.GetType() == PacketIDs.PACKETID_DONECONNECT.GetInt()) {
+                    
+                    // Respond with the player info
+                    this.player = this.game.ConnectPlayer();
+                    this.ClientConnectInfoPacket(this.player);
+                    
+                    // Send the rest of the connected player's information (and notify other players of us)
+                    for (Realtime.Player ply : this.game.GetPlayers()) {
+                        if (ply != null && ply.GetNumber() != this.player.GetNumber()) {
+                            this.SendPlayerInfoPacket(this.player, ply);
+                            this.SendPlayerInfoPacket(ply, this.player);
+                        }
                     }
+                    
+                    // Done with the initial handshake, now we can go into the gameplay packet handling loop
+                    System.out.println("Player " + this.player.GetNumber() + " has joined the game");
+                    
+                    // Client successfully connected!
+                    this.clientstate = CLIENTSTATE_CONNECTED;
+                    Thread.currentThread().setName("Client " + this.player.GetNumber());
+                } else {
+                    System.err.println("Expected handshake packets, got " + pkt.GetType() + ". Disconnecting");
+                    throw new ClientDisconnectException(this.handler.GetAddress() + this.handler.GetPort());
                 }
-                
-                // Done with the initial handshake, now we can go into the gameplay packet handling loop
-                System.out.println("Player " + this.player.GetNumber() + " has joined the game");
-                
-                // Client successfully connected!
-                this.clientstate = CLIENTSTATE_CONNECTED;
-                Thread.currentThread().setName("Client " + this.player.GetNumber());
                 break;
             case CLIENTSTATE_CONNECTED:
                 // Now that the player is connected, all we gotta do is act as a packet relayer to the game thread and other client threads
@@ -214,6 +227,15 @@ public class ClientConnectionThread extends Thread {
                 }
                 break;
         }
+    }
+
+    /**
+     * Notify the connecting client that they can connect
+     * @throws ClientTimeoutException     If the packet is sent MAX_RESEND times without an acknowledgement
+     * @throws IOException                If an I/O error occurs
+     */
+    private void NotifyValidConnection() throws IOException, ClientTimeoutException {
+        this.handler.SendPacket(new NetLibPacket(PacketIDs.PACKETID_CLIENTCONNECT.GetInt(), null, PacketFlag.FLAG_EXPLICITACK.GetInt()));
     }
 
     /**

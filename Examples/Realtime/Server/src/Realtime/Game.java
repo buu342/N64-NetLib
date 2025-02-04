@@ -97,6 +97,17 @@ public class Game implements Runnable  {
      * Connect a player to the game
      * @return  The player object for this client, or null if the server is full
      */
+    public synchronized boolean CanConnectPlayer() {
+        for (int i=0; i<this.players.length; i++)
+            if (this.players[i] == null)
+                return true;
+        return false;
+    }
+
+    /**
+     * Connect a player to the game
+     * @return  The player object for this client, or null if the server is full
+     */
     public synchronized Player ConnectPlayer() {
         boolean foundslot = false;
         Player ply = new Player();

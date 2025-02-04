@@ -6,6 +6,8 @@ public enum PacketIDs {
     PACKETID_PLAYERINFO(2),
     PACKETID_PLAYERDISCONNECT(3),
     PACKETID_SERVERFULL(4),
+    PACKETID_CLOCKSYNC(5),
+    PACKETID_DONECONNECT(6),
     ;
 
     // Int representation
