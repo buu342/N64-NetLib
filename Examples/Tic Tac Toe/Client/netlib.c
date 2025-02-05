@@ -239,6 +239,34 @@ void netlib_writedword(uint32_t data)
 
 
 /*==============================
+    netlib_writeqword
+    Appends a quad word to the current net packet
+    @param The quad word to append to the packet
+==============================*/
+
+void netlib_writeqword(uint64_t data)
+{
+    #if SAFETYCHECKS
+        if (global_writecursize + sizeof(uint64_t) > MAX_PACKETSIZE)
+        {
+            usb_write(DATATYPE_TEXT, "Warning: Writing more data than max packet size. Discarded!\n", 61);
+            return;
+        }
+    #endif
+    
+    // N64 is also big endian, so data already respects Network Byte Order :D
+    global_writebuffer[global_writecursize++] = (data >> 56) & 0xFF;
+    global_writebuffer[global_writecursize++] = (data >> 48) & 0xFF;
+    global_writebuffer[global_writecursize++] = (data >> 40) & 0xFF;
+    global_writebuffer[global_writecursize++] = (data >> 32) & 0xFF;
+    global_writebuffer[global_writecursize++] = (data >> 24) & 0xFF;
+    global_writebuffer[global_writecursize++] = (data >> 16) & 0xFF;
+    global_writebuffer[global_writecursize++] = (data >> 8) & 0xFF;
+    global_writebuffer[global_writecursize++] = data & 0xFF;
+}
+
+
+/*==============================
     netlib_writefloat
     Appends a float to the current net packet
     @param The float to append to the packet
@@ -535,6 +563,18 @@ void netlib_readword(uint16_t* output)
 void netlib_readdword(uint32_t* output)
 {
     usb_read(output, sizeof(uint32_t));
+}
+
+
+/*==============================
+    netlib_readqword
+    Reads a quad word from the received net packet
+    @param A pointer to the quad word to read into
+==============================*/
+
+void netlib_readqword(uint64_t* output)
+{
+    usb_read(output, sizeof(uint64_t));
 }
 
 /*==============================

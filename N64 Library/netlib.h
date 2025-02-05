@@ -46,6 +46,7 @@
         typedef u8 uint8_t;
         typedef u16 uint16_t;
         typedef u32 uint32_t;
+        typedef u64 uint64_t;
     #endif
     
     // Packet and client types
@@ -149,6 +150,15 @@
     ==============================*/
     
     extern void netlib_writedword(uint32_t data);
+    
+    
+    /*==============================
+        netlib_writeqword
+        Appends a quad word to the current net packet
+        @param The quad word to append to the packet
+    ==============================*/
+    
+    extern void netlib_writeqword(uint64_t data);
     
     
     /*==============================
@@ -261,6 +271,15 @@
     ==============================*/
     
     extern void netlib_readdword(uint32_t* output);
+    
+    
+    /*==============================
+        netlib_readdword
+        Reads a quad word from the received net packet
+        @param A pointer to the quad word to read into
+    ==============================*/
+    
+    extern void netlib_readqword(uint64_t* output);
     
     
     /*==============================
