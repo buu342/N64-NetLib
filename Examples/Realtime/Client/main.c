@@ -71,7 +71,7 @@ void mainproc(void)
     text_initialize();
     
     // Initialize the stage
-    stage_hello_init();
+    stage_init_init();
     
     // Set callback functions for reset and graphics
     nuPreNMIFuncSet((NUScPreNMIFunc)callback_prenmi);
@@ -97,11 +97,11 @@ static void callback_vsync(int tasksleft)
     netlib_poll();
     
     // Update the stage
-    stage_hello_update();
+    stage_init_update();
     
     // Draw it
     if (tasksleft < 1)
-        stage_hello_draw();
+        stage_init_draw();
 }
 
 

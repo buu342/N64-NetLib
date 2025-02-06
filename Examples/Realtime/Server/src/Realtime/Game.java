@@ -17,6 +17,7 @@ public class Game implements Runnable  {
     // Game state
     private Player players[];
     private LinkedList<MovingObject> objs;
+    private long gametime;
     
     // Thread communication
     private Queue<NetLibPacket> messages;
@@ -30,6 +31,7 @@ public class Game implements Runnable  {
         this.objs = new LinkedList<MovingObject>();
         this.objs.add(new MovingObject(new Vector2D(320/2, 240/2)));
         this.window = new PreviewWindow(this);
+        this.gametime = 0;
         System.out.println("Realtime initialized");
     }
 
@@ -52,6 +54,7 @@ public class Game implements Runnable  {
                 oldtime = curtime;
                 
                 // Perform the update in discrete steps (ticks)
+                this.gametime += frametime;
                 accumulator += ((float)frametime)/1E9;
                 while (accumulator >= DELTATIME) {
                     do_update();
@@ -152,6 +155,14 @@ public class Game implements Runnable  {
      */
     public Player[] GetPlayers() {
     	return this.players;
+    }
+    
+    /**
+     * Get the game time
+     * @return  The game time
+     */
+    public long GetGameTime() {
+        return this.gametime;
     }
 
     /**

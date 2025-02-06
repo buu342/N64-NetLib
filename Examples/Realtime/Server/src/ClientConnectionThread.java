@@ -9,7 +9,9 @@ import NetLib.UDPHandler;
 import Realtime.ClientDisconnectException;
 import Realtime.PacketIDs;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -110,7 +112,7 @@ public class ClientConnectionThread extends Thread {
                     for (Realtime.Player ply : this.game.GetPlayers()) {
                         if (ply != null && ply.GetNumber() != this.player.GetNumber()) {
                             try {
-                                this.SendPlayerDisconnectPacket(ply, this.player);
+                                this.SendPlayerDisconnectPacket(ply, this.player); // TODO: Player won't have a valid number if they were disconnected during clock sync
                             } catch (Exception e2) {
                                 e2.printStackTrace();
                             }
@@ -180,8 +182,10 @@ public class ClientConnectionThread extends Thread {
                 break;
             case CLIENTSTATE_CONNECTING:
                 if (pkt.GetType() == PacketIDs.PACKETID_CLOCKSYNC.GetInt()) {
-                    this.handler.SendPacket(new NetLibPacket(PacketIDs.PACKETID_CLOCKSYNC.GetInt(), null));
-                } else if (pkt.GetType() == PacketIDs.PACKETID_DONECONNECT.GetInt()) {
+                    ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+                    bytes.write(ByteBuffer.allocate(8).putLong(this.game.GetGameTime()).array());
+                    this.handler.SendPacket(new NetLibPacket(PacketIDs.PACKETID_CLOCKSYNC.GetInt(), bytes.toByteArray()));
+                } else if (pkt.GetType() == PacketIDs.PACKETID_DONESYNC.GetInt()) {
                     
                     // Respond with the player info
                     this.player = this.game.ConnectPlayer();
@@ -197,8 +201,6 @@ public class ClientConnectionThread extends Thread {
                     
                     // Done with the initial handshake, now we can go into the gameplay packet handling loop
                     System.out.println("Player " + this.player.GetNumber() + " has joined the game");
-                    
-                    // Client successfully connected!
                     this.clientstate = CLIENTSTATE_CONNECTED;
                     Thread.currentThread().setName("Client " + this.player.GetNumber());
                 } else {
