@@ -8,6 +8,10 @@
     extern void stage_init_connectpacket();
     extern void stage_init_serverfull();
     extern void stage_init_clockpacket();
-    extern void stage_init_playerinfo();
+
+    extern void stage_main_init();
+    extern void stage_main_update();
+    extern void stage_main_draw();
+    extern void stage_main_cleanup();
     
 #endif

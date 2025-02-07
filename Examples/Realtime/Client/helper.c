@@ -50,3 +50,17 @@ void fb_clear(u8 r, u8 g, u8 b)
     gDPFillRectangle(glistp++, 0, 0, SCREEN_WD-1, SCREEN_HT-1);
     gDPPipeSync(glistp++);
 }
+
+
+/*==============================
+    timecompare
+    Compares two OSTimes, for use with qsort
+    @param  The first time
+    @param  The second time
+    @return The subtraction of a and b
+==============================*/
+
+int timecompare(const void* a, const void* b)
+{
+    return (*((OSTime*)a)) - (*((OSTime*)b));
+}

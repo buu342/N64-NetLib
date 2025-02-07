@@ -109,10 +109,11 @@ public class ClientConnectionThread extends Thread {
                 if (this.clientstate == CLIENTSTATE_CONNECTED)
                 {
                     // Notify other players of the disconnect
+                    // TODO: Player won't have a valid number if they were disconnected during clock sync
                     for (Realtime.Player ply : this.game.GetPlayers()) {
                         if (ply != null && ply.GetNumber() != this.player.GetNumber()) {
                             try {
-                                this.SendPlayerDisconnectPacket(ply, this.player); // TODO: Player won't have a valid number if they were disconnected during clock sync
+                                this.SendPlayerDisconnectPacket(ply, this.player);
                             } catch (Exception e2) {
                                 e2.printStackTrace();
                             }
@@ -159,6 +160,12 @@ public class ClientConnectionThread extends Thread {
     private void HandleNetLibPackets(NetLibPacket pkt) throws IOException, ClientDisconnectException, InterruptedException, ClientTimeoutException {
         if (pkt == null)
             return;
+        
+        // Heartbeats can just be ignored
+        if (pkt.GetType() == PacketIDs.PACKETID_ACKBEAT.GetInt())
+            return;
+        
+        // Handle the rest of the packets
         switch (this.clientstate) {
             // First, we have to receive a client connection request packet
             // This tells us that the player has the game booted on the N64,
@@ -170,7 +177,7 @@ public class ClientConnectionThread extends Thread {
                 }
                 
                 // Try to connect the player to the game
-                if (this.game.CanConnectPlayer()) {
+                if (!this.game.CanConnectPlayer()) {
                     System.err.println("Server full");
                     this.SendServerFullPacket();
                     return;
@@ -182,14 +189,16 @@ public class ClientConnectionThread extends Thread {
                 break;
             case CLIENTSTATE_CONNECTING:
                 if (pkt.GetType() == PacketIDs.PACKETID_CLOCKSYNC.GetInt()) {
+                    long time = this.game.GetGameTime();
                     ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-                    bytes.write(ByteBuffer.allocate(8).putLong(this.game.GetGameTime()).array());
+                    bytes.write(ByteBuffer.allocate(8).putLong(time).array());
                     this.handler.SendPacket(new NetLibPacket(PacketIDs.PACKETID_CLOCKSYNC.GetInt(), bytes.toByteArray()));
+                    System.out.println("Sent clock packet with "+time);
                 } else if (pkt.GetType() == PacketIDs.PACKETID_DONESYNC.GetInt()) {
                     
                     // Respond with the player info
                     this.player = this.game.ConnectPlayer();
-                    this.ClientConnectInfoPacket(this.player);
+                    this.SendClientInfoPacket(this.player);
                     
                     // Send the rest of the connected player's information (and notify other players of us)
                     for (Realtime.Player ply : this.game.GetPlayers()) {
@@ -265,8 +274,8 @@ public class ClientConnectionThread extends Thread {
      * @throws ClientTimeoutException     If the packet is sent MAX_RESEND times without an acknowledgement
      * @throws IOException                If an I/O error occurs
      */
-    private void ClientConnectInfoPacket(Realtime.Player target) throws IOException, ClientTimeoutException {
-    	NetLibPacket pkt = new NetLibPacket(PacketIDs.PACKETID_CLIENTCONNECT.GetInt(), new byte[]{(byte)target.GetNumber()});
+    private void SendClientInfoPacket(Realtime.Player target) throws IOException, ClientTimeoutException {
+    	NetLibPacket pkt = new NetLibPacket(PacketIDs.PACKETID_CLIENTINFO.GetInt(), new byte[]{(byte)target.GetNumber()});
         pkt.AddRecipient(target.GetNumber());
         this.handler.SendPacket(pkt);
     }

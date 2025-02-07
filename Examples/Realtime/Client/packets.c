@@ -16,9 +16,10 @@ this game.
 *********************************/
 
 static void netcallback_heartbeat(size_t size);
-static void netcallback_playerconnect(size_t size);
+static void netcallback_clientconnect(size_t size);
 static void netcallback_serverfull(size_t size);
 static void netcallback_clocksync(size_t size);
+static void netcallback_clientinfo(size_t size);
 static void netcallback_playerinfo(size_t size);
 
 
@@ -30,9 +31,10 @@ static void netcallback_playerinfo(size_t size);
 void netcallback_initall()
 {
     netlib_register(PACKETID_ACKBEAT, &netcallback_heartbeat);
-    netlib_register(PACKETID_CLIENTCONNECT, &netcallback_playerconnect);
+    netlib_register(PACKETID_CLIENTCONNECT, &netcallback_clientconnect);
     netlib_register(PACKETID_SERVERFULL, &netcallback_serverfull);
     netlib_register(PACKETID_CLOCKSYNC, &netcallback_clocksync);
+    netlib_register(PACKETID_CLIENTINFO, &netcallback_clientinfo);
     netlib_register(PACKETID_PLAYERINFO, &netcallback_playerinfo);
 }
 
@@ -50,12 +52,12 @@ static void netcallback_heartbeat(size_t size)
 
 
 /*==============================
-    netcallback_playerconnect
+    netcallback_clientconnect
     Handles the PACKETID_CLIENTCONNECT packet
     @param The size of the incoming data
 ==============================*/
 
-static void netcallback_playerconnect(size_t size)
+static void netcallback_clientconnect(size_t size)
 {
     stage_init_connectpacket();
 }
@@ -86,6 +88,18 @@ static void netcallback_clocksync(size_t size)
 
 
 /*==============================
+    netcallback_clientinfo
+    Handles the PACKETID_CLIENTINFO packet
+    @param The size of the incoming data
+==============================*/
+
+static void netcallback_clientinfo(size_t size)
+{
+    
+}
+
+
+/*==============================
     netcallback_playerinfo
     Handles the PACKETID_PLAYERINFO packet
     @param The size of the incoming data
@@ -93,5 +107,5 @@ static void netcallback_clocksync(size_t size)
 
 static void netcallback_playerinfo(size_t size)
 {
-    stage_init_playerinfo();
+    
 }
