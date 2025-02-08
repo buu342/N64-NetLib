@@ -19,6 +19,9 @@
     <ClInclude Include="packets.h" />
     <ClInclude Include="helper.h" />
     <ClInclude Include="sha256.h" />
+    <ClInclude Include="Resources/resources.h" />
+    <ClInclude Include="Resources/icon_program.h" />
+    <ClInclude Include="Resources/icon_refresh.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="app.cpp" />
@@ -29,6 +32,12 @@
     <ClCompile Include="packets.cpp" />
     <ClCompile Include="helper.cpp" />
     <ClCompile Include="sha256.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="Resources\icon_program.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="NetLibBrowser.rc" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

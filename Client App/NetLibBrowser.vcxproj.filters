@@ -37,6 +37,15 @@
     <ClInclude Include="customview.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Resources/resources.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Resources/icon_program.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Resources/icon_refresh.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="packets.cpp" />

@@ -20,6 +20,7 @@ wxIMPLEMENT_APP(App);
             Globals
 ******************************/
 
+wxIcon icon_program = wxNullIcon;
 wxBitmap icon_refresh = wxNullBitmap;
 
 
@@ -75,9 +76,12 @@ bool App::OnInit()
 
     // Create icons
     icon_refresh = wxBITMAP_PNG_FROM_DATA(icon_refresh);
+    wxBitmap temp = wxBITMAP_PNG_FROM_DATA(icon_program);
+    icon_program.CopyFromBitmap(temp);
 
     // Show the main window
     this->m_Frame = new ServerBrowser();
+    this->m_Frame->SetIcon(icon_program);
     this->m_Frame->Show();
     SetTopWindow(this->m_Frame);
     return true;
