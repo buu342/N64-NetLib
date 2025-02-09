@@ -15,7 +15,17 @@ timestamp packets for reconciliation.
 #include "stages.h"
 #include "text.h"
 
+    
+/*********************************
+              Macros
+*********************************/
+
 #define CLOCKCOUNT 5
+
+    
+/*********************************
+           Enumerations
+*********************************/
 
 typedef enum {
     CONNSTATE_UNCONNECTED,
@@ -24,8 +34,15 @@ typedef enum {
     CONNSTATE_CONNECTED,
 } ConnectState;
 
+    
+/*********************************
+             Globals
+*********************************/
+
+// Connection state
 static ConnectState global_connectionstate;
 
+// Server clock estimation
 static u8 global_clocksdone;
 static bool global_clocksent;
 static OSTime global_latencytests[CLOCKCOUNT];

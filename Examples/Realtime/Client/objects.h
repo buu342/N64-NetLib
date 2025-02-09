@@ -27,5 +27,18 @@
     *********************************/
     
     extern Player global_players[];
+
+
+    /*********************************
+            Function Prototypes
+    *********************************/
+    
+    extern void objects_initsystem();
+    
+    extern void objects_connectplayer(u8 num, GameObject* obj);
+    extern void objects_disconnectplayer(u8 num);
+    
+    extern GameObject* objects_create();
+    extern void        objects_destroy(GameObject* obj);
     
 #endif

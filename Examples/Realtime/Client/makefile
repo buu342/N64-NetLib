@@ -5,7 +5,7 @@
 ROMNAME     = realtime
 CODECFILES  = main.c graphic.c helper.c datastructs.c text.c netlib.c usb.c packets.c objects.c mathtypes.c \
               stage_init.c \
-              stage_main.c
+              stage_game.c
 CODEHFILES  =
 
 DEBUGFILES = debug.c 

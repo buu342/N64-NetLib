@@ -1,5 +1,5 @@
 /***************************************************************
-                          stage_main.c
+                          stage_game.c
                                
 TODO
 ***************************************************************/
@@ -14,33 +14,33 @@ TODO
 
 
 /*==============================
-    stage_main_init
+    stage_game_init
     Initialize the stage
 ==============================*/
 
-void stage_main_init(void)
+void stage_game_init(void)
 {
 
 }
 
 
 /*==============================
-    stage_main_update
+    stage_game_update
     Update stage variables every frame
 ==============================*/
 
-void stage_main_update(void)
+void stage_game_update(void)
 {
 
 }
 
 
 /*==============================
-    stage_main_draw
+    stage_game_draw
     Draw the stage
 ==============================*/
 
-void stage_main_draw(void)
+void stage_game_draw(void)
 {
     glistp = glist;
 
@@ -59,11 +59,11 @@ void stage_main_draw(void)
 
 
 /*==============================
-    stage_main_cleanup
+    stage_game_cleanup
     Cleans up memory used by the stage
 ==============================*/
 
-void stage_main_cleanup(void)
+void stage_game_cleanup(void)
 {
     text_cleanup();
 }

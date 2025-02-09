@@ -9,6 +9,7 @@ this game.
 #include "stages.h"
 #include "packets.h"
 #include "helper.h"
+#include "objects.h"
 
 
 /*********************************
@@ -95,7 +96,15 @@ static void netcallback_clocksync(size_t size)
 
 static void netcallback_clientinfo(size_t size)
 {
+    u8 plynum;
+    netlib_readbyte(&plynum);
     
+    // Set our own player info
+    netlib_setclient(plynum);
+    objects_connectplayer(plynum, NULL);
+
+    // Once we receive client info, we can move from the init stage to the main stage
+    stages_changeto(STAGE_GAME);
 }
 
 
