@@ -2,6 +2,8 @@
 #define REALTIME_OBJECTS_H
 
     #include "mathtypes.h"
+
+    #define MAXPLAYERS 32
     
     
     /*********************************
@@ -14,10 +16,11 @@
     } Player;
     
     typedef struct {
+        u32 id;
         Vector2D pos;
         Vector2D dir;
         Vector2D size;
-        int speed;
+        s32 speed;
         Color col;
     } GameObject;
 

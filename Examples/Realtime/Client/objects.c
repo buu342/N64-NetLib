@@ -1,8 +1,6 @@
 #include <ultra64.h>
 #include "objects.h"
 
-#define MAXPLAYERS 32
-
 
 /*********************************
              Globals

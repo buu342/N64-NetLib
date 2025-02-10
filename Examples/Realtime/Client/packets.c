@@ -22,6 +22,7 @@ static void netcallback_serverfull(size_t size);
 static void netcallback_clocksync(size_t size);
 static void netcallback_clientinfo(size_t size);
 static void netcallback_playerinfo(size_t size);
+static void netcallback_createobject(size_t size);
 
 
 /*==============================
@@ -37,6 +38,7 @@ void netcallback_initall()
     netlib_register(PACKETID_CLOCKSYNC, &netcallback_clocksync);
     netlib_register(PACKETID_CLIENTINFO, &netcallback_clientinfo);
     netlib_register(PACKETID_PLAYERINFO, &netcallback_playerinfo);
+    netlib_register(PACKETID_OBJECTCREATE, &netcallback_createobject);
 }
 
 /*==============================
@@ -97,11 +99,23 @@ static void netcallback_clocksync(size_t size)
 static void netcallback_clientinfo(size_t size)
 {
     u8 plynum;
+    GameObject* obj = objects_create();
     netlib_readbyte(&plynum);
+    netlib_readdword((u32*)&obj->id);
+    netlib_readfloat(&obj->pos.x);
+    netlib_readfloat(&obj->pos.y);
+    netlib_readfloat(&obj->dir.x);
+    netlib_readfloat(&obj->dir.y);
+    netlib_readfloat(&obj->size.x);
+    netlib_readfloat(&obj->size.y);
+    netlib_readdword((u32*)&obj->speed);
+    netlib_readbyte(&obj->col.r);
+    netlib_readbyte(&obj->col.g);
+    netlib_readbyte(&obj->col.b);
     
     // Set our own player info
     netlib_setclient(plynum);
-    objects_connectplayer(plynum, NULL);
+    objects_connectplayer(plynum, obj);
 
     // Once we receive client info, we can move from the init stage to the main stage
     stages_changeto(STAGE_GAME);
@@ -116,5 +130,31 @@ static void netcallback_clientinfo(size_t size)
 
 static void netcallback_playerinfo(size_t size)
 {
-    
+    u8 plynum;
+    GameObject* obj = objects_create();
+    netlib_readbyte(&plynum);
+    netlib_readdword((u32*)&obj->id);
+    netlib_readfloat(&obj->pos.x);
+    netlib_readfloat(&obj->pos.y);
+    netlib_readfloat(&obj->dir.x);
+    netlib_readfloat(&obj->dir.y);
+    netlib_readfloat(&obj->size.x);
+    netlib_readfloat(&obj->size.y);
+    netlib_readdword((u32*)&obj->speed);
+    netlib_readbyte(&obj->col.r);
+    netlib_readbyte(&obj->col.g);
+    netlib_readbyte(&obj->col.b);
+    objects_connectplayer(plynum, obj);
+}
+
+
+/*==============================
+    netcallback_createobject
+    Handles the PACKETID_OBJECTCREATE packet
+    @param The size of the incoming data
+==============================*/
+
+static void netcallback_createobject(size_t size)
+{
+    stage_game_createobject();
 }

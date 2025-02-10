@@ -7,6 +7,7 @@ import NetLib.PacketFlag;
 import NetLib.S64Packet;
 import NetLib.UDPHandler;
 import Realtime.ClientDisconnectException;
+import Realtime.MovingObject;
 import Realtime.PacketIDs;
 
 import java.io.ByteArrayOutputStream;
@@ -119,7 +120,7 @@ public class ClientConnectionThread extends Thread {
                             }
                         }
                     }
-    
+                    
                     // Kill this thread
                     System.out.println("Player " + this.player.GetNumber() + " disconnected");
                     game.DisconnectPlayer(this.player);
@@ -208,6 +209,9 @@ public class ClientConnectionThread extends Thread {
                         }
                     }
                     
+                    // Send the list of existing game objects
+                    this.SendAllObjectData(this.player);
+                    
                     // Done with the initial handshake, now we can go into the gameplay packet handling loop
                     System.out.println("Player " + this.player.GetNumber() + " has joined the game");
                     this.clientstate = CLIENTSTATE_CONNECTED;
@@ -275,7 +279,7 @@ public class ClientConnectionThread extends Thread {
      * @throws IOException                If an I/O error occurs
      */
     private void SendClientInfoPacket(Realtime.Player target) throws IOException, ClientTimeoutException {
-    	NetLibPacket pkt = new NetLibPacket(PacketIDs.PACKETID_CLIENTINFO.GetInt(), new byte[]{(byte)target.GetNumber()});
+    	NetLibPacket pkt = new NetLibPacket(PacketIDs.PACKETID_CLIENTINFO.GetInt(), target.GetData());
         pkt.AddRecipient(target.GetNumber());
         this.handler.SendPacket(pkt);
     }
@@ -288,12 +292,26 @@ public class ClientConnectionThread extends Thread {
      * @throws IOException                If an I/O error occurs
      */
     private void SendPlayerInfoPacket(Realtime.Player target, Realtime.Player who) throws IOException, ClientTimeoutException {
-        NetLibPacket pkt = new NetLibPacket(PacketIDs.PACKETID_PLAYERINFO.GetInt(), new byte[]{(byte)who.GetNumber()});
+        NetLibPacket pkt = new NetLibPacket(PacketIDs.PACKETID_PLAYERINFO.GetInt(), who.GetData());
         pkt.AddRecipient(target.GetNumber());
         if (target == who)
             this.handler.SendPacket(pkt);
         else
             target.SendMessage(who, pkt);
+    }
+
+    /**
+     * Send a player information about all existing objects
+     * @param target  The destination client for the packet
+     * @throws ClientTimeoutException     If the packet is sent MAX_RESEND times without an acknowledgement
+     * @throws IOException                If an I/O error occurs
+     */
+    private void SendAllObjectData(Realtime.Player target) throws IOException, ClientTimeoutException {
+        for (MovingObject obj : this.game.GetObjects()) {
+            NetLibPacket pkt = new NetLibPacket(PacketIDs.PACKETID_OBJECTCREATE.GetInt(), obj.GetData());
+            pkt.AddRecipient(target.GetNumber());
+            this.handler.SendPacket(pkt);
+        }
     }
 
     /**

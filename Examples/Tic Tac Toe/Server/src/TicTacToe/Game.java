@@ -170,18 +170,14 @@ public class Game implements Runnable  {
      * @return  The player struct for this client, or null if the server is full
      */
     public synchronized Player ConnectPlayer() {
-        boolean foundslot = false;
-        Player ply = new Player();
         for (int i=0; i<this.players.length; i++) {
             if (this.players[i] == null) {
+                Player ply = new Player();
                 this.players[i] = ply;
                 ply.SetNumber(i+1);
-                foundslot = true;
-                break;
+                return ply;
             }
         }
-        if (foundslot)
-            return ply;
         return null;
     }
     

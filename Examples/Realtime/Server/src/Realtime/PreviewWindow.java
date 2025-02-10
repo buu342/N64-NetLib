@@ -4,6 +4,8 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 
@@ -23,6 +25,15 @@ public class PreviewWindow extends JPanel {
         this.frame.pack();
         this.frame.setLocationRelativeTo(null);
         this.frame.setVisible(true);
+        this.frame.addWindowListener(new WindowAdapter() {
+            public void windowClosing(WindowEvent e) {
+                // Disconnect all players before ending the game
+                for (Player ply : game.GetPlayers())
+                    if (ply != null)
+                        game.DisconnectPlayer(ply);
+                System.exit(0);
+            }
+        });
     }
     
     public void paintComponent(Graphics g) {
@@ -37,7 +48,17 @@ public class PreviewWindow extends JPanel {
         for (MovingObject obj : this.game.GetObjects()) {
             if (obj != null) {
                 Vector2D size = obj.GetSize();
-                g2d.fillRect((int)(obj.GetPos().x - size.x/2), (int)(obj.GetPos().y - size.y/2), (int)size.x, (int)size.y);
+                g2d.fillRect((int)(obj.GetPos().GetX() - size.GetX()/2), (int)(obj.GetPos().GetY() - size.GetY()/2), (int)size.GetX(), (int)size.GetY());
+            }
+        }
+        
+        // Draw the players
+        for (Player ply : this.game.GetPlayers()) {
+            if (ply != null) {
+                MovingObject obj = ply.GetObject();
+                Vector2D size = obj.GetSize();
+                g2d.setColor(obj.GetColor());
+                g2d.fillRect((int)(obj.GetPos().GetX() - size.GetX()/2), (int)(obj.GetPos().GetY() - size.GetY()/2), (int)size.GetX(), (int)size.GetY());
             }
         }
     }

@@ -5,7 +5,7 @@
                   Macros
     *********************************/
     
-    #define EMPTY_LINKEDLIST {0, NULL, NULL}
+    #define EMPTY_LINKEDLIST ((linkedList){0, NULL, NULL})
     #define HASHTABLE_SIZE 32
     
 

@@ -4,12 +4,14 @@ import NetLib.NetLibPacket;
 import java.util.LinkedList;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class Game implements Runnable  {
-    
-    private static int   TICKRATE = 15;
-    private static float DELTATIME = 1.0f/((float)TICKRATE);
-    private static long  MAXDELTA = (long)(0.25f*1E9);
+
+    public static final int    MAXPLAYERS = 32;
+    private static final int   TICKRATE = 15;
+    private static final float DELTATIME = 1.0f/((float)TICKRATE);
+    private static final long  MAXDELTA = (long)(0.25f*1E9);
     
     // Frame
     private PreviewWindow window;
@@ -18,6 +20,7 @@ public class Game implements Runnable  {
     private Player players[];
     private LinkedList<MovingObject> objs;
     private long gametime;
+    private static AtomicInteger counter = new AtomicInteger();
     
     // Thread communication
     private Queue<NetLibPacket> messages;
@@ -59,6 +62,7 @@ public class Game implements Runnable  {
                 accumulator += ((float)frametime)/1E9;
                 while (accumulator >= DELTATIME) {
                     do_update();
+                    send_updates();
                     accumulator -= DELTATIME;
                     lastticktime = curtime;
                 }
@@ -82,31 +86,35 @@ public class Game implements Runnable  {
     private void do_update() {
         for (MovingObject obj : this.objs) {
             if (obj != null) {
-                Vector2D target_offset = new Vector2D(obj.GetDirection().x*obj.GetSpeed(), obj.GetDirection().y*obj.GetSpeed());
-                if (obj.GetPos().x + obj.GetSize().x/2 + target_offset.x > 320) {
-                    target_offset.x -= 2*((obj.GetPos().x + obj.GetSize().x/2 + target_offset.x) - 320);
-                    obj.SetDirection(new Vector2D(-obj.GetDirection().x, obj.GetDirection().y));
+                Vector2D target_offset = new Vector2D(obj.GetDirection().GetX()*obj.GetSpeed(), obj.GetDirection().GetY()*obj.GetSpeed());
+                if (obj.GetPos().GetX() + obj.GetSize().GetX()/2 + target_offset.GetX() > 320) {
+                    target_offset.SetX(target_offset.GetX() - 2*((obj.GetPos().GetX() + obj.GetSize().GetX()/2 + target_offset.GetX()) - 320));
+                    obj.SetDirection(new Vector2D(-obj.GetDirection().GetX(), obj.GetDirection().GetY()));
                 }
-                if (obj.GetPos().x - obj.GetSize().x/2 + target_offset.x < 0) {
-                    target_offset.x -= 2*((obj.GetPos().x - obj.GetSize().x/2 + target_offset.x) - 0);
-                    obj.SetDirection(new Vector2D(-obj.GetDirection().x, obj.GetDirection().y));
+                if (obj.GetPos().GetX() - obj.GetSize().GetX()/2 + target_offset.GetX() < 0) {
+                    target_offset.SetX(target_offset.GetX() - 2*((obj.GetPos().GetX() - obj.GetSize().GetX()/2 + target_offset.GetX()) - 0));
+                    obj.SetDirection(new Vector2D(-obj.GetDirection().GetX(), obj.GetDirection().GetY()));
                 }
-                if (obj.GetPos().y + obj.GetSize().y/2 + target_offset.y > 240) {
-                    target_offset.y -= 2*((obj.GetPos().y + obj.GetSize().y/2 + target_offset.y) - 240);
-                    obj.SetDirection(new Vector2D(obj.GetDirection().x, -obj.GetDirection().y));
+                if (obj.GetPos().GetY() + obj.GetSize().GetY()/2 + target_offset.GetY() > 240) {
+                    target_offset.SetY(target_offset.GetY() - 2*((obj.GetPos().GetY() + obj.GetSize().GetY()/2 + target_offset.GetY()) - 240));
+                    obj.SetDirection(new Vector2D(obj.GetDirection().GetX(), -obj.GetDirection().GetY()));
                 }
-                if (obj.GetPos().y - obj.GetSize().y/2 + target_offset.y < 0) {
-                    target_offset.y -= 2*((obj.GetPos().y - obj.GetSize().y/2 + target_offset.y) - 0);
-                    obj.SetDirection(new Vector2D(obj.GetDirection().x, -obj.GetDirection().y));
+                if (obj.GetPos().GetY() - obj.GetSize().GetY()/2 + target_offset.GetY() < 0) {
+                    target_offset.SetY(target_offset.GetY() - 2*((obj.GetPos().GetY() - obj.GetSize().GetY()/2 + target_offset.GetY()) - 0));
+                    obj.SetDirection(new Vector2D(obj.GetDirection().GetX(), -obj.GetDirection().GetY()));
                 }
                 obj.SetPos(Vector2D.Add(obj.GetPos(), target_offset));
             }
         }
     }
+    
+    private void send_updates() {
+        // TODO:
+    }
 
     /**
-     * Connect a player to the game
-     * @return  The player object for this client, or null if the server is full
+     * Checks whether the player can join the game
+     * @return  False if the server is full, true if otherwise
      */
     public synchronized boolean CanConnectPlayer() {
         for (int i=0; i<this.players.length; i++)
@@ -120,18 +128,14 @@ public class Game implements Runnable  {
      * @return  The player object for this client, or null if the server is full
      */
     public synchronized Player ConnectPlayer() {
-        boolean foundslot = false;
-        Player ply = new Player();
         for (int i=0; i<this.players.length; i++) {
             if (this.players[i] == null) {
+                Player ply = new Player();
                 this.players[i] = ply;
                 ply.SetNumber(i+1);
-                foundslot = true;
-                break;
+                return ply;
             }
         }
-        if (foundslot)
-            return ply;
         return null;
     }
     
@@ -185,8 +189,20 @@ public class Game implements Runnable  {
             }
         }
     }
-    
+
+    /**
+     * Gets a list of all existing game objects
+     * @return  The list of game objects
+     */
     public LinkedList<MovingObject> GetObjects() {
         return this.objs;
+    }
+
+    /**
+     * Gets a unique object ID.
+     * @return  The unique object ID.
+     */
+    public static int NewObjectID() {
+        return counter.getAndIncrement();
     }
 }

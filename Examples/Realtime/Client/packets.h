@@ -16,6 +16,7 @@
         PACKETID_CLIENTINFO = 5,
         PACKETID_PLAYERINFO = 6,
         PACKETID_PLAYERDISCONNECT = 7,
+        PACKETID_OBJECTCREATE = 8,
     } NetPacketIDs;
     
     

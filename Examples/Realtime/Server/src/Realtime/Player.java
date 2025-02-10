@@ -1,6 +1,10 @@
 package Realtime;
 
 import NetLib.NetLibPacket;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -9,6 +13,7 @@ public class Player {
     // Player info
     private int number;
     private int bitmask;
+    private MovingObject obj;
     
     // Thread communication
     private Queue<NetLibPacket> messages;
@@ -18,6 +23,10 @@ public class Player {
      */
     public Player() {
     	this.messages = new ConcurrentLinkedQueue<NetLibPacket>();
+    	this.obj = new MovingObject(new Vector2D(
+    	        (float)(64 + Math.random()*(320 - 128)), 
+    	        (float)(64 + Math.random()*(240 - 128))
+    	));
     }
 
     /**
@@ -54,6 +63,14 @@ public class Player {
     }
     
     /**
+     * Get the object entity that's controlled by this player
+     * @return  The object entity that's controlled by this player
+     */
+    public MovingObject GetObject() {
+        return this.obj;
+    }
+    
+    /**
      * Get the bitmask for this player's number
      * @return  The bitmask for the player's number
      */
@@ -67,5 +84,15 @@ public class Player {
      */
     public Queue<NetLibPacket> GetMessages() {
         return this.messages;
+    }
+    /**
+     * Gets the player data for networking
+     * @return  The byte array representing the player data
+     */
+    public byte[] GetData() throws IOException {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        bytes.write(ByteBuffer.allocate(1).put((byte)this.number).array());
+        bytes.write(this.obj.GetData());
+        return bytes.toByteArray();
     }
 }
