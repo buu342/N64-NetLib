@@ -127,3 +127,61 @@ void stage_game_createobject(void)
     netlib_readbyte(&obj->col.b);
     list_append(&global_levelobjects, obj);
 }
+
+
+
+
+/*==============================
+    stage_game_updateobject
+    Handles an object's update
+==============================*/
+
+void stage_game_updateobject(size_t size)
+{
+    u32 id;
+    listNode* listit = global_levelobjects.head;
+    
+    // Get the affected object's ID
+    netlib_readdword((u32*)&id);
+    size -= sizeof(u32);
+    
+    // Find said object
+    while (listit != NULL)
+    {
+        GameObject* obj = (GameObject*)listit->data;
+        if (obj->id == id)
+        {
+            // Read the data in the packet
+            while (size > 0)
+            {
+                u8 datatype;
+                netlib_readbyte(&datatype);
+                size -= sizeof(u8);
+                switch (datatype)
+                {
+                    case 0:
+                        netlib_readfloat(&obj->pos.x);
+                        netlib_readfloat(&obj->pos.y);
+                        size -= sizeof(f32)*2;
+                        break;
+                    case 1:
+                        netlib_readfloat(&obj->dir.x);
+                        netlib_readfloat(&obj->dir.y);
+                        size -= sizeof(f32)*2;
+                        break;
+                    case 2:
+                        netlib_readfloat(&obj->size.x);
+                        netlib_readfloat(&obj->size.y);
+                        size -= sizeof(f32)*2;
+                        break;
+                    case 3:
+                        netlib_readdword((u32*)&obj->speed);
+                        size -= sizeof(u32);
+                        break;
+                }
+            }
+            break;
+        }
+        listit = listit->next;
+    }
+}

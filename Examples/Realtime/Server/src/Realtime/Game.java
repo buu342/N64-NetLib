@@ -1,6 +1,10 @@
 package Realtime;
 
 import NetLib.NetLibPacket;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.LinkedList;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -109,7 +113,39 @@ public class Game implements Runnable  {
     }
     
     private void send_updates() {
-        // TODO:
+        for (MovingObject obj : this.objs) {
+            try {
+                ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+				bytes.write(ByteBuffer.allocate(4).putInt(obj.GetID()).array());
+	        	if (obj.GetPos().GetX() != obj.GetPos().GetPreviousX() || obj.GetPos().GetY() != obj.GetPos().GetPreviousY()) {
+					bytes.write(ByteBuffer.allocate(1).put((byte)0).array());
+					bytes.write(ByteBuffer.allocate(4).putFloat(obj.GetPos().GetX()).array());
+					bytes.write(ByteBuffer.allocate(4).putFloat(obj.GetPos().GetY()).array());
+	        	}
+	        	if (obj.GetDirection().GetX() != obj.GetDirection().GetPreviousX() || obj.GetDirection().GetY() != obj.GetDirection().GetPreviousY()) {
+					bytes.write(ByteBuffer.allocate(1).put((byte)1).array());
+					bytes.write(ByteBuffer.allocate(4).putFloat(obj.GetDirection().GetX()).array());
+					bytes.write(ByteBuffer.allocate(4).putFloat(obj.GetDirection().GetY()).array());
+	        	}
+	        	if (obj.GetSize().GetX() != obj.GetSize().GetPreviousX() || obj.GetSize().GetY() != obj.GetSize().GetPreviousY()) {
+					bytes.write(ByteBuffer.allocate(1).put((byte)2).array());
+					bytes.write(ByteBuffer.allocate(4).putFloat(obj.GetSize().GetX()).array());
+					bytes.write(ByteBuffer.allocate(4).putFloat(obj.GetSize().GetY()).array());
+	        	}
+	        	if (obj.GetOldSpeed() != obj.GetSpeed()) {
+					bytes.write(ByteBuffer.allocate(1).put((byte)3).array());
+					bytes.write(ByteBuffer.allocate(4).putFloat(obj.GetSpeed()).array());
+	        	}
+	        	if (bytes.size() > 4) {
+	        		for (Player ply : this.players) {
+	        			if (ply != null)
+	        				ply.SendMessage(null,  new NetLibPacket(PacketIDs.PACKETID_OBJECTUPDATE.GetInt(), bytes.toByteArray()));
+	        		}
+	        	}
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+        }
     }
 
     /**

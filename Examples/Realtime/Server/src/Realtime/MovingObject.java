@@ -13,6 +13,7 @@ public class MovingObject {
     private Vector2D dir;
     private Vector2D size;
     private int speed;
+    private int oldspeed;
     private Color col;
     
     public MovingObject(Vector2D pos) {
@@ -22,7 +23,12 @@ public class MovingObject {
         this.dir.Normalize();
         this.col = new Color((int)(Math.random()*255), (int)(Math.random()*255), (int)(Math.random()*255), 255);
         this.speed = 5;
+        this.oldspeed = this.speed;
         this.size = new Vector2D(RECTSIZE, RECTSIZE);
+    }
+    
+    public int GetID() {
+        return this.id;
     }
     
     public Vector2D GetPos() {
@@ -35,6 +41,10 @@ public class MovingObject {
     
     public Vector2D GetSize() {
         return this.size;
+    }
+    
+    public int GetOldSpeed() {
+        return this.oldspeed;
     }
     
     public int GetSpeed() {
@@ -51,6 +61,11 @@ public class MovingObject {
     
     public void SetDirection(Vector2D dir) {
         this.dir = dir;
+    }
+    
+    public void SetSpeed(int speed) {
+        this.oldspeed = this.speed;
+        this.speed = speed;
     }
     
     public byte[] GetData() throws IOException {

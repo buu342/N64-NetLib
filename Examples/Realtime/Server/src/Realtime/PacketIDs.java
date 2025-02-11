@@ -10,6 +10,7 @@ public enum PacketIDs {
     PACKETID_PLAYERINFO(6),
     PACKETID_PLAYERDISCONNECT(7),
     PACKETID_OBJECTCREATE(8),
+    PACKETID_OBJECTUPDATE(9),
     ;
 
     // Int representation

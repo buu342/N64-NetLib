@@ -40,7 +40,7 @@ public class Player {
     
     /**
      * Send a message to this player
-     * @param sender  The player who sent the packet (or zero if the server sent it)
+     * @param sender  The player who sent the packet (or null if the server sent it)
      * @param pkt     The packet to send to the player
      */
     public void SendMessage(Player sender, NetLibPacket pkt) {

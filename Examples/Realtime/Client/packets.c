@@ -23,6 +23,7 @@ static void netcallback_clocksync(size_t size);
 static void netcallback_clientinfo(size_t size);
 static void netcallback_playerinfo(size_t size);
 static void netcallback_createobject(size_t size);
+static void netcallback_updateobject(size_t size);
 
 
 /*==============================
@@ -39,6 +40,7 @@ void netcallback_initall()
     netlib_register(PACKETID_CLIENTINFO, &netcallback_clientinfo);
     netlib_register(PACKETID_PLAYERINFO, &netcallback_playerinfo);
     netlib_register(PACKETID_OBJECTCREATE, &netcallback_createobject);
+    netlib_register(PACKETID_OBJECTUPDATE, &netcallback_updateobject);
 }
 
 /*==============================
@@ -157,4 +159,16 @@ static void netcallback_playerinfo(size_t size)
 static void netcallback_createobject(size_t size)
 {
     stage_game_createobject();
+}
+
+
+/*==============================
+    netcallback_updateobject
+    Handles the PACKETID_OBJECTUPDATE packet
+    @param The size of the incoming data
+==============================*/
+
+static void netcallback_updateobject(size_t size)
+{
+    stage_game_updateobject(size);
 }

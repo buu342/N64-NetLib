@@ -51,5 +51,6 @@
     extern void stage_game_draw();
     extern void stage_game_cleanup();
     extern void stage_game_createobject();
+    extern void stage_game_updateobject(size_t size);
     
 #endif

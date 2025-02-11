@@ -1,5 +1,5 @@
 @echo off
-echo Compiling Ultimate Tic Tac Toe Client
+echo Compiling Realtime Client
 
 
 :Setup
