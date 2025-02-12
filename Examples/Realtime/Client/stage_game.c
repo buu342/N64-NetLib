@@ -129,8 +129,6 @@ void stage_game_createobject(void)
 }
 
 
-
-
 /*==============================
     stage_game_updateobject
     Handles an object's update

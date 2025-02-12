@@ -101,6 +101,15 @@ public class ClientConnectionThread extends Thread {
                         this.SendHeartbeatPacket();
                     Thread.sleep(10);
                 }
+                
+                // If we have a valid player object, send packets that were sent directly to it
+                if (this.player != null) {
+                    NetLibPacket nlpkt = this.player.GetMessages().poll();
+                    while (nlpkt != null) {
+                        this.handler.SendPacket(nlpkt);
+                        nlpkt = this.player.GetMessages().poll();
+                    }
+                }
             } catch (ClientDisconnectException | ClientTimeoutException e) {
                 if (this.clientstate == CLIENTSTATE_CONNECTED)
                 {
@@ -203,13 +212,6 @@ public class ClientConnectionThread extends Thread {
                 } else {
                     if (pkt.GetType() != PacketIDs.PACKETID_ACKBEAT.GetInt()) // Special case for heartbeats, no need to notify to the game 
                         this.game.SendMessage(this.player, pkt);
-                }
-                
-                // Send outgoing data to the N64
-                pkt = this.player.GetMessages().poll();
-                while (pkt != null) {
-                    this.handler.SendPacket(pkt);
-                    pkt = this.player.GetMessages().poll();
                 }
                 break;
         }

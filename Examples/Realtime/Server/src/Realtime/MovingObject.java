@@ -56,11 +56,13 @@ public class MovingObject {
     }
     
     public void SetPos(Vector2D pos) {
-        this.pos = pos;
+        this.pos.SetX(pos.GetX());
+        this.pos.SetY(pos.GetY());
     }
     
     public void SetDirection(Vector2D dir) {
-        this.dir = dir;
+        this.dir.SetX(dir.GetX());
+        this.dir.SetY(dir.GetY());
     }
     
     public void SetSpeed(int speed) {
@@ -70,7 +72,7 @@ public class MovingObject {
     
     public byte[] GetData() throws IOException {
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-        bytes.write(ByteBuffer.allocate(4).putFloat(this.id).array());
+        bytes.write(ByteBuffer.allocate(4).putInt(this.id).array());
         bytes.write(ByteBuffer.allocate(4).putFloat(this.pos.GetX()).array());
         bytes.write(ByteBuffer.allocate(4).putFloat(this.pos.GetY()).array());
         bytes.write(ByteBuffer.allocate(4).putFloat(this.dir.GetX()).array());

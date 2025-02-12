@@ -44,10 +44,10 @@ public class PreviewWindow extends JPanel {
         g2d.fillRect(0, 0, this.getWidth(), this.getHeight());
         
         // Draw server objects
-        g2d.setColor(Color.red);
         for (MovingObject obj : this.game.GetObjects()) {
             if (obj != null) {
                 Vector2D size = obj.GetSize();
+                g2d.setColor(obj.GetColor());
                 g2d.fillRect((int)(obj.GetPos().GetX() - size.GetX()/2), (int)(obj.GetPos().GetY() - size.GetY()/2), (int)size.GetX(), (int)size.GetY());
             }
         }

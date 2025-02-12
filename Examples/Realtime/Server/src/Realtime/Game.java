@@ -1,7 +1,6 @@
 package Realtime;
 
 import NetLib.NetLibPacket;
-
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -136,16 +135,42 @@ public class Game implements Runnable  {
 					bytes.write(ByteBuffer.allocate(1).put((byte)3).array());
 					bytes.write(ByteBuffer.allocate(4).putFloat(obj.GetSpeed()).array());
 	        	}
+
 	        	if (bytes.size() > 4) {
 	        		for (Player ply : this.players) {
-	        			if (ply != null)
-	        				ply.SendMessage(null,  new NetLibPacket(PacketIDs.PACKETID_OBJECTUPDATE.GetInt(), bytes.toByteArray()));
+	        			if (ply != null) {
+	        				ply.SendMessage(null, new NetLibPacket(PacketIDs.PACKETID_OBJECTUPDATE.GetInt(), bytes.toByteArray()));
+	        			}
 	        		}
 	        	}
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
         }
+    }
+    
+    /**
+     * Get the game time
+     * @return  The game time
+     */
+    public long GetGameTime() {
+        return this.gametime;
+    }
+
+    /**
+     * Gets a list of all existing game objects
+     * @return  The list of game objects
+     */
+    public LinkedList<MovingObject> GetObjects() {
+        return this.objs;
+    }
+
+    /**
+     * Gets a unique object ID.
+     * @return  The unique object ID.
+     */
+    public static int NewObjectID() {
+        return counter.getAndIncrement();
     }
 
     /**
@@ -206,14 +231,6 @@ public class Game implements Runnable  {
     }
     
     /**
-     * Get the game time
-     * @return  The game time
-     */
-    public long GetGameTime() {
-        return this.gametime;
-    }
-
-    /**
      * Disconnect a player from the server
      * @param ply  The player who disconnected
      */
@@ -224,21 +241,5 @@ public class Game implements Runnable  {
                 return;
             }
         }
-    }
-
-    /**
-     * Gets a list of all existing game objects
-     * @return  The list of game objects
-     */
-    public LinkedList<MovingObject> GetObjects() {
-        return this.objs;
-    }
-
-    /**
-     * Gets a unique object ID.
-     * @return  The unique object ID.
-     */
-    public static int NewObjectID() {
-        return counter.getAndIncrement();
     }
 }

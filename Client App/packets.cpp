@@ -810,7 +810,7 @@ uint8_t* S64Packet::GetAsBytes()
 
 uint16_t S64Packet::GetAsBytes_Size()
 {
-    return sizeof(S64PACKET_HEADER) + sizeof(this->m_Version) + sizeof(this->m_Flags) + 
+    return sizeof(S64PACKET_HEADER)-1 + sizeof(this->m_Version) + sizeof(this->m_Flags) + 
         sizeof(this->m_SequenceNum) + sizeof(this->m_Ack) + sizeof(this->m_AckBitField) +
         1 + this->m_Type.Length() +
         sizeof(this->m_Size) + this->m_Size;
@@ -1052,7 +1052,7 @@ uint8_t* NetLibPacket::GetAsBytes()
 
 uint16_t NetLibPacket::GetAsBytes_Size()
 {
-    return sizeof(NETLIBPACKET_HEADER) + sizeof(this->m_Version) +
+    return sizeof(NETLIBPACKET_HEADER)-1 + sizeof(this->m_Version) +
         sizeof(this->m_Type) + sizeof(this->m_Flags) +
         sizeof(this->m_SequenceNum) + sizeof(this->m_Ack) + sizeof(this->m_AckBitField) +
         sizeof(this->m_Recipients) +

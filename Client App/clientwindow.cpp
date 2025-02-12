@@ -662,7 +662,7 @@ void* DeviceThread::Entry()
             if (global_msgqueue_usbthread_pkt.ReceiveTimeout(0, pkt) == wxMSGQUEUE_NO_ERROR)
             {
                 uint8_t* pktasbytes = pkt->GetAsBytes();
-                device_senddata(DATATYPE_NETPACKET, (byte*)pkt->GetAsBytes(), (uint32_t)pkt->GetAsBytes_Size());
+                device_senddata(DATATYPE_NETPACKET, (byte*)pktasbytes, (uint32_t)pkt->GetAsBytes_Size());
                 free(pktasbytes);
                 delete pkt;
             }
