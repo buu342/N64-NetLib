@@ -7,7 +7,7 @@ import NetLib.PacketFlag;
 import NetLib.S64Packet;
 import NetLib.UDPHandler;
 import Realtime.ClientDisconnectException;
-import Realtime.MovingObject;
+import Realtime.GameObject;
 import Realtime.PacketIDs;
 
 import java.io.ByteArrayOutputStream;
@@ -118,8 +118,7 @@ public class ClientConnectionThread extends Thread {
             } catch (ClientDisconnectException | ClientTimeoutException e) {
                 if (this.clientstate == CLIENTSTATE_CONNECTED)
                 {
-                    // Notify other players of the disconnect
-                    // TODO: Player won't have a valid number if they were disconnected during clock sync
+                    // Notify other players of the disconnect if the player was valid
                     for (Realtime.Player ply : this.game.GetPlayers()) {
                         if (ply != null && ply.GetNumber() != this.player.GetNumber()) {
                             try {
@@ -309,7 +308,7 @@ public class ClientConnectionThread extends Thread {
      * @throws IOException                If an I/O error occurs
      */
     private void SendAllObjectData(Realtime.Player target) throws IOException, ClientTimeoutException {
-        for (MovingObject obj : this.game.GetObjects()) {
+        for (GameObject obj : this.game.GetObjects()) {
             NetLibPacket pkt = new NetLibPacket(PacketIDs.PACKETID_OBJECTCREATE.GetInt(), obj.GetData());
             pkt.AddRecipient(target.GetNumber());
             this.handler.SendPacket(pkt);

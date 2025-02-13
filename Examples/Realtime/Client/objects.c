@@ -1,5 +1,13 @@
-#include <ultra64.h>
+/***************************************************************
+                           objects.c
+                               
+TODO
+***************************************************************/
+
+#include <nusys.h>
 #include "objects.h"
+#include "datastructs.h"
+#include "config.h"
 
 
 /*********************************
@@ -7,6 +15,7 @@
 *********************************/
 
 Player global_players[MAXPLAYERS];
+static linkedList global_levelobjects;
 
 
 /*==============================
@@ -22,30 +31,7 @@ void objects_initsystem()
         global_players[i].connected = FALSE;
         global_players[i].obj = NULL;
     }
-}
-
-
-/*==============================
-    objects_connectplayer
-    TODO
-==============================*/
-
-void objects_connectplayer(u8 num, GameObject* obj)
-{
-    global_players[num].connected = TRUE;
-    global_players[num].obj = obj;
-}
-
-
-/*==============================
-    objects_disconnectplayer
-    TODO
-==============================*/
-
-void objects_disconnectplayer(u8 num)
-{
-    global_players[num].connected = FALSE;
-    objects_destroy(global_players[num].obj);
+    global_levelobjects = EMPTY_LINKEDLIST;
 }
 
 
@@ -56,7 +42,51 @@ void objects_disconnectplayer(u8 num)
 
 GameObject* objects_create()
 {
-    return (GameObject*)malloc(sizeof(GameObject));
+    GameObject* obj = (GameObject*)malloc(sizeof(GameObject));
+    list_append(&global_levelobjects, obj);
+    return obj;
+}
+
+
+/*==============================
+    objects_findbyid
+    TODO
+==============================*/
+
+GameObject* objects_findbyid(u32 id)
+{
+    listNode* listit = global_levelobjects.head;
+    while (listit != NULL)
+    {
+        GameObject* obj = (GameObject*)listit->data;
+        if (obj->id == id)
+            return obj;
+        listit = listit->next;
+    }
+    return NULL;
+}
+
+
+/*==============================
+    objects_draw
+    TODO
+==============================*/
+
+void objects_draw()
+{
+    listNode* listit = global_levelobjects.head;
+    while (listit != NULL)
+    {
+        GameObject* obj = (GameObject*)listit->data;
+        gDPSetFillColor(glistp++, (GPACK_RGBA5551(obj->col.r, obj->col.g, obj->col.b, 1) << 16 | 
+                                   GPACK_RGBA5551(obj->col.r, obj->col.g, obj->col.b, 1)));
+        gDPFillRectangle(glistp++, 
+            obj->pos.x - (obj->size.x/2), obj->pos.y - (obj->size.y/2),
+            obj->pos.x + (obj->size.x/2), obj->pos.y + (obj->size.y/2)
+        );
+        gDPPipeSync(glistp++);
+        listit = listit->next;
+    }
 }
 
 
@@ -67,5 +97,48 @@ GameObject* objects_create()
 
 void objects_destroy(GameObject* obj)
 {
+    list_remove(&global_levelobjects, obj);
     free(obj);
+}
+
+
+/*==============================
+    objects_destroyall
+    TODO
+==============================*/
+
+void objects_destroyall()
+{
+    listNode* listit = global_levelobjects.head;
+    while (listit != NULL)
+    {
+        objects_destroy((GameObject*)listit->data);
+        listit = listit->next;
+    }
+    list_destroy(&global_levelobjects);
+}
+
+
+/*==============================
+    objects_connectplayer
+    TODO
+==============================*/
+
+void objects_connectplayer(u8 num, GameObject* obj)
+{
+    global_players[num-1].connected = TRUE;
+    global_players[num-1].obj = obj;
+}
+
+
+/*==============================
+    objects_disconnectplayer
+    TODO
+==============================*/
+
+void objects_disconnectplayer(u8 num)
+{
+    global_players[num-1].connected = FALSE;
+    objects_destroy(global_players[num-1].obj);
+    global_players[num-1].obj = NULL;
 }

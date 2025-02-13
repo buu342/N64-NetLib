@@ -16,12 +16,15 @@ this game.
         Function Prototypes
 *********************************/
 
+static void packet_readobject(GameObject* obj);
+
 static void netcallback_heartbeat(size_t size);
 static void netcallback_clientconnect(size_t size);
 static void netcallback_serverfull(size_t size);
 static void netcallback_clocksync(size_t size);
 static void netcallback_clientinfo(size_t size);
 static void netcallback_playerinfo(size_t size);
+static void netcallback_playerdisconnect(size_t size);
 static void netcallback_createobject(size_t size);
 static void netcallback_updateobject(size_t size);
 
@@ -39,6 +42,7 @@ void netcallback_initall()
     netlib_register(PACKETID_CLOCKSYNC, &netcallback_clocksync);
     netlib_register(PACKETID_CLIENTINFO, &netcallback_clientinfo);
     netlib_register(PACKETID_PLAYERINFO, &netcallback_playerinfo);
+    netlib_register(PACKETID_PLAYERDISCONNECT, &netcallback_playerdisconnect);
     netlib_register(PACKETID_OBJECTCREATE, &netcallback_createobject);
     netlib_register(PACKETID_OBJECTUPDATE, &netcallback_updateobject);
 }
@@ -93,16 +97,14 @@ static void netcallback_clocksync(size_t size)
 
 
 /*==============================
-    netcallback_clientinfo
-    Handles the PACKETID_CLIENTINFO packet
-    @param The size of the incoming data
+    packet_readobject
+    A helper function for reading an object's data from a packet
+    Useful since player and object data is almost exactly the same
+    @param The object to read the packet info into
 ==============================*/
 
-static void netcallback_clientinfo(size_t size)
+static void packet_readobject(GameObject* obj)
 {
-    u8 plynum;
-    GameObject* obj = objects_create();
-    netlib_readbyte(&plynum);
     netlib_readdword((u32*)&obj->id);
     netlib_readfloat(&obj->pos.x);
     netlib_readfloat(&obj->pos.y);
@@ -114,6 +116,21 @@ static void netcallback_clientinfo(size_t size)
     netlib_readbyte(&obj->col.r);
     netlib_readbyte(&obj->col.g);
     netlib_readbyte(&obj->col.b);
+}
+
+
+/*==============================
+    netcallback_clientinfo
+    Handles the PACKETID_CLIENTINFO packet
+    @param The size of the incoming data
+==============================*/
+
+static void netcallback_clientinfo(size_t size)
+{
+    u8 plynum;
+    GameObject* obj = objects_create();
+    netlib_readbyte(&plynum);
+    packet_readobject(obj);
     
     // Set our own player info
     netlib_setclient(plynum);
@@ -135,18 +152,22 @@ static void netcallback_playerinfo(size_t size)
     u8 plynum;
     GameObject* obj = objects_create();
     netlib_readbyte(&plynum);
-    netlib_readdword((u32*)&obj->id);
-    netlib_readfloat(&obj->pos.x);
-    netlib_readfloat(&obj->pos.y);
-    netlib_readfloat(&obj->dir.x);
-    netlib_readfloat(&obj->dir.y);
-    netlib_readfloat(&obj->size.x);
-    netlib_readfloat(&obj->size.y);
-    netlib_readdword((u32*)&obj->speed);
-    netlib_readbyte(&obj->col.r);
-    netlib_readbyte(&obj->col.g);
-    netlib_readbyte(&obj->col.b);
+    packet_readobject(obj);
     objects_connectplayer(plynum, obj);
+}
+
+
+/*==============================
+    netcallback_playerdisconnect
+    Handles the PACKETID_PLAYERDISCONNECT packet
+    @param The size of the incoming data
+==============================*/
+
+static void netcallback_playerdisconnect(size_t size)
+{
+    u8 plynum;
+    netlib_readbyte(&plynum);
+    objects_disconnectplayer(plynum);
 }
 
 
@@ -158,7 +179,8 @@ static void netcallback_playerinfo(size_t size)
 
 static void netcallback_createobject(size_t size)
 {
-    stage_game_createobject();
+    GameObject* obj = objects_create();
+    packet_readobject(obj);
 }
 
 
@@ -170,5 +192,45 @@ static void netcallback_createobject(size_t size)
 
 static void netcallback_updateobject(size_t size)
 {
-    stage_game_updateobject(size);
+    u32 id;
+    GameObject* obj;
+    
+    // Get the affected object's ID
+    netlib_readdword((u32*)&id);
+    size -= sizeof(u32);
+    
+    // Find the object
+    obj = objects_findbyid(id);
+    if (obj == NULL)
+        return;
+        
+    // Read the data in the packet
+    while (size > 0)
+    {
+        u8 datatype;
+        netlib_readbyte(&datatype);
+        size -= sizeof(u8);
+        switch (datatype)
+        {
+            case 0:
+                netlib_readfloat(&obj->pos.x);
+                netlib_readfloat(&obj->pos.y);
+                size -= sizeof(f32)*2;
+                break;
+            case 1:
+                netlib_readfloat(&obj->dir.x);
+                netlib_readfloat(&obj->dir.y);
+                size -= sizeof(f32)*2;
+                break;
+            case 2:
+                netlib_readfloat(&obj->size.x);
+                netlib_readfloat(&obj->size.y);
+                size -= sizeof(f32)*2;
+                break;
+            case 3:
+                netlib_readdword((u32*)&obj->speed);
+                size -= sizeof(u32);
+                break;
+        }
+    }
 }

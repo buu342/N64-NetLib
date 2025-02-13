@@ -62,7 +62,8 @@ static void netcallback_playerconnect(size_t size)
     
     // Set our own player info
     netlib_setclient(plynum);
-    objects_createplayer(plynum, NULL);
+    global_players[plynum-1].ready = FALSE;
+    global_players[plynum-1].connected = TRUE;
 }
 
 

@@ -1,6 +1,9 @@
 #ifndef REALTIME_STAGES_H
 #define REALTIME_STAGES_H
 
+    #include "objects.h"
+    
+
     /*********************************
                   Macros
     *********************************/
@@ -16,6 +19,7 @@
         STAGE_NONE          = -1,
         STAGE_INIT          = 0,
         STAGE_GAME          = 1,
+        STAGE_DISCONNECTED  = 2,
     } StageNum;
     
 
@@ -50,7 +54,10 @@
     extern void stage_game_update();
     extern void stage_game_draw();
     extern void stage_game_cleanup();
-    extern void stage_game_createobject();
-    extern void stage_game_updateobject(size_t size);
+
+    extern void stage_disconnected_init();
+    extern void stage_disconnected_update();
+    extern void stage_disconnected_draw();
+    extern void stage_disconnected_cleanup();
     
 #endif

@@ -21,7 +21,7 @@ public class Game implements Runnable  {
     
     // Game state
     private Player players[];
-    private LinkedList<MovingObject> objs;
+    private LinkedList<GameObject> objs;
     private long gametime;
     private static AtomicInteger counter = new AtomicInteger();
     
@@ -34,8 +34,8 @@ public class Game implements Runnable  {
     public Game() {
     	this.messages = new ConcurrentLinkedQueue<NetLibPacket>();
         this.players = new Player[32];
-        this.objs = new LinkedList<MovingObject>();
-        this.objs.add(new MovingObject(new Vector2D(320/2, 240/2)));
+        this.objs = new LinkedList<GameObject>();
+        this.objs.add(new GameObject(new Vector2D(320/2, 240/2)));
         this.window = new PreviewWindow(this);
         this.gametime = 0;
         System.out.println("Realtime initialized");
@@ -87,7 +87,32 @@ public class Game implements Runnable  {
     }
     
     private void do_update() {
-        for (MovingObject obj : this.objs) {
+        
+        // Check for player messages
+        NetLibPacket pkt = this.messages.poll();
+        while (pkt != null) {
+            Player sender = this.players[pkt.GetSender()];
+            if (sender != null) {
+                try {
+                    final float MAXSTICK = 80, MAXSPEED = 5;
+                    float stickx, sticky;
+                    Vector2D dir;
+                    GameObject obj = sender.GetObject();
+                    stickx = (float)pkt.GetData()[8];
+                    sticky = (float)pkt.GetData()[9];
+                    dir = new Vector2D(stickx, sticky);
+                    dir.Normalize();
+                    obj.SetDirection(dir);
+                    obj.SetSpeed((int)(((float)Math.sqrt(stickx*stickx + sticky*sticky)/MAXSTICK)*MAXSPEED));
+                } catch (Exception e) {
+                    // Ignore bad packets
+                }
+            }
+            pkt = this.messages.poll();
+        }
+        
+        // Update object positions
+        for (GameObject obj : this.objs) {
             if (obj != null) {
                 Vector2D target_offset = new Vector2D(obj.GetDirection().GetX()*obj.GetSpeed(), obj.GetDirection().GetY()*obj.GetSpeed());
                 if (obj.GetPos().GetX() + obj.GetSize().GetX()/2 + target_offset.GetX() > 320) {
@@ -112,7 +137,7 @@ public class Game implements Runnable  {
     }
     
     private void send_updates() {
-        for (MovingObject obj : this.objs) {
+        for (GameObject obj : this.objs) {
             try {
                 ByteArrayOutputStream bytes = new ByteArrayOutputStream();
 				bytes.write(ByteBuffer.allocate(4).putInt(obj.GetID()).array());
@@ -161,7 +186,7 @@ public class Game implements Runnable  {
      * Gets a list of all existing game objects
      * @return  The list of game objects
      */
-    public LinkedList<MovingObject> GetObjects() {
+    public LinkedList<GameObject> GetObjects() {
         return this.objs;
     }
 

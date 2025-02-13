@@ -12,7 +12,10 @@ ROMNAME     = realtime
 BUILDDIR    = build
 ASMFILES    = asm/entry.s asm/rom_header.s asm/assets.s
 ASMOBJECTS  = $(ASMFILES:%.s=${BUILDDIR}/%.o)
-CODECFILES  = main.c graphic.c helper.c datastructs.c text.c netlib.c usb.c packets.c stage_hello.c
+CODECFILES  = main.c graphic.c helper.c datastructs.c text.c netlib.c usb.c packets.c objects.c mathtypes.c \
+              stage_init.c \
+              stage_game.c \
+              stage_disconnected.c
 CODEHFILES  =
 
 DEBUGFILES = debug.c

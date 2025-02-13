@@ -23,6 +23,7 @@ Program entrypoint.
 static void callback_prenmi();
 static void callback_vsync(int tasksleft);
 static void stagetable_init();
+static void callback_disconnect();
 
 
 /*********************************
@@ -79,6 +80,7 @@ void mainproc(void)
     // Initialize the net library
     netlib_initialize();
     netcallback_initall();
+    netlib_callback_disconnect(1000*5, callback_disconnect);
 
     // Initialize the font system
     text_initialize();
@@ -147,6 +149,11 @@ static void stagetable_init()
     global_stagetable[STAGE_GAME].funcptr_update = &stage_game_update;
     global_stagetable[STAGE_GAME].funcptr_draw = &stage_game_draw;
     global_stagetable[STAGE_GAME].funcptr_cleanup = &stage_game_cleanup;
+    
+    global_stagetable[STAGE_DISCONNECTED].funcptr_init = &stage_disconnected_init;
+    global_stagetable[STAGE_DISCONNECTED].funcptr_update = &stage_disconnected_update;
+    global_stagetable[STAGE_DISCONNECTED].funcptr_draw = &stage_disconnected_draw;
+    global_stagetable[STAGE_DISCONNECTED].funcptr_cleanup = &stage_disconnected_cleanup;
 }
 
 
@@ -186,4 +193,16 @@ static void callback_prenmi()
 {
     nuGfxDisplayOff();
     osViSetYScale(1);
+}
+
+
+/*==============================
+    callback_disconnect
+    Callback function for when the player disconnects
+==============================*/
+
+static void callback_disconnect()
+{
+    netlib_setclient(0);
+    stages_changeto(STAGE_DISCONNECTED);
 }

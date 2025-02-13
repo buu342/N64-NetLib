@@ -12,9 +12,12 @@ TODO
 #include "stages.h"
 #include "text.h"
 #include "objects.h"
-#include "datastructs.h"
 
-static linkedList global_levelobjects;
+static NUContData global_contdata;
+
+static bool global_prediction;
+static bool global_reconciliation;
+static bool global_interpolation;
 
 
 /*==============================
@@ -24,7 +27,9 @@ static linkedList global_levelobjects;
 
 void stage_game_init(void)
 {
-    global_levelobjects = EMPTY_LINKEDLIST;
+    global_prediction = TRUE;
+    global_reconciliation = TRUE;
+    global_interpolation = TRUE;
 }
 
 
@@ -35,7 +40,33 @@ void stage_game_init(void)
 
 void stage_game_update(void)
 {
-
+    const s8 MAXSTICK = 80;
+    const s8 MINSTICK = 5;
+    
+    // Get controller data and apply some basic deadzoning to it
+    nuContDataGetEx(&global_contdata, 0);
+    if (global_contdata.stick_x < MINSTICK && global_contdata.stick_x > -MINSTICK)
+        global_contdata.stick_x = 0;
+    else if (global_contdata.stick_x > MAXSTICK || global_contdata.stick_x < -MAXSTICK)
+        global_contdata.stick_x = MAXSTICK;
+    if (global_contdata.stick_y < MINSTICK && global_contdata.stick_y > -MINSTICK)
+        global_contdata.stick_y = 0;
+    else if (global_contdata.stick_y > MAXSTICK || global_contdata.stick_y < -MAXSTICK)
+        global_contdata.stick_y = MAXSTICK;
+    
+    // Send the client input to the server
+    //netlib_start(PACKETID_CLIENTINPUT);
+    //netlib_sendtoserver();
+    //    netlib_writeqword((u64)osGetTime());
+    //    netlib_writebyte((u8)global_contdata.stick_x);
+    //    netlib_writebyte((u8)global_contdata.stick_y);
+    //netlib_sendtoserver();
+    
+    // Predict the player movement before the server acknowledges the input
+    if (global_prediction)
+    {
+    
+    }
 }
 
 
@@ -47,45 +78,14 @@ void stage_game_update(void)
 void stage_game_draw(void)
 {
     int i;
-    listNode* listit;
     glistp = glist;
 
     // Initialize the RCP and framebuffer
     rcp_init();
     fb_clear(100, 100, 100);
     
-    // Render all objects
-    listit = global_levelobjects.head;
-    while (listit != NULL)
-    {
-        GameObject* obj = (GameObject*)listit->data;
-        gDPSetFillColor(glistp++, (GPACK_RGBA5551(obj->col.r, obj->col.g, obj->col.b, 1) << 16 | 
-                                   GPACK_RGBA5551(obj->col.r, obj->col.g, obj->col.b, 1)));
-        gDPFillRectangle(glistp++, 
-            obj->pos.x - (obj->size.x/2), obj->pos.y - (obj->size.y/2),
-            obj->pos.x + (obj->size.x/2), obj->pos.y + (obj->size.y/2)
-        );
-        gDPPipeSync(glistp++);
-        listit = listit->next;
-    }
-    
-    // Render all players
-    for (i=0; i<MAXPLAYERS; i++)
-    {
-        if (global_players[i].connected)
-        {
-            GameObject* plyobj = (GameObject*)global_players[i].obj;
-            gDPSetFillColor(glistp++, (GPACK_RGBA5551(plyobj->col.r, plyobj->col.g, plyobj->col.b, 1) << 16 | 
-                                       GPACK_RGBA5551(plyobj->col.r, plyobj->col.g, plyobj->col.b, 1)));
-            gDPFillRectangle(glistp++, 
-                plyobj->pos.x - (plyobj->size.x/2), plyobj->pos.y - (plyobj->size.y/2),
-                plyobj->pos.x + (plyobj->size.x/2), plyobj->pos.y + (plyobj->size.y/2)
-            );
-            gDPPipeSync(glistp++);
-        }
-    }
-
-    // Render some text
+    // Render stuff
+    objects_draw();
     text_render();
 
     // Finish
@@ -102,84 +102,18 @@ void stage_game_draw(void)
 
 void stage_game_cleanup(void)
 {
-    text_cleanup();
-}
-
-
-/*==============================
-    stage_game_createobject
-    Handles an object's creation
-==============================*/
-
-void stage_game_createobject(void)
-{
-    GameObject* obj = objects_create();
-    netlib_readdword((u32*)&obj->id);
-    netlib_readfloat(&obj->pos.x);
-    netlib_readfloat(&obj->pos.y);
-    netlib_readfloat(&obj->dir.x);
-    netlib_readfloat(&obj->dir.y);
-    netlib_readfloat(&obj->size.x);
-    netlib_readfloat(&obj->size.y);
-    netlib_readdword((u32*)&obj->speed);
-    netlib_readbyte(&obj->col.r);
-    netlib_readbyte(&obj->col.g);
-    netlib_readbyte(&obj->col.b);
-    list_append(&global_levelobjects, obj);
-}
-
-
-/*==============================
-    stage_game_updateobject
-    Handles an object's update
-==============================*/
-
-void stage_game_updateobject(size_t size)
-{
-    u32 id;
-    listNode* listit = global_levelobjects.head;
+    int i;
     
-    // Get the affected object's ID
-    netlib_readdword((u32*)&id);
-    size -= sizeof(u32);
+    // Destroy all objects
+    objects_destroyall();
     
-    // Find said object
-    while (listit != NULL)
+    // Cleanup player structs
+    for (i=0; i<MAXPLAYERS; i++)
     {
-        GameObject* obj = (GameObject*)listit->data;
-        if (obj->id == id)
-        {
-            // Read the data in the packet
-            while (size > 0)
-            {
-                u8 datatype;
-                netlib_readbyte(&datatype);
-                size -= sizeof(u8);
-                switch (datatype)
-                {
-                    case 0:
-                        netlib_readfloat(&obj->pos.x);
-                        netlib_readfloat(&obj->pos.y);
-                        size -= sizeof(f32)*2;
-                        break;
-                    case 1:
-                        netlib_readfloat(&obj->dir.x);
-                        netlib_readfloat(&obj->dir.y);
-                        size -= sizeof(f32)*2;
-                        break;
-                    case 2:
-                        netlib_readfloat(&obj->size.x);
-                        netlib_readfloat(&obj->size.y);
-                        size -= sizeof(f32)*2;
-                        break;
-                    case 3:
-                        netlib_readdword((u32*)&obj->speed);
-                        size -= sizeof(u32);
-                        break;
-                }
-            }
-            break;
-        }
-        listit = listit->next;
+        global_players[i].connected = FALSE;
+        global_players[i].obj = NULL;
     }
+    
+    // Other cleanup
+    text_cleanup();
 }
