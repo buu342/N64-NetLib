@@ -44,8 +44,14 @@ public class Vector2D {
     }
     
     public void Normalize() {
-        float mag = 1.0f/((float)Math.sqrt(this.x*this.x + this.y*this.y));
-        this.x = this.x*mag;
-        this.y = this.y*mag;
+        float mag = ((float)Math.sqrt(this.x*this.x + this.y*this.y));
+        if (mag == 0) {
+            this.x = 0;
+            this.y = 0;
+        } else {
+            mag = 1.0f/mag;
+            this.x = this.x*mag;
+            this.y = this.y*mag;
+        }
     }
 }

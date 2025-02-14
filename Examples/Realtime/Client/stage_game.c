@@ -13,7 +13,11 @@ TODO
 #include "text.h"
 #include "objects.h"
 
+#define INPUTRATE 15.0f
+
 static NUContData global_contdata;
+
+static OSTime global_nextsend;
 
 static bool global_prediction;
 static bool global_reconciliation;
@@ -27,6 +31,7 @@ static bool global_interpolation;
 
 void stage_game_init(void)
 {
+    global_nextsend = osGetTime();
     global_prediction = TRUE;
     global_reconciliation = TRUE;
     global_interpolation = TRUE;
@@ -54,13 +59,16 @@ void stage_game_update(void)
     else if (global_contdata.stick_y > MAXSTICK || global_contdata.stick_y < -MAXSTICK)
         global_contdata.stick_y = MAXSTICK;
     
-    // Send the client input to the server
-    //netlib_start(PACKETID_CLIENTINPUT);
-    //netlib_sendtoserver();
-    //    netlib_writeqword((u64)osGetTime());
-    //    netlib_writebyte((u8)global_contdata.stick_x);
-    //    netlib_writebyte((u8)global_contdata.stick_y);
-    //netlib_sendtoserver();
+    // Send the client input to the server every 15hz (if you do too high a rate, you risk flooding the USB/router)
+    if (global_nextsend < osGetTime())
+    {
+        netlib_start(PACKETID_CLIENTINPUT);
+            netlib_writeqword((u64)osGetTime());
+            netlib_writebyte((u8)global_contdata.stick_x);
+            netlib_writebyte((u8)global_contdata.stick_y);
+        netlib_sendtoserver();
+        global_nextsend = osGetTime() + OS_USEC_TO_CYCLES((u64)(1000000.0f*(1.0f/INPUTRATE)));
+    }
     
     // Predict the player movement before the server acknowledges the input
     if (global_prediction)

@@ -12,7 +12,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class Game implements Runnable  {
 
     public static final int    MAXPLAYERS = 32;
-    private static final int   TICKRATE = 15;
+    private static final int   TICKRATE = 10;
     private static final float DELTATIME = 1.0f/((float)TICKRATE);
     private static final long  MAXDELTA = (long)(0.25f*1E9);
     
@@ -22,6 +22,7 @@ public class Game implements Runnable  {
     // Game state
     private Player players[];
     private LinkedList<GameObject> objs;
+    private GameObject obj_npc;
     private long gametime;
     private static AtomicInteger counter = new AtomicInteger();
     
@@ -35,7 +36,9 @@ public class Game implements Runnable  {
     	this.messages = new ConcurrentLinkedQueue<NetLibPacket>();
         this.players = new Player[32];
         this.objs = new LinkedList<GameObject>();
-        this.objs.add(new GameObject(new Vector2D(320/2, 240/2)));
+        this.obj_npc = new GameObject(new Vector2D(320/2, 240/2));
+        this.obj_npc.SetSpeed(5);
+        this.objs.add(this.obj_npc);
         this.window = new PreviewWindow(this);
         this.gametime = 0;
         System.out.println("Realtime initialized");
@@ -91,21 +94,23 @@ public class Game implements Runnable  {
         // Check for player messages
         NetLibPacket pkt = this.messages.poll();
         while (pkt != null) {
-            Player sender = this.players[pkt.GetSender()];
+            Player sender = this.players[pkt.GetSender()-1];
             if (sender != null) {
                 try {
-                    final float MAXSTICK = 80, MAXSPEED = 5;
-                    float stickx, sticky;
-                    Vector2D dir;
-                    GameObject obj = sender.GetObject();
-                    stickx = (float)pkt.GetData()[8];
-                    sticky = (float)pkt.GetData()[9];
-                    dir = new Vector2D(stickx, sticky);
-                    dir.Normalize();
-                    obj.SetDirection(dir);
-                    obj.SetSpeed((int)(((float)Math.sqrt(stickx*stickx + sticky*sticky)/MAXSTICK)*MAXSPEED));
+                    if (pkt.GetType() == PacketIDs.PACKETID_CLIENTINPUT.GetInt()) {
+                        final float MAXSTICK = 80, MAXSPEED = 5;
+                        float stickx, sticky;
+                        Vector2D dir;
+                        GameObject obj = sender.GetObject();
+                        stickx = (float)pkt.GetData()[8];
+                        sticky = -(float)pkt.GetData()[9];
+                        dir = new Vector2D(stickx, sticky);
+                        dir.Normalize();
+                        obj.SetDirection(dir);
+                        obj.SetSpeed((int)(((float)Math.sqrt(stickx*stickx + sticky*sticky)/MAXSTICK)*MAXSPEED));
+                    }
                 } catch (Exception e) {
-                    // Ignore bad packets
+                    
                 }
             }
             pkt = this.messages.poll();
@@ -219,6 +224,7 @@ public class Game implements Runnable  {
                 Player ply = new Player();
                 this.players[i] = ply;
                 ply.SetNumber(i+1);
+                this.objs.add(ply.GetObject());
                 return ply;
             }
         }
@@ -260,11 +266,9 @@ public class Game implements Runnable  {
      * @param ply  The player who disconnected
      */
     public synchronized void DisconnectPlayer(Player ply) {
-        for (int i=0; i<this.players.length; i++) {
-            if (this.players[i] == ply) {
-                this.players[i] = null;
-                return;
-            }
+        if (ply != null) {
+            this.objs.remove(ply.GetObject());
+            this.players[ply.GetNumber()-1] = null;
         }
     }
 }

@@ -22,7 +22,7 @@ public class GameObject {
         this.dir = new Vector2D((float)Math.random(), (float)Math.random());
         this.dir.Normalize();
         this.col = new Color((int)(Math.random()*255), (int)(Math.random()*255), (int)(Math.random()*255), 255);
-        this.speed = 5;
+        this.speed = 0;
         this.oldspeed = this.speed;
         this.size = new Vector2D(RECTSIZE, RECTSIZE);
     }
