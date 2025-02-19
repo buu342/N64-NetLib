@@ -625,10 +625,11 @@ void* DeviceThread::Entry()
                 if (device_getcart() != CART_EVERDRIVE)
                     this->WriteConsole("You may now boot the console.\n");
                 rompath = "";
+                wxMilliSleep(100); // Prevent the next receivedata call from reading any extra data from the upload process
             }
         }
 
-        // Ensure there were no errors during the USB reading process
+        // Read from the N64's USB, and ensure there were no errors during the USB reading process
         if (device_receivedata(&dataheader, &outbuff) != DEVICEERR_OK)
         {
             this->WriteConsoleError("\nError receiving data from the flashcart.\n");
@@ -656,18 +657,22 @@ void* DeviceThread::Entry()
             free(outbuff);
             outbuff = NULL;
         }
-        else // No incoming USB data, that means we can send data (packets) to it safely
+        else // No incoming USB data, that means we can send a data packet to the N64 safely
         {
+            bool workdone = false;
             NetLibPacket* pkt;
             if (global_msgqueue_usbthread_pkt.ReceiveTimeout(0, pkt) == wxMSGQUEUE_NO_ERROR)
             {
                 uint8_t* pktasbytes = pkt->GetAsBytes();
                 device_senddata(DATATYPE_NETPACKET, (byte*)pktasbytes, (uint32_t)pkt->GetAsBytes_Size());
+                workdone = true;
                 free(pktasbytes);
                 delete pkt;
             }
-            else
-                wxMilliSleep(10);
+            
+            // Rest if there was nothing done
+            if (!workdone)
+                wxMilliSleep(1);
         }
 
         // Check for messages from the main thread
@@ -1083,12 +1088,13 @@ void* ServerConnectionThread::Entry()
     wxDatagramSocket* socket = this->m_Window->GetSocket();
     UDPHandler* handler = new UDPHandler(socket, this->m_Window->GetAddress(), this->m_Window->GetPort());
 
-    // Handle packets
+    // Handle packets coming from the server
     this->WriteConsole("Establishing connection to server once ROM is ready.\n");
     while (!TestDestroy() && this->m_Window != NULL)
     {
         try
         {
+            bool workdone = false;
             NetLibPacket* pkt = NULL;
 
             // Check for messages from the main thread (which are relayed from USB)
@@ -1103,8 +1109,10 @@ void* ServerConnectionThread::Entry()
                 if (pkt != NULL)
                     this->TransferPacket(pkt);
                 socket->Read(buff, 4096);
+                workdone = true;
             }
-            wxMilliSleep(10);
+            if (!workdone)
+                wxMilliSleep(1);
         }
         catch (ClientTimeoutException& e)
         {
