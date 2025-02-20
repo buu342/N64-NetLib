@@ -35,8 +35,6 @@ typedef enum {
     TEVENT_START_SERVER,
     TEVENT_DEATH_DEVICE,
     TEVENT_DEATH_SERVER,
-    TEVENT_NETPACKET_USB_TO_SERVER,
-    TEVENT_NETPACKET_SERVER_TO_USB,
 
     // User Input events
     TEVENT_PROGEND,
@@ -283,6 +281,7 @@ void ClientWindow::m_Button_Send_OnButtonClick(wxCommandEvent& event)
         case CLSTATUS_UPLOADDONE:
             this->LoadROM();
             break;
+        default: break;
     }
 
     // Unused parameter
@@ -378,24 +377,6 @@ void ClientWindow::ThreadEvent(wxThreadEvent& event)
         case TEVENT_DEATH_SERVER:
             this->m_ServerThread = NULL;
             this->m_Button_Reconnect->Enable();
-            break;
-        case TEVENT_NETPACKET_USB_TO_SERVER:
-            {
-                NetLibPacket* pkt = event.GetPayload<NetLibPacket*>();
-                if (this->m_ServerThread == NULL)
-                    delete pkt;
-                else
-                    global_msgqueue_serverthread_pkt.Post(pkt);
-            }
-            break;
-        case TEVENT_NETPACKET_SERVER_TO_USB:
-            {
-                NetLibPacket* pkt = event.GetPayload<NetLibPacket*>();
-                if (this->m_DeviceThread == NULL)
-                    delete pkt;
-                else
-                    global_msgqueue_usbthread_pkt.Post(pkt);
-            }
             break;
         default:
             break;
@@ -667,7 +648,6 @@ void* DeviceThread::Entry()
                 device_senddata(DATATYPE_NETPACKET, (byte*)pktasbytes, (uint32_t)pkt->GetAsBytes_Size());
                 workdone = true;
                 free(pktasbytes);
-                delete pkt;
             }
             
             // Rest if there was nothing done
@@ -772,10 +752,8 @@ void DeviceThread::ParseUSB_NetLibPacket(uint8_t* buff)
         return;
     }
 
-    // Send the packet to the main thread so that it can be sent to the networking thread
-    evt.SetInt(TEVENT_NETPACKET_USB_TO_SERVER);
-    evt.SetPayload<NetLibPacket*>(pkt);
-    wxQueueEvent(this->m_Window, evt.Clone());
+    // Send the packet to the networking thread
+    global_msgqueue_serverthread_pkt.Post(pkt);
 }
 
 
@@ -1097,7 +1075,7 @@ void* ServerConnectionThread::Entry()
             bool workdone = false;
             NetLibPacket* pkt = NULL;
 
-            // Check for messages from the main thread (which are relayed from USB)
+            // Check for messages from the main thread (which are relayed from the N64's USB) to send to the server
             while (global_msgqueue_serverthread_pkt.ReceiveTimeout(0, pkt) == wxMSGQUEUE_NO_ERROR)
                 handler->SendPacket(pkt);
 
@@ -1164,12 +1142,7 @@ void ServerConnectionThread::HandleMainInput()
 
 void ServerConnectionThread::TransferPacket(NetLibPacket* pkt)
 {
-    if (this->m_Window == NULL)
-        return;
-    wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
-    evt.SetInt(TEVENT_NETPACKET_SERVER_TO_USB);
-    evt.SetPayload<NetLibPacket*>(NetLibPacket::FromBytes(pkt->GetAsBytes()));
-    wxQueueEvent(this->m_Window, evt.Clone());
+    global_msgqueue_usbthread_pkt.Post(pkt);
 }
 
 
