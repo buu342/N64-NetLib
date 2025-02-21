@@ -1142,7 +1142,7 @@ void ServerConnectionThread::HandleMainInput()
 
 void ServerConnectionThread::TransferPacket(NetLibPacket* pkt)
 {
-    global_msgqueue_usbthread_pkt.Post(pkt);
+    global_msgqueue_usbthread_pkt.Post(NetLibPacket::FromBytes(pkt->GetAsBytes()));
 }
 
 
