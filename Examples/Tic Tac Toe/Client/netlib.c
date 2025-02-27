@@ -479,15 +479,17 @@ void netlib_poll()
         uint16_t size;
         
         // Read the version packet
-        usb_skip(3);
-        usb_read(&version, 1);
         #if SAFETYCHECKS
+            usb_skip(3);
+            usb_read(&version, 1);
             if (version > NETLIB_VERSION)
             {
                 usb_purge();
                 usb_write(DATATYPE_TEXT, "Warning: Unsupported packet version. Discarding!\n", 50);
                 return;
             }
+        #else
+            usb_skip(4);
         #endif
         
         // Get the packet type and flags
@@ -497,7 +499,7 @@ void netlib_poll()
         // Skip the sequence data as it's not important
         usb_skip(6);
         
-        // Get the recepients list and the data size
+        // Get the recipients list and the data size
         usb_read(&recipients, 4);
         usb_read(&size, 2);
                 
