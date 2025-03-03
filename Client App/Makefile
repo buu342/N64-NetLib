@@ -1,5 +1,10 @@
 CODEFILES   = app.cpp serverbrowser.cpp customview.cpp clientwindow.cpp romdownloader.cpp packets.cpp helper.cpp sha256.cpp
-LIBFILES    = Include/flashcart.a Include/ftd2xx.lib
+LIBFILES    = Include/ftd2xx.lib
+ifeq ($(DEBUG),1)
+	LIBFILES += Include/flashcart_d.a
+else
+	LIBFILES += Include/flashcart.a
+endif
 BUILDDIR = build
 CODEOBJECTS = $(CODEFILES:%.cpp=${BUILDDIR}/%.o)
 PROGNAME = NetLibBrowser
