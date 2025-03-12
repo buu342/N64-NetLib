@@ -1,6 +1,7 @@
 package Realtime;
 
 import NetLib.NetLibPacket;
+import java.awt.Toolkit;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -12,7 +13,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class Game implements Runnable  {
 
     public static final int    MAXPLAYERS = 32;
-    private static final int   TICKRATE = 10;
+    private static final int   TICKRATE = 15;
     private static final float DELTATIME = 1.0f/((float)TICKRATE);
     private static final long  MAXDELTA = (long)(0.25f*1E9);
     
@@ -51,7 +52,6 @@ public class Game implements Runnable  {
         try {
             float accumulator = 0;
             long oldtime = System.nanoTime();
-            long lastticktime = 0;
             
             Thread.currentThread().setName("Game");
             while (true) {
@@ -70,19 +70,14 @@ public class Game implements Runnable  {
                     do_update();
                     send_updates();
                     accumulator -= DELTATIME;
-                    lastticktime = curtime;
                 }
                 
                 // Draw the frame
                 this.window.repaint();
+                Toolkit.getDefaultToolkit().sync();
                 
-                // Sleep for a bit if faster than a tick
-                // There is no guarantee for how long the sleep will go for, so doing a quarter of a tick should be safe
-                if (((float)(System.nanoTime() - lastticktime))/1E9 < DELTATIME/2)
-                {
-                    //System.out.println("Sleeping for " + (long)((DELTATIME/4)*1000) + "ms");
-                    Thread.sleep((long)((DELTATIME/4)*1000));
-                }
+                // Sleep for a bit
+                Thread.sleep(10);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -166,6 +161,7 @@ public class Game implements Runnable  {
 					bytes.write(ByteBuffer.allocate(4).putFloat(obj.GetSpeed()).array());
 	        	}
 
+	        	// Network if we had a change in object properties
 	        	if (bytes.size() > 4) {
 	        		for (Player ply : this.players) {
 	        			if (ply != null) {
