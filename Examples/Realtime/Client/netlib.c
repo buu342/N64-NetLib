@@ -451,7 +451,7 @@ void netlib_poll()
     // Perform the poll
     header = usb_poll();
     
-    // Read all net packets
+    // Read all incoming net packets first
     while (USBHEADER_GETTYPE(header) == DATATYPE_NETPACKET)
     {
         uint8_t version, flags;

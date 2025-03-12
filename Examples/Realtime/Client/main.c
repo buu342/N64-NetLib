@@ -80,7 +80,7 @@ void mainproc(void)
     // Initialize the net library
     netlib_initialize();
     netcallback_initall();
-    netlib_callback_disconnect(1000*5, callback_disconnect);
+    //netlib_callback_disconnect(1000*5, callback_disconnect);
 
     // Initialize the font system
     text_initialize();

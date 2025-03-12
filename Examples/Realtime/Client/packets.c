@@ -16,7 +16,7 @@ this game.
         Function Prototypes
 *********************************/
 
-static void packet_readobject(GameObject* obj);
+static GameObject* packet_readobject();
 
 static void netcallback_heartbeat(size_t size);
 static void netcallback_clientconnect(size_t size);
@@ -103,9 +103,21 @@ static void netcallback_clocksync(size_t size)
     @param The object to read the packet info into
 ==============================*/
 
-static void packet_readobject(GameObject* obj)
+static GameObject* packet_readobject()
 {
-    netlib_readdword((u32*)&obj->id);
+    u32 objid;
+    GameObject* obj;
+    
+    // Check if the object already exists, and create it if it doesn't
+    netlib_readdword(&objid);
+    obj = objects_findbyid(objid);
+    if (obj == NULL)
+    {
+        obj = objects_create();
+        obj->id = objid;
+    }
+    
+    // Assign the rest of the values
     netlib_readfloat(&obj->pos.x);
     netlib_readfloat(&obj->pos.y);
     netlib_readfloat(&obj->dir.x);
@@ -128,9 +140,9 @@ static void packet_readobject(GameObject* obj)
 static void netcallback_clientinfo(size_t size)
 {
     u8 plynum;
-    GameObject* obj = objects_create();
+    GameObject* obj;
     netlib_readbyte(&plynum);
-    packet_readobject(obj);
+    obj = packet_readobject();
     
     // Set our own player info
     netlib_setclient(plynum);
@@ -150,9 +162,11 @@ static void netcallback_clientinfo(size_t size)
 static void netcallback_playerinfo(size_t size)
 {
     u8 plynum;
-    GameObject* obj = objects_create();
+    GameObject* obj;
     netlib_readbyte(&plynum);
-    packet_readobject(obj);
+    
+    // Connect the object to the player
+    obj = packet_readobject();
     objects_connectplayer(plynum, obj);
 }
 
@@ -179,8 +193,7 @@ static void netcallback_playerdisconnect(size_t size)
 
 static void netcallback_createobject(size_t size)
 {
-    GameObject* obj = objects_create();
-    packet_readobject(obj);
+    packet_readobject();
 }
 
 
