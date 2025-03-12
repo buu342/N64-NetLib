@@ -614,7 +614,7 @@ void* DeviceThread::Entry()
         if (device_receivedata(&dataheader, &outbuff) != DEVICEERR_OK)
         {
             this->WriteConsoleError("\nError receiving data from the flashcart.\n");
-            break;
+            //break;
         }
 
         // If we have a valid USB data header
@@ -631,7 +631,7 @@ void* DeviceThread::Entry()
                 case DATATYPE_HEARTBEAT: this->ParseUSB_HeartbeatPacket(outbuff, size); break;
                 default:
                     this->WriteConsoleError(wxString::Format("\nError: Received unknown datatype '%02X' from the flashcart.\n", command));
-                    break;
+                    //break;
             }
 
             // Cleanup

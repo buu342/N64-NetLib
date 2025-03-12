@@ -330,15 +330,10 @@ void netlib_broadcast()
     // Write the client list and data size
     memcpy(&global_writebuffer[12], &mask, 4);
     memcpy(&global_writebuffer[16], &datasize, 2);
-        
-    // Send the packet over the wire
-    if (usb_poll() != 0)
-    {
-        global_sendafterpoll = TRUE;
-        netlib_poll();
-    }
-    else
-        usb_write(DATATYPE_NETPACKET, (void*)global_writebuffer, global_writecursize);
+    
+    // Send the packet over the wire once it's safe to do so
+    global_sendafterpoll = TRUE;
+    netlib_poll();
 }
 
 
@@ -357,14 +352,9 @@ void netlib_send(ClientNumber client)
     memcpy(&global_writebuffer[12], &mask, 4);
     memcpy(&global_writebuffer[16], &datasize, 2);
     
-    // Send the packet over the wire
-    if (usb_poll() != 0)
-    {
-        global_sendafterpoll = TRUE;
-        netlib_poll();
-    }
-    else
-        usb_write(DATATYPE_NETPACKET, (void*)global_writebuffer, global_writecursize);
+    // Send the packet over the wire once it's safe to do so
+    global_sendafterpoll = TRUE;
+    netlib_poll();
 }
 
 
@@ -382,14 +372,9 @@ void netlib_sendtoserver()
     memcpy(&global_writebuffer[12], &mask, 4);
     memcpy(&global_writebuffer[16], &datasize, 2);
     
-    // Send the packet over the wire
-    if (usb_poll() != 0)
-    {
-        global_sendafterpoll = TRUE;
-        netlib_poll();
-    }
-    else
-        usb_write(DATATYPE_NETPACKET, (void*)global_writebuffer, global_writecursize);
+    // Send the packet over the wire once it's safe to do so
+    global_sendafterpoll = TRUE;
+    netlib_poll();
 }
    
     
@@ -425,7 +410,6 @@ void netlib_register(NetPacket type, void (*callback)(size_t))
 
 void netlib_poll()
 {
-    unsigned int header;
     u64 curtime;
     #ifndef LIBDRAGON
         curtime = osGetTime();
@@ -448,67 +432,69 @@ void netlib_poll()
             global_funcptr_reconnect();
     }
     
-    // Perform the poll
-    header = usb_poll();
-    
     // Read all incoming net packets first
-    while (USBHEADER_GETTYPE(header) == DATATYPE_NETPACKET)
+    do
     {
-        uint8_t version, flags;
-        NetPacket type;
-        uint32_t recipients;
-        uint16_t size;
+        unsigned int header = usb_poll();
+        while (USBHEADER_GETTYPE(header) == DATATYPE_NETPACKET)
+        {
+            uint8_t version, flags;
+            NetPacket type;
+            uint32_t recipients;
+            uint16_t size;
+            
+            // Read the version packet
+            #if SAFETYCHECKS
+                usb_skip(3);
+                usb_read(&version, 1);
+                if (version > NETLIB_VERSION)
+                {
+                    usb_purge();
+                    usb_write(DATATYPE_TEXT, "Warning: Unsupported packet version. Discarding!\n", 50);
+                    return;
+                }
+            #else
+                usb_skip(4);
+            #endif
+            
+            // Get the packet type and flags
+            usb_read(&type, 1);
+            usb_read(&flags, 1);
+            
+            // Skip the sequence data as it's not important
+            usb_skip(6);
+            
+            // Get the recipients list and the data size
+            usb_read(&recipients, 4);
+            usb_read(&size, 2);
+                    
+            // Call the relevant packet handling function
+            #if SAFETYCHECKS
+                if (global_funcptrs[type] == NULL)
+                {
+                    usb_purge();
+                    usb_write(DATATYPE_TEXT, "Warning: Tried calling unregistered function!\n", 47);
+                    return;
+                }
+            #endif
+            global_funcptrs[type](size);
+            
+            // Refresh the packet time
+            global_lastpkt = curtime;
+            
+            // Poll again
+            usb_purge();
+            header = usb_poll();
+        }
         
-        // Read the version packet
-        #if SAFETYCHECKS
-            usb_skip(3);
-            usb_read(&version, 1);
-            if (version > NETLIB_VERSION)
-            {
-                usb_purge();
-                usb_write(DATATYPE_TEXT, "Warning: Unsupported packet version. Discarding!\n", 50);
-                return;
-            }
-        #else
-            usb_skip(4);
-        #endif
-        
-        // Get the packet type and flags
-        usb_read(&type, 1);
-        usb_read(&flags, 1);
-        
-        // Skip the sequence data as it's not important
-        usb_skip(6);
-        
-        // Get the recipients list and the data size
-        usb_read(&recipients, 4);
-        usb_read(&size, 2);
-                
-        // Call the relevant packet handling function
-        #if SAFETYCHECKS
-            if (global_funcptrs[type] == NULL)
-            {
-                usb_purge();
-                usb_write(DATATYPE_TEXT, "Warning: Tried calling unregistered function!\n", 47);
-                return;
-            }
-        #endif
-        global_funcptrs[type](size);
-        
-        // Refresh the packet time
-        global_lastpkt = curtime;
-        
-        // Poll again
-        usb_purge();
-        header = usb_poll();
-    }
-    
-    // If we queued up a message during polling, send it now (if it's safe to do so)
-    if (global_sendafterpoll && header == 0)
-    {
-        usb_write(DATATYPE_NETPACKET, (void*)global_writebuffer, global_writecursize);
-        global_sendafterpoll = FALSE;
-    }
+        // If we queued up a message during polling, send it now (if it's safe to do so)
+        if (global_sendafterpoll && header == 0)
+        {
+            if (usb_write(DATATYPE_NETPACKET, (void*)global_writebuffer, global_writecursize) == 1)
+                global_sendafterpoll = FALSE;
+        }
+    } 
+    while (global_sendafterpoll);
 }
 
 
