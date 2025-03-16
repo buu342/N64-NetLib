@@ -16,6 +16,16 @@ Program entrypoint.
 #include "objects.h"
 
 
+
+/*********************************
+              Macros
+*********************************/
+
+// In a real game, you would have the server send this value during connection
+// I'm forgoing that just for simplification reasons
+#define SERVERTICKRATE  15.0f
+
+
 /*********************************
         Function Prototypes
 *********************************/
@@ -37,6 +47,7 @@ char heapmem[1024*512];
 volatile StageNum global_curstage = STAGE_INIT;
 volatile StageNum global_nextstage = STAGE_NONE;
 StageDef global_stagetable[STAGE_COUNT];
+OSTime global_nexttick;
 
 
 /*==============================
@@ -61,6 +72,7 @@ void mainproc(void)
     
     // Initialize and activate the graphics thread and Graphics Task Manager.
     nuGfxInit();
+    nuPreNMIFuncSet(callback_prenmi);
 
     // Initialize the heap
     InitHeap(heapmem, sizeof(heapmem));
@@ -127,6 +139,14 @@ static void callback_vsync(int tasksleft)
     // Update the stage
     global_stagetable[global_curstage].funcptr_update();
     
+    // Perform the fixed updated
+    if (global_nexttick < osGetTime())
+    {
+        if (global_stagetable[global_curstage].funcptr_fixedupdate != NULL)
+            global_stagetable[global_curstage].funcptr_fixedupdate();
+        global_nexttick = osGetTime() + OS_USEC_TO_CYCLES((1/SERVERTICKRATE)*1000*1000);
+    }
+    
     // Draw it
     if (tasksleft < 1 && global_nextstage == STAGE_NONE)
         global_stagetable[global_curstage].funcptr_draw();
@@ -140,18 +160,23 @@ static void callback_vsync(int tasksleft)
 
 static void stagetable_init()
 {
+    global_nexttick = osGetTime();
+
     global_stagetable[STAGE_INIT].funcptr_init = &stage_init_init;
     global_stagetable[STAGE_INIT].funcptr_update = &stage_init_update;
+    global_stagetable[STAGE_INIT].funcptr_fixedupdate = NULL;
     global_stagetable[STAGE_INIT].funcptr_draw = &stage_init_draw;
     global_stagetable[STAGE_INIT].funcptr_cleanup = &stage_init_cleanup;
     
     global_stagetable[STAGE_GAME].funcptr_init = &stage_game_init;
     global_stagetable[STAGE_GAME].funcptr_update = &stage_game_update;
+    global_stagetable[STAGE_GAME].funcptr_fixedupdate = &stage_game_fixedupdate;
     global_stagetable[STAGE_GAME].funcptr_draw = &stage_game_draw;
     global_stagetable[STAGE_GAME].funcptr_cleanup = &stage_game_cleanup;
     
     global_stagetable[STAGE_DISCONNECTED].funcptr_init = &stage_disconnected_init;
     global_stagetable[STAGE_DISCONNECTED].funcptr_update = &stage_disconnected_update;
+    global_stagetable[STAGE_DISCONNECTED].funcptr_fixedupdate = NULL;
     global_stagetable[STAGE_DISCONNECTED].funcptr_draw = &stage_disconnected_draw;
     global_stagetable[STAGE_DISCONNECTED].funcptr_cleanup = &stage_disconnected_cleanup;
 }

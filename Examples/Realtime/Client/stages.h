@@ -30,6 +30,7 @@
     typedef struct {
         void (*funcptr_init)(void);
         void (*funcptr_update)(void);
+        void (*funcptr_fixedupdate)(void);
         void (*funcptr_draw)(void);
         void (*funcptr_cleanup)(void);
     } StageDef;
@@ -52,6 +53,7 @@
 
     extern void stage_game_init();
     extern void stage_game_update();
+    extern void stage_game_fixedupdate();
     extern void stage_game_draw();
     extern void stage_game_cleanup();
 

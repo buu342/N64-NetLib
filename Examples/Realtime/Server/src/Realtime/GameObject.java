@@ -12,8 +12,8 @@ public class GameObject {
     private Vector2D pos;
     private Vector2D dir;
     private Vector2D size;
-    private int speed;
-    private int oldspeed;
+    private float speed;
+    private float oldspeed;
     private Color col;
     
     public GameObject(Vector2D pos) {
@@ -43,11 +43,11 @@ public class GameObject {
         return this.size;
     }
     
-    public int GetOldSpeed() {
+    public float GetOldSpeed() {
         return this.oldspeed;
     }
     
-    public int GetSpeed() {
+    public float GetSpeed() {
         return this.speed;
     }
     
@@ -79,7 +79,7 @@ public class GameObject {
         bytes.write(ByteBuffer.allocate(4).putFloat(this.dir.GetY()).array());
         bytes.write(ByteBuffer.allocate(4).putFloat(this.size.GetX()).array());
         bytes.write(ByteBuffer.allocate(4).putFloat(this.size.GetY()).array());
-        bytes.write(ByteBuffer.allocate(4).putInt(this.speed).array());
+        bytes.write(ByteBuffer.allocate(4).putFloat(this.speed).array());
         bytes.write(ByteBuffer.allocate(1).put((byte)this.col.getRed()).array());
         bytes.write(ByteBuffer.allocate(1).put((byte)this.col.getGreen()).array());
         bytes.write(ByteBuffer.allocate(1).put((byte)this.col.getBlue()).array());

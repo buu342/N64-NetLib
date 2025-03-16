@@ -94,7 +94,8 @@ void text_create(char* str, u16 x, u16 y)
 {
     int i;
     int charcount = 0;
-    int hsize = 0, xreal;
+    int hsize = 0;
+    int xreal;
     u8 bold = FALSE;
     
     // Iterate through all characters in the string to calculate the text size and create table keys

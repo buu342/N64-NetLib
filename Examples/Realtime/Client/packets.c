@@ -124,10 +124,11 @@ static GameObject* packet_readobject()
     netlib_readfloat(&obj->dir.y);
     netlib_readfloat(&obj->size.x);
     netlib_readfloat(&obj->size.y);
-    netlib_readdword((u32*)&obj->speed);
+    netlib_readfloat(&obj->speed);
     netlib_readbyte(&obj->col.r);
     netlib_readbyte(&obj->col.g);
     netlib_readbyte(&obj->col.b);
+    return obj;
 }
 
 
@@ -241,7 +242,7 @@ static void netcallback_updateobject(size_t size)
                 size -= sizeof(f32)*2;
                 break;
             case 3:
-                netlib_readdword((u32*)&obj->speed);
+                netlib_readfloat(&obj->speed);
                 size -= sizeof(u32);
                 break;
         }

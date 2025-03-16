@@ -490,7 +490,7 @@ void netlib_poll()
         // If we queued up a message during polling, send it now (if it's safe to do so)
         if (global_sendafterpoll && header == 0)
         {
-            if (usb_write(DATATYPE_NETPACKET, (void*)global_writebuffer, global_writecursize) == 1)
+            if (usb_write(DATATYPE_NETPACKET, (void*)global_writebuffer, global_writecursize) != 0)
                 global_sendafterpoll = FALSE;
         }
     } 

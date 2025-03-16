@@ -5,8 +5,8 @@ TODO
 ***************************************************************/
 
 #include <nusys.h>
+#include <malloc.h>
 #include "objects.h"
-#include "datastructs.h"
 #include "config.h"
 
 
@@ -64,6 +64,17 @@ GameObject* objects_findbyid(u32 id)
         listit = listit->next;
     }
     return NULL;
+}
+
+
+/*==============================
+    objects_getall
+    TODO
+==============================*/
+
+linkedList* objects_getall()
+{
+    return &global_levelobjects;
 }
 
 

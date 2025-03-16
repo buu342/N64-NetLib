@@ -1,6 +1,7 @@
 #ifndef REALTIME_OBJECTS_H
 #define REALTIME_OBJECTS_H
 
+    #include "datastructs.h"
     #include "mathtypes.h"
 
     #define MAXPLAYERS 32
@@ -20,7 +21,7 @@
         Vector2D pos;
         Vector2D dir;
         Vector2D size;
-        s32 speed;
+        float speed;
         Color col;
     } GameObject;
 
@@ -40,6 +41,7 @@
     
     extern GameObject* objects_create();
     extern GameObject* objects_findbyid(u32 id);
+    extern linkedList* objects_getall();
     extern void        objects_draw();
     extern void        objects_destroy(GameObject* obj);
     extern void        objects_destroyall();

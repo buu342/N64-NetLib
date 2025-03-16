@@ -18,4 +18,6 @@
         u8 a;
     } Color;
     
+    Vector2D vector_normalize(Vector2D v);
+    
 #endif
