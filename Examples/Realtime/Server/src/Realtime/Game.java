@@ -38,7 +38,7 @@ public class Game implements Runnable  {
         this.players = new Player[32];
         this.objs = new LinkedList<GameObject>();
         this.obj_npc = new GameObject(new Vector2D(320/2, 240/2));
-        this.obj_npc.SetSpeed(5);
+        this.obj_npc.SetSpeed(100);
         this.objs.add(this.obj_npc);
         this.window = new PreviewWindow(this);
         this.gametime = 0;
@@ -67,7 +67,7 @@ public class Game implements Runnable  {
                 this.gametime += frametime;
                 accumulator += ((float)frametime)/1E9;
                 while (accumulator >= DELTATIME) {
-                    do_update();
+                    do_update(DELTATIME);
                     send_updates();
                     accumulator -= DELTATIME;
                 }
@@ -77,14 +77,14 @@ public class Game implements Runnable  {
                 Toolkit.getDefaultToolkit().sync();
                 
                 // Sleep for a bit
-                Thread.sleep(10);
+                Thread.sleep(10);   
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
     
-    private void do_update() {
+    private void do_update(float dt) {
         
         // Check for player messages
         NetLibPacket pkt = this.messages.poll();
@@ -94,27 +94,48 @@ public class Game implements Runnable  {
                 try {
                     if (pkt.GetType() == PacketIDs.PACKETID_CLIENTINPUT.GetInt()) {
                         final float MAXSTICK = 80, MAXSPEED = 5;
-                        float stickx, sticky;
-                        Vector2D dir;
                         GameObject obj = sender.GetObject();
-                        stickx = (float)pkt.GetData()[8];
-                        sticky = -(float)pkt.GetData()[9];
-                        dir = new Vector2D(stickx, sticky);
-                        dir.Normalize();
-                        obj.SetDirection(dir);
-                        obj.SetSpeed((int)(((float)Math.sqrt(stickx*stickx + sticky*sticky)/MAXSTICK)*MAXSPEED));
+                        ByteBuffer bb = ByteBuffer.wrap(pkt.GetData());
+                        long sendtime = bb.getLong();
+                        if (sender.GetLastUpdate() < sendtime)
+                        {
+                            float stickx = (float)bb.get();
+                            float sticky = (float)bb.get();
+                            Vector2D dir = new Vector2D(stickx, -sticky);
+                            dir.Normalize();
+                            obj.SetDirection(dir);
+                            obj.SetSpeed((((float)Math.sqrt(stickx*stickx + sticky*sticky)/MAXSTICK)*MAXSPEED)*100); // Because the speed will get multiplied by dt (which has a small value), scale it by 100
+                            sender.SetLastUpdate(sendtime);
+                        }
                     }
                 } catch (Exception e) {
-                    
+                    System.err.println(e);
                 }
             }
             pkt = this.messages.poll();
         }
         
+        // Update player positions
+        for (Player ply : this.players) {
+            if (ply != null) {
+                GameObject obj = ply.GetObject();
+                Vector2D target_offset = new Vector2D(obj.GetDirection().GetX()*obj.GetSpeed()*dt, obj.GetDirection().GetY()*obj.GetSpeed()*dt);
+                if (obj.GetPos().GetX() + obj.GetSize().GetX()/2 + target_offset.GetX() > 320)
+                    target_offset.SetX(target_offset.GetX() - 2*((obj.GetPos().GetX() + obj.GetSize().GetX()/2 + target_offset.GetX()) - 320));
+                if (obj.GetPos().GetX() - obj.GetSize().GetX()/2 + target_offset.GetX() < 0)
+                    target_offset.SetX(target_offset.GetX() - 2*((obj.GetPos().GetX() - obj.GetSize().GetX()/2 + target_offset.GetX()) - 0));
+                if (obj.GetPos().GetY() + obj.GetSize().GetY()/2 + target_offset.GetY() > 240)
+                    target_offset.SetY(target_offset.GetY() - 2*((obj.GetPos().GetY() + obj.GetSize().GetY()/2 + target_offset.GetY()) - 240));
+                if (obj.GetPos().GetY() - obj.GetSize().GetY()/2 + target_offset.GetY() < 0)
+                    target_offset.SetY(target_offset.GetY() - 2*((obj.GetPos().GetY() - obj.GetSize().GetY()/2 + target_offset.GetY()) - 0));
+                obj.SetPos(Vector2D.Add(obj.GetPos(), target_offset));
+            }
+        }
+        
         // Update object positions
         for (GameObject obj : this.objs) {
             if (obj != null) {
-                Vector2D target_offset = new Vector2D(obj.GetDirection().GetX()*obj.GetSpeed(), obj.GetDirection().GetY()*obj.GetSpeed());
+                Vector2D target_offset = new Vector2D(obj.GetDirection().GetX()*obj.GetSpeed()*dt, obj.GetDirection().GetY()*obj.GetSpeed()*dt);
                 if (obj.GetPos().GetX() + obj.GetSize().GetX()/2 + target_offset.GetX() > 320) {
                     target_offset.SetX(target_offset.GetX() - 2*((obj.GetPos().GetX() + obj.GetSize().GetX()/2 + target_offset.GetX()) - 320));
                     obj.SetDirection(new Vector2D(-obj.GetDirection().GetX(), obj.GetDirection().GetY()));
@@ -137,41 +158,86 @@ public class Game implements Runnable  {
     }
     
     private void send_updates() {
+        // "Properly" implemented, all the update data would be packed into one packet instead of sending multiple tiny ones.
+        
+        // Send player updates
+        for (Player ply : this.players) {
+            if (ply != null) {
+                try {
+                    GameObject obj = ply.GetObject();
+                    ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+                    bytes.write(ByteBuffer.allocate(1).put((byte)ply.GetNumber()).array());
+                    bytes.write(ByteBuffer.allocate(8).putLong(ply.GetLastUpdate()).array());
+    	        	if (obj.GetPos().GetX() != obj.GetPos().GetPreviousX() || obj.GetPos().GetY() != obj.GetPos().GetPreviousY()) {
+    					bytes.write(ByteBuffer.allocate(1).put((byte)0).array());
+    					bytes.write(ByteBuffer.allocate(4).putFloat(obj.GetPos().GetX()).array());
+    					bytes.write(ByteBuffer.allocate(4).putFloat(obj.GetPos().GetY()).array());
+    	        	}
+    	        	if (obj.GetDirection().GetX() != obj.GetDirection().GetPreviousX() || obj.GetDirection().GetY() != obj.GetDirection().GetPreviousY()) {
+    					bytes.write(ByteBuffer.allocate(1).put((byte)1).array());
+    					bytes.write(ByteBuffer.allocate(4).putFloat(obj.GetDirection().GetX()).array());
+    					bytes.write(ByteBuffer.allocate(4).putFloat(obj.GetDirection().GetY()).array());
+    	        	}
+    	        	if (obj.GetSize().GetX() != obj.GetSize().GetPreviousX() || obj.GetSize().GetY() != obj.GetSize().GetPreviousY()) {
+    					bytes.write(ByteBuffer.allocate(1).put((byte)2).array());
+    					bytes.write(ByteBuffer.allocate(4).putFloat(obj.GetSize().GetX()).array());
+    					bytes.write(ByteBuffer.allocate(4).putFloat(obj.GetSize().GetY()).array());
+    	        	}
+    	        	if (obj.GetOldSpeed() != obj.GetSpeed()) {
+    					bytes.write(ByteBuffer.allocate(1).put((byte)3).array());
+    					bytes.write(ByteBuffer.allocate(4).putFloat(obj.GetSpeed()).array());
+    	        	}
+    
+    	        	// Network if we had a change in object properties
+    	        	if (bytes.size() > 4) {
+    	        		for (Player ply2send : this.players) {
+    	        			if (ply2send != null) {
+    	        			    ply2send.SendMessage(null, new NetLibPacket(PacketIDs.PACKETID_PLAYERUPDATE.GetInt(), bytes.toByteArray()));
+    	        			}
+    	        		}
+    	        	}
+    			} catch (IOException e) {
+    				e.printStackTrace();
+    			}
+            }
+        }
+        
+        // Send object updates
         for (GameObject obj : this.objs) {
             try {
                 ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-				bytes.write(ByteBuffer.allocate(4).putInt(obj.GetID()).array());
-	        	if (obj.GetPos().GetX() != obj.GetPos().GetPreviousX() || obj.GetPos().GetY() != obj.GetPos().GetPreviousY()) {
-					bytes.write(ByteBuffer.allocate(1).put((byte)0).array());
-					bytes.write(ByteBuffer.allocate(4).putFloat(obj.GetPos().GetX()).array());
-					bytes.write(ByteBuffer.allocate(4).putFloat(obj.GetPos().GetY()).array());
-	        	}
-	        	if (obj.GetDirection().GetX() != obj.GetDirection().GetPreviousX() || obj.GetDirection().GetY() != obj.GetDirection().GetPreviousY()) {
-					bytes.write(ByteBuffer.allocate(1).put((byte)1).array());
-					bytes.write(ByteBuffer.allocate(4).putFloat(obj.GetDirection().GetX()).array());
-					bytes.write(ByteBuffer.allocate(4).putFloat(obj.GetDirection().GetY()).array());
-	        	}
-	        	if (obj.GetSize().GetX() != obj.GetSize().GetPreviousX() || obj.GetSize().GetY() != obj.GetSize().GetPreviousY()) {
-					bytes.write(ByteBuffer.allocate(1).put((byte)2).array());
-					bytes.write(ByteBuffer.allocate(4).putFloat(obj.GetSize().GetX()).array());
-					bytes.write(ByteBuffer.allocate(4).putFloat(obj.GetSize().GetY()).array());
-	        	}
-	        	if (obj.GetOldSpeed() != obj.GetSpeed()) {
-					bytes.write(ByteBuffer.allocate(1).put((byte)3).array());
-					bytes.write(ByteBuffer.allocate(4).putFloat(obj.GetSpeed()).array());
-	        	}
+                bytes.write(ByteBuffer.allocate(4).putInt(obj.GetID()).array());
+                if (obj.GetPos().GetX() != obj.GetPos().GetPreviousX() || obj.GetPos().GetY() != obj.GetPos().GetPreviousY()) {
+                    bytes.write(ByteBuffer.allocate(1).put((byte)0).array());
+                    bytes.write(ByteBuffer.allocate(4).putFloat(obj.GetPos().GetX()).array());
+                    bytes.write(ByteBuffer.allocate(4).putFloat(obj.GetPos().GetY()).array());
+                }
+                if (obj.GetDirection().GetX() != obj.GetDirection().GetPreviousX() || obj.GetDirection().GetY() != obj.GetDirection().GetPreviousY()) {
+                    bytes.write(ByteBuffer.allocate(1).put((byte)1).array());
+                    bytes.write(ByteBuffer.allocate(4).putFloat(obj.GetDirection().GetX()).array());
+                    bytes.write(ByteBuffer.allocate(4).putFloat(obj.GetDirection().GetY()).array());
+                }
+                if (obj.GetSize().GetX() != obj.GetSize().GetPreviousX() || obj.GetSize().GetY() != obj.GetSize().GetPreviousY()) {
+                    bytes.write(ByteBuffer.allocate(1).put((byte)2).array());
+                    bytes.write(ByteBuffer.allocate(4).putFloat(obj.GetSize().GetX()).array());
+                    bytes.write(ByteBuffer.allocate(4).putFloat(obj.GetSize().GetY()).array());
+                }
+                if (obj.GetOldSpeed() != obj.GetSpeed()) {
+                    bytes.write(ByteBuffer.allocate(1).put((byte)3).array());
+                    bytes.write(ByteBuffer.allocate(4).putFloat(obj.GetSpeed()).array());
+                }
 
-	        	// Network if we had a change in object properties
-	        	if (bytes.size() > 4) {
-	        		for (Player ply : this.players) {
-	        			if (ply != null) {
-	        				ply.SendMessage(null, new NetLibPacket(PacketIDs.PACKETID_OBJECTUPDATE.GetInt(), bytes.toByteArray()));
-	        			}
-	        		}
-	        	}
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
+                // Network if we had a change in object properties
+                if (bytes.size() > 4) {
+                    for (Player ply : this.players) {
+                        if (ply != null) {
+                            ply.SendMessage(null, new NetLibPacket(PacketIDs.PACKETID_OBJECTUPDATE.GetInt(), bytes.toByteArray()));
+                        }
+                    }
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
     
@@ -220,7 +286,6 @@ public class Game implements Runnable  {
                 Player ply = new Player();
                 this.players[i] = ply;
                 ply.SetNumber(i+1);
-                this.objs.add(ply.GetObject());
                 return ply;
             }
         }
@@ -263,7 +328,6 @@ public class Game implements Runnable  {
      */
     public synchronized void DisconnectPlayer(Player ply) {
         if (ply != null) {
-            this.objs.remove(ply.GetObject());
             this.players[ply.GetNumber()-1] = null;
         }
     }

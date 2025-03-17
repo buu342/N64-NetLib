@@ -12,6 +12,7 @@ public enum PacketIDs {
     PACKETID_CLIENTINPUT(8),
     PACKETID_OBJECTCREATE(9),
     PACKETID_OBJECTUPDATE(10),
+    PACKETID_PLAYERUPDATE(11),
     ;
 
     // Int representation

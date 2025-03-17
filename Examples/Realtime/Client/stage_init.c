@@ -82,7 +82,7 @@ void stage_init_init(void)
     Update stage variables every frame
 ==============================*/
 
-void stage_init_update(void)
+void stage_init_update(float dt)
 {
     switch (global_connectionstate)
     {

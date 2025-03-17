@@ -27,6 +27,7 @@ static void netcallback_playerinfo(size_t size);
 static void netcallback_playerdisconnect(size_t size);
 static void netcallback_createobject(size_t size);
 static void netcallback_updateobject(size_t size);
+static void netcallback_updateplayer(size_t size);
 
 
 /*==============================
@@ -45,6 +46,7 @@ void netcallback_initall()
     netlib_register(PACKETID_PLAYERDISCONNECT, &netcallback_playerdisconnect);
     netlib_register(PACKETID_OBJECTCREATE, &netcallback_createobject);
     netlib_register(PACKETID_OBJECTUPDATE, &netcallback_updateobject);
+    netlib_register(PACKETID_PLAYERUPDATE, &netcallback_updateplayer);
 }
 
 /*==============================
@@ -100,7 +102,7 @@ static void netcallback_clocksync(size_t size)
     packet_readobject
     A helper function for reading an object's data from a packet
     Useful since player and object data is almost exactly the same
-    @param The object to read the packet info into
+    @return The created object
 ==============================*/
 
 static GameObject* packet_readobject()
@@ -129,6 +131,48 @@ static GameObject* packet_readobject()
     netlib_readbyte(&obj->col.g);
     netlib_readbyte(&obj->col.b);
     return obj;
+}
+
+
+/*==============================
+    packet_readobjectupdate
+    A helper function for reading an object's update from a packet
+    Useful since player and object update format is almost exactly the same
+    @param The object to read the packet info into
+    @param The data size left to read
+==============================*/
+
+static void packet_readobjectupdate(GameObject* obj, size_t size)
+{
+    // Read the data in the packet
+    while (size > 0)
+    {
+        u8 datatype;
+        netlib_readbyte(&datatype);
+        size -= sizeof(u8);
+        switch (datatype)
+        {
+            case 0:
+                netlib_readfloat(&obj->pos.x);
+                netlib_readfloat(&obj->pos.y);
+                size -= sizeof(f32)*2;
+                break;
+            case 1:
+                netlib_readfloat(&obj->dir.x);
+                netlib_readfloat(&obj->dir.y);
+                size -= sizeof(f32)*2;
+                break;
+            case 2:
+                netlib_readfloat(&obj->size.x);
+                netlib_readfloat(&obj->size.y);
+                size -= sizeof(f32)*2;
+                break;
+            case 3:
+                netlib_readfloat(&obj->speed);
+                size -= sizeof(u32);
+                break;
+        }
+    }
 }
 
 
@@ -217,34 +261,37 @@ static void netcallback_updateobject(size_t size)
     obj = objects_findbyid(id);
     if (obj == NULL)
         return;
-        
-    // Read the data in the packet
-    while (size > 0)
+    
+    packet_readobjectupdate(obj, size);
+}
+
+
+/*==============================
+    netcallback_updateplayer
+    Handles the PACKETID_PLAYERUPDATE packet
+    @param The size of the incoming data
+==============================*/
+
+static void netcallback_updateplayer(size_t size)
+{
+    u8 plynum;
+    u64 time;
+    static u64 lasttime = 0;
+    
+    // Get the affected object's ID
+    netlib_readbyte(&plynum);
+    size -= sizeof(u8);
+    netlib_readqword(&time);
+    size -= sizeof(u64);
+    
+    // Read the object update data if it makes sense to
+    if (time > lasttime)
     {
-        u8 datatype;
-        netlib_readbyte(&datatype);
-        size -= sizeof(u8);
-        switch (datatype)
-        {
-            case 0:
-                netlib_readfloat(&obj->pos.x);
-                netlib_readfloat(&obj->pos.y);
-                size -= sizeof(f32)*2;
-                break;
-            case 1:
-                netlib_readfloat(&obj->dir.x);
-                netlib_readfloat(&obj->dir.y);
-                size -= sizeof(f32)*2;
-                break;
-            case 2:
-                netlib_readfloat(&obj->size.x);
-                netlib_readfloat(&obj->size.y);
-                size -= sizeof(f32)*2;
-                break;
-            case 3:
-                netlib_readfloat(&obj->speed);
-                size -= sizeof(u32);
-                break;
-        }
+        GameObject* obj = global_players[plynum-1].obj;
+        if (obj == NULL)
+            return;
+        packet_readobjectupdate(obj, size);
+        stage_game_ackinput(time, obj->pos);
+        lasttime = time;
     }
 }

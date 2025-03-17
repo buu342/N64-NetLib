@@ -1,6 +1,9 @@
 #ifndef _N64_PACKETS_H
 #define _N64_PACKETS_H
     
+    #include <nusys.h>
+    #include "mathtypes.h"
+    
     
     /*********************************
                Enumerations
@@ -19,7 +22,14 @@
         PACKETID_CLIENTINPUT = 8,
         PACKETID_OBJECTCREATE = 9,
         PACKETID_OBJECTUPDATE = 10,
+        PACKETID_PLAYERUPDATE = 11,
     } NetPacketIDs;
+    
+    typedef struct {
+        OSTime time;
+        NUContData contdata;
+        float dt;
+    } InputToAck;
     
     
     /*********************************

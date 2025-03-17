@@ -29,8 +29,8 @@
 
     typedef struct {
         void (*funcptr_init)(void);
-        void (*funcptr_update)(void);
-        void (*funcptr_fixedupdate)(void);
+        void (*funcptr_update)(float dt);
+        void (*funcptr_fixedupdate)(float dt);
         void (*funcptr_draw)(void);
         void (*funcptr_cleanup)(void);
     } StageDef;
@@ -44,7 +44,7 @@
     extern void stages_changeto(StageNum num);
 
     extern void stage_init_init();
-    extern void stage_init_update();
+    extern void stage_init_update(float dt);
     extern void stage_init_draw();
     extern void stage_init_cleanup();
     extern void stage_init_connectpacket();
@@ -52,13 +52,13 @@
     extern void stage_init_clockpacket();
 
     extern void stage_game_init();
-    extern void stage_game_update();
-    extern void stage_game_fixedupdate();
+    extern void stage_game_update(float dt);
+    extern void stage_game_fixedupdate(float dt);
     extern void stage_game_draw();
     extern void stage_game_cleanup();
 
     extern void stage_disconnected_init();
-    extern void stage_disconnected_update();
+    extern void stage_disconnected_update(float dt);
     extern void stage_disconnected_draw();
     extern void stage_disconnected_cleanup();
     

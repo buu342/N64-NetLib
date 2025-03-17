@@ -24,6 +24,7 @@ Program entrypoint.
 // In a real game, you would have the server send this value during connection
 // I'm forgoing that just for simplification reasons
 #define SERVERTICKRATE  15.0f
+#define DELTATIME       1.0f/((float)SERVERTICKRATE)
 
 
 /*********************************
@@ -48,6 +49,7 @@ volatile StageNum global_curstage = STAGE_INIT;
 volatile StageNum global_nextstage = STAGE_NONE;
 StageDef global_stagetable[STAGE_COUNT];
 OSTime global_nexttick;
+OSTime global_lastupdate;
 
 
 /*==============================
@@ -133,17 +135,20 @@ void mainproc(void)
 
 static void callback_vsync(int tasksleft)
 {
+    OSTime curtime = osGetTime();
+    
     // Poll the net library
     netlib_poll();
     
     // Update the stage
-    global_stagetable[global_curstage].funcptr_update();
+    global_stagetable[global_curstage].funcptr_update((((float)OS_CYCLES_TO_USEC(curtime - global_lastupdate))/1000.0f)/1000.0f);
+    global_lastupdate = curtime;
     
     // Perform the fixed updated
     if (global_nexttick < osGetTime())
     {
         if (global_stagetable[global_curstage].funcptr_fixedupdate != NULL)
-            global_stagetable[global_curstage].funcptr_fixedupdate();
+            global_stagetable[global_curstage].funcptr_fixedupdate(DELTATIME);
         global_nexttick = osGetTime() + OS_USEC_TO_CYCLES((1/SERVERTICKRATE)*1000*1000);
     }
     
@@ -161,6 +166,7 @@ static void callback_vsync(int tasksleft)
 static void stagetable_init()
 {
     global_nexttick = osGetTime();
+    global_lastupdate = osGetTime();
 
     global_stagetable[STAGE_INIT].funcptr_init = &stage_init_init;
     global_stagetable[STAGE_INIT].funcptr_update = &stage_init_update;

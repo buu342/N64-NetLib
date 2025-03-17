@@ -51,5 +51,15 @@ public class PreviewWindow extends JPanel {
                 g2d.fillRect((int)(obj.GetPos().GetX() - size.GetX()/2), (int)(obj.GetPos().GetY() - size.GetY()/2), (int)size.GetX(), (int)size.GetY());
             }
         }
+        
+        // Draw player objects
+        for (Player ply : this.game.GetPlayers()) {
+            if (ply != null) {
+                GameObject obj = ply.GetObject();
+                Vector2D size = obj.GetSize();
+                g2d.setColor(obj.GetColor());
+                g2d.fillRect((int)(obj.GetPos().GetX() - size.GetX()/2), (int)(obj.GetPos().GetY() - size.GetY()/2), (int)size.GetX(), (int)size.GetY());
+            }
+        }
     }
 }

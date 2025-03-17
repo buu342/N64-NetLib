@@ -65,7 +65,7 @@ public class GameObject {
         this.dir.SetY(dir.GetY());
     }
     
-    public void SetSpeed(int speed) {
+    public void SetSpeed(float speed) {
         this.oldspeed = this.speed;
         this.speed = speed;
     }

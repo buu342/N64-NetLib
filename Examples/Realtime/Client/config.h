@@ -21,6 +21,10 @@
     #define GLIST_LENGTH 4096
     #define HEAP_LENGTH  1024
     
+    // Controller config
+    #define MAXSTICK 80
+    #define MINSTICK 5
+    
     
     /*********************************
                  Globals

@@ -79,29 +79,6 @@ linkedList* objects_getall()
 
 
 /*==============================
-    objects_draw
-    TODO
-==============================*/
-
-void objects_draw()
-{
-    listNode* listit = global_levelobjects.head;
-    while (listit != NULL)
-    {
-        GameObject* obj = (GameObject*)listit->data;
-        gDPSetFillColor(glistp++, (GPACK_RGBA5551(obj->col.r, obj->col.g, obj->col.b, 1) << 16 | 
-                                   GPACK_RGBA5551(obj->col.r, obj->col.g, obj->col.b, 1)));
-        gDPFillRectangle(glistp++, 
-            obj->pos.x - (obj->size.x/2), obj->pos.y - (obj->size.y/2),
-            obj->pos.x + (obj->size.x/2), obj->pos.y + (obj->size.y/2)
-        );
-        gDPPipeSync(glistp++);
-        listit = listit->next;
-    }
-}
-
-
-/*==============================
     objects_destroy
     TODO
 ==============================*/
@@ -152,4 +129,34 @@ void objects_disconnectplayer(u8 num)
     global_players[num-1].connected = FALSE;
     objects_destroy(global_players[num-1].obj);
     global_players[num-1].obj = NULL;
+}
+
+void objects_applycont(GameObject* obj, NUContData contdata)
+{
+    const float MAXSPEED = 5;
+    if (contdata.stick_x < MINSTICK && contdata.stick_x > -MINSTICK)
+        contdata.stick_x = 0;
+    else if (contdata.stick_x > MAXSTICK || contdata.stick_x < -MAXSTICK)
+        contdata.stick_x = (contdata.stick_x > 0) ? MAXSTICK : -MAXSTICK;
+    if (contdata.stick_y < MINSTICK && contdata.stick_y > -MINSTICK)
+        contdata.stick_y = 0;
+    else if (contdata.stick_y > MAXSTICK || contdata.stick_y < -MAXSTICK)
+        contdata.stick_y = (contdata.stick_y > 0) ? MAXSTICK : -MAXSTICK;
+    obj->dir = vector_normalize((Vector2D){contdata.stick_x, -contdata.stick_y});
+    obj->speed = ((sqrtf(contdata.stick_x*contdata.stick_x + contdata.stick_y*contdata.stick_y)/MAXSTICK)*MAXSPEED)*100;
+}
+
+void objects_applyphys(GameObject* obj, float dt)
+{
+    Vector2D target_offset = (Vector2D){obj->dir.x*obj->speed*dt, obj->dir.y*obj->speed*dt};
+    if (obj->pos.x + obj->size.x/2 + target_offset.x > 320)
+        target_offset.x = target_offset.x - 2*((obj->pos.x + obj->size.x/2 + target_offset.x) - 320);
+    if (obj->pos.x - obj->size.x/2 + target_offset.x < 0)
+        target_offset.x = target_offset.x - 2*((obj->pos.x - obj->size.x/2 + target_offset.x) - 0);
+    if (obj->pos.y + obj->size.y/2 + target_offset.y > 240)
+        target_offset.y = target_offset.y - 2*((obj->pos.y + obj->size.y/2 + target_offset.y) - 240);
+    if (obj->pos.y - obj->size.y/2 + target_offset.y < 0) 
+        target_offset.y =target_offset.y - 2*((obj->pos.y - obj->size.y/2 + target_offset.y) - 0);
+    obj->pos.x += target_offset.x;
+    obj->pos.y += target_offset.y;
 }

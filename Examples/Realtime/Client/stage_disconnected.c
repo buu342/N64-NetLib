@@ -40,7 +40,7 @@ void stage_disconnected_init(void)
     Update stage variables every frame
 ==============================*/
 
-void stage_disconnected_update(void)
+void stage_disconnected_update(float dt)
 {
     nuContDataGetEx(&global_contdata, 0);
     

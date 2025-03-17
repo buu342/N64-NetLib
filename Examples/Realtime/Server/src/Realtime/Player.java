@@ -13,6 +13,7 @@ public class Player {
     // Player info
     private int number;
     private int bitmask;
+    private long lastupdate;
     private GameObject obj;
     
     // Thread communication
@@ -37,6 +38,14 @@ public class Player {
         this.number = number;
         this.bitmask = 1 << (number-1);
     }
+
+    /**
+     * Set the player's last received update
+     * @param number  The time of the player's last update
+     */
+    public void SetLastUpdate(long time) {
+        this.lastupdate = time;
+    }
     
     /**
      * Send a message to this player
@@ -56,7 +65,7 @@ public class Player {
     
     /**
      * Get the number of this player
-     * @return  The player's number
+     * @return  The player's number, starting from 1
      */
     public int GetNumber() {
         return this.number;
@@ -68,6 +77,14 @@ public class Player {
      */
     public GameObject GetObject() {
         return this.obj;
+    }
+
+    /**
+     * Get the last update time for this player
+     * @return  The last update time for this player
+     */
+    public long GetLastUpdate() {
+        return this.lastupdate;
     }
     
     /**
