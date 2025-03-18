@@ -131,9 +131,14 @@ void objects_disconnectplayer(u8 num)
     global_players[num-1].obj = NULL;
 }
 
+
+/*==============================
+    TODO
+==============================*/
+
 void objects_applycont(GameObject* obj, NUContData contdata)
 {
-    const float MAXSPEED = 5;
+    const float MAXSPEED = 50;
     if (contdata.stick_x < MINSTICK && contdata.stick_x > -MINSTICK)
         contdata.stick_x = 0;
     else if (contdata.stick_x > MAXSTICK || contdata.stick_x < -MAXSTICK)
@@ -143,8 +148,13 @@ void objects_applycont(GameObject* obj, NUContData contdata)
     else if (contdata.stick_y > MAXSTICK || contdata.stick_y < -MAXSTICK)
         contdata.stick_y = (contdata.stick_y > 0) ? MAXSTICK : -MAXSTICK;
     obj->dir = vector_normalize((Vector2D){contdata.stick_x, -contdata.stick_y});
-    obj->speed = ((sqrtf(contdata.stick_x*contdata.stick_x + contdata.stick_y*contdata.stick_y)/MAXSTICK)*MAXSPEED)*100;
+    obj->speed = (sqrtf(contdata.stick_x*contdata.stick_x + contdata.stick_y*contdata.stick_y)/MAXSTICK)*MAXSPEED;
 }
+
+
+/*==============================
+    TODO
+==============================*/
 
 void objects_applyphys(GameObject* obj, float dt)
 {

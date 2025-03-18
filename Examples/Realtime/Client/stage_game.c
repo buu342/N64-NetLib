@@ -14,7 +14,7 @@ TODO
 #include "objects.h"
 
 #define INPUTRATE        15.0f
-#define MAXPACKETSTOACK  (INPUTRATE*5)
+#define MAXPACKETSTOACK  (INPUTRATE*5*2)
 
 static NUContData global_contdata;
 
@@ -25,6 +25,22 @@ static bool global_reconciliation;
 static bool global_interpolation;
 static linkedList global_packetstoack;
 static Vector2D   global_lastackedpos;
+
+void stage_game_updatetext()
+{
+    text_cleanup();
+    text_setfont(&font_small);
+    text_setalign(ALIGN_LEFT);
+    text_setcolor(0, 0, 0, 255);
+    if (global_prediction)
+        text_create("Prediction: Enabled", 32, 32);
+    else
+        text_create("Prediction: Disabled", 32, 32);
+    if (global_reconciliation)
+        text_create("Reconciliation: Enabled", 32, 32+16);
+    else
+        text_create("Reconciliation: Disabled", 32, 32+16);
+}
 
 
 /*==============================
@@ -50,6 +66,7 @@ void stage_game_init(void)
 
 void stage_game_update(float dt)
 {
+    OSTime curtime = osGetTime();
     GameObject* plyobj = global_players[netlib_getclient()-1].obj;
     
     // Get controller data and apply some basic deadzoning to it
@@ -66,10 +83,29 @@ void stage_game_update(float dt)
     // Move the object based on the cont data
     objects_applycont(plyobj, global_contdata);
     
-    // Send the client input to the server every 15hz (if you do too high a rate, you risk flooding the USB/router)
-    if (global_nextsend < osGetTime())
+    // Handle toggling of different clientside improvements
+    if (global_contdata.trigger & R_TRIG)
     {
-        OSTime curtime = osGetTime();
+        global_reconciliation = !global_reconciliation;
+        if (global_reconciliation && !global_prediction)
+            global_prediction = TRUE;
+        else if (!global_reconciliation && global_packetstoack.size > 0)
+            list_destroy_deep(&global_packetstoack);
+        stage_game_updatetext();
+    }
+    if (global_contdata.trigger & L_TRIG)
+    {
+        global_prediction = !global_prediction;
+        if (!global_prediction && global_reconciliation)
+            global_reconciliation = FALSE;
+        if (!global_reconciliation && global_packetstoack.size > 0)
+            list_destroy_deep(&global_packetstoack);
+        stage_game_updatetext();
+    }
+    
+    // Send the client input to the server every 15hz (if you do too high a rate, you risk flooding the USB/router)
+    if (global_nextsend < curtime)
+    {
         netlib_start(PACKETID_CLIENTINPUT);
             netlib_writeqword((u64)curtime);
             netlib_writebyte((u8)global_contdata.stick_x);
@@ -84,10 +120,9 @@ void stage_game_update(float dt)
             in->time = curtime;
             in->contdata = global_contdata;
             in->dt = dt;
-            if (global_packetstoack.size != MAXPACKETSTOACK)
-                list_append(&global_packetstoack, in);
-            else
+            if (global_packetstoack.size == MAXPACKETSTOACK)
                 list_remove(&global_packetstoack, global_packetstoack.head);
+            list_append(&global_packetstoack, in);
         }
     }
 }
@@ -125,7 +160,7 @@ void stage_game_draw(void)
     rcp_init();
     fb_clear(100, 100, 100);
     
-    // Render all the objects except the player
+    // Render all objects except the player
     listit = objects_getall()->head;
     while (listit != NULL)
     {

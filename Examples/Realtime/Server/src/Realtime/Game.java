@@ -93,7 +93,7 @@ public class Game implements Runnable  {
             if (sender != null) {
                 try {
                     if (pkt.GetType() == PacketIDs.PACKETID_CLIENTINPUT.GetInt()) {
-                        final float MAXSTICK = 80, MAXSPEED = 5;
+                        final float MAXSTICK = 80, MAXSPEED = 50;
                         GameObject obj = sender.GetObject();
                         ByteBuffer bb = ByteBuffer.wrap(pkt.GetData());
                         long sendtime = bb.getLong();
@@ -104,7 +104,7 @@ public class Game implements Runnable  {
                             Vector2D dir = new Vector2D(stickx, -sticky);
                             dir.Normalize();
                             obj.SetDirection(dir);
-                            obj.SetSpeed((((float)Math.sqrt(stickx*stickx + sticky*sticky)/MAXSTICK)*MAXSPEED)*100); // Because the speed will get multiplied by dt (which has a small value), scale it by 100
+                            obj.SetSpeed(((float)Math.sqrt(stickx*stickx + sticky*sticky)/MAXSTICK)*MAXSPEED);
                             sender.SetLastUpdate(sendtime);
                         }
                     }
