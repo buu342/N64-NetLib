@@ -108,7 +108,7 @@ void netlib_callback_disconnect(u32 timeout, void (*callback)())
     #ifndef LIBDRAGON
         global_timeouttime = OS_USEC_TO_CYCLES(timeout*1000);
     #else
-        global_timeouttime = TIMER_TICKS(1000000);
+        global_timeouttime = TIMER_TICKS(timeout*1000);
     #endif
     global_funcptr_disconnect = callback;
 }
@@ -492,6 +492,8 @@ void netlib_poll()
         {
             if (usb_write(DATATYPE_NETPACKET, (void*)global_writebuffer, global_writecursize) != 0)
                 global_sendafterpoll = FALSE;
+            else if (usb_timedout())
+                break;
         }
     } 
     while (global_sendafterpoll);

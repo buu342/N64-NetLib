@@ -27,6 +27,7 @@ static NUContData global_contdata;
 
 void stage_disconnected_init(void)
 {
+    netlib_setclient(0);
     text_setfont(&font_default);
     text_setalign(ALIGN_CENTER);
     text_setcolor(255, 255, 255, 255);

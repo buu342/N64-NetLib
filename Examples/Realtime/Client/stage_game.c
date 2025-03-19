@@ -26,6 +26,11 @@ static bool global_interpolation;
 static linkedList global_packetstoack;
 static Vector2D   global_lastackedpos;
 
+
+/*==============================
+    TODO
+==============================*/
+
 void stage_game_updatetext()
 {
     text_cleanup();
@@ -56,6 +61,7 @@ void stage_game_init(void)
     global_interpolation = TRUE;
     global_packetstoack = EMPTY_LINKEDLIST;
     global_lastackedpos = ((GameObject*)global_players[netlib_getclient()-1].obj)->pos;
+    stage_game_updatetext();
 }
 
 

@@ -234,6 +234,5 @@ static void callback_prenmi()
 
 static void callback_disconnect()
 {
-    netlib_setclient(0);
     stages_changeto(STAGE_DISCONNECTED);
 }
