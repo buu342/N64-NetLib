@@ -13,7 +13,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class Game implements Runnable  {
 
     public static final int    MAXPLAYERS = 32;
-    private static final int   TICKRATE = 15;
+    private static final int   TICKRATE = 5;
     private static final float DELTATIME = 1.0f/((float)TICKRATE);
     private static final long  MAXDELTA = (long)(0.25f*1E9);
     

@@ -251,6 +251,7 @@ public class ClientConnectionThread extends Thread {
      * @throws IOException                If an I/O error occurs
      */
     private void NotifyValidConnection() throws IOException, ClientTimeoutException {
+        // TODO: Send the server tickrate
         this.handler.SendPacket(new NetLibPacket(PacketIDs.PACKETID_CLIENTCONNECT.GetInt(), null, PacketFlag.FLAG_EXPLICITACK.GetInt()));
     }
 

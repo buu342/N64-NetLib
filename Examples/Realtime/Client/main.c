@@ -23,7 +23,7 @@ Program entrypoint.
 
 // In a real game, you would have the server send this value during connection
 // I'm forgoing that just for simplification reasons
-#define SERVERTICKRATE  15.0f
+#define SERVERTICKRATE  5.0f
 #define DELTATIME       1.0f/((float)SERVERTICKRATE)
 
 

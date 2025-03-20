@@ -13,7 +13,7 @@ TODO
 #include "text.h"
 #include "objects.h"
 
-#define INPUTRATE        15.0f
+#define INPUTRATE        10.0f
 #define MAXPACKETSTOACK  (INPUTRATE*5*2)
 
 static NUContData global_contdata;
@@ -23,6 +23,7 @@ static OSTime global_nextsend;
 static bool global_prediction;
 static bool global_reconciliation;
 static bool global_interpolation;
+
 static linkedList global_packetstoack;
 static Vector2D   global_lastackedpos;
 
@@ -33,6 +34,7 @@ static Vector2D   global_lastackedpos;
 
 void stage_game_updatetext()
 {
+    char buf[32];
     text_cleanup();
     text_setfont(&font_small);
     text_setalign(ALIGN_LEFT);
@@ -45,6 +47,8 @@ void stage_game_updatetext()
         text_create("Reconciliation: Enabled", 32, 32+16);
     else
         text_create("Reconciliation: Disabled", 32, 32+16);
+    sprintf(buf, "Unacked inputs %d", global_packetstoack.size);
+    text_create(buf, 32, 32+32);
 }
 
 
@@ -55,13 +59,15 @@ void stage_game_updatetext()
 
 void stage_game_init(void)
 {
-    global_nextsend = osGetTime();
+    OSTime curtime = osGetTime();
+    global_nextsend = curtime;
     global_prediction = TRUE;
     global_reconciliation = TRUE;
     global_interpolation = TRUE;
     global_packetstoack = EMPTY_LINKEDLIST;
     global_lastackedpos = ((GameObject*)global_players[netlib_getclient()-1].obj)->pos;
     stage_game_updatetext();
+    
 }
 
 
@@ -109,6 +115,10 @@ void stage_game_update(float dt)
         stage_game_updatetext();
     }
     
+    // Predict the player's movement before the server updates our position
+    if (global_prediction)
+        objects_applyphys(plyobj, dt);
+    
     // Send the client input to the server every 15hz (if you do too high a rate, you risk flooding the USB/router)
     if (global_nextsend < curtime)
     {
@@ -127,10 +137,15 @@ void stage_game_update(float dt)
             in->contdata = global_contdata;
             in->dt = dt;
             if (global_packetstoack.size == MAXPACKETSTOACK)
-                list_remove(&global_packetstoack, global_packetstoack.head);
+            {
+                InputToAck* clnup = global_packetstoack.head->data;
+                list_remove(&global_packetstoack, clnup);
+                free(clnup);
+            }
             list_append(&global_packetstoack, in);
         }
     }
+    stage_game_updatetext();
 }
 
 
@@ -141,12 +156,7 @@ void stage_game_update(float dt)
 
 void stage_game_fixedupdate(float dt)
 {
-    // Predict the player's movement before the server updates our position
-    if (global_prediction)
-    {
-        GameObject* obj = global_players[netlib_getclient()-1].obj;
-        objects_applyphys(obj, dt);
-    }
+
 }
 
 
@@ -187,31 +197,11 @@ void stage_game_draw(void)
     // Now render the player
     gDPSetFillColor(glistp++, (GPACK_RGBA5551(plyobj->col.r, plyobj->col.g, plyobj->col.b, 1) << 16 | 
                                GPACK_RGBA5551(plyobj->col.r, plyobj->col.g, plyobj->col.b, 1)));
-    if (global_reconciliation)
-    {
-        // When reconciling, we want to take the last confirmed pos and apply all controller data to the player
-        Vector2D originalpos = plyobj->pos;
-        listNode* node = global_packetstoack.head;
-        while (node != NULL)
-        {
-            InputToAck* in = (InputToAck*)node->data;
-            objects_applycont(plyobj, in->contdata);
-            objects_applyphys(plyobj, in->dt);
-            node = node->next;
-        }
-        gDPFillRectangle(glistp++,
-            plyobj->pos.x - (plyobj->size.x/2), plyobj->pos.y - (plyobj->size.y/2),
-            plyobj->pos.x + (plyobj->size.x/2), plyobj->pos.y + (plyobj->size.y/2)
-        );
-        plyobj->pos = originalpos;
-    }
-    else
-    {
-        gDPFillRectangle(glistp++,
-            plyobj->pos.x - (plyobj->size.x/2), plyobj->pos.y - (plyobj->size.y/2),
-            plyobj->pos.x + (plyobj->size.x/2), plyobj->pos.y + (plyobj->size.y/2)
-        );
-    }
+
+    gDPFillRectangle(glistp++,
+        plyobj->pos.x - (plyobj->size.x/2), plyobj->pos.y - (plyobj->size.y/2),
+        plyobj->pos.x + (plyobj->size.x/2), plyobj->pos.y + (plyobj->size.y/2)
+    );
     gDPPipeSync(glistp++);
     
     // Render other stuff
@@ -257,18 +247,40 @@ void stage_game_ackinput(OSTime time, Vector2D pos)
 {
     if (global_reconciliation)
     {
+        InputToAck* clnup;
+        GameObject* plyobj = global_players[netlib_getclient()-1].obj;
         listNode* node = global_packetstoack.head;
+        
+        // Go through the packets, and remove any that are outdated
+        // Since this list is FIFO, so as soon as we find a packet with a later time, all after should be as well
         while (node != NULL)
         {
             InputToAck* in = (InputToAck*)node->data;
             if (in->time < time)
             {
-                global_lastackedpos = pos;
-                node = node->next;
                 list_remove(&global_packetstoack, in);
+                free(in);
             }
             else
                 break;
+            node = node->next;
+        }
+        
+        // The head of the list should be the packet currently being acknowledged, so set our pos to it
+        global_lastackedpos = pos;
+        plyobj->pos = global_lastackedpos;
+        clnup = global_packetstoack.head->data;
+        list_remove(&global_packetstoack, clnup);
+        free(clnup);
+        
+        // Now go through all packets and reconcile the position
+        node = global_packetstoack.head;
+        while (node != NULL)
+        {
+            InputToAck* in = (InputToAck*)node->data;
+            objects_applycont(plyobj, in->contdata);
+            objects_applyphys(plyobj, in->dt);
+            node = node->next;
         }
     }
 }

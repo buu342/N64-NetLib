@@ -5,12 +5,31 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.util.LinkedList;
+import java.util.TimerTask;
+
+class SendTask extends TimerTask {
+    DatagramSocket socket;
+    DatagramPacket out;
+    SendTask(DatagramSocket socket, DatagramPacket out)
+    {
+        this.socket = socket;
+        this.out = out;
+    }
+    public void run() {
+        try {
+            this.socket.send(this.out);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+}
 
 public class UDPHandler {
 
     // Constants
     public static final int TIME_RESEND   = 1000;
     public static final int MAX_RESEND    = 5;
+    public static final int FAKELATENCTY  = 250; // Change to a different value to introduce fake latency (in ms) for testing purposes
     
     // Debug constants
     private static final boolean DEBUGPRINTS = false;
@@ -66,7 +85,9 @@ public class UDPHandler {
      * @throws ClientTimeoutException  If the packet is sent MAX_RESEND times without an acknowledgement
      * @throws IOException             If an I/O error occurs
      */
+    @SuppressWarnings("unused")
     public void SendPacket(AbstractPacket pkt) throws ClientTimeoutException, IOException {
+        
         byte[] data;
         DatagramPacket out;
         short ackbitfield = 0;
@@ -89,7 +110,10 @@ public class UDPHandler {
         // Send the packet
         data = pkt.GetBytes();
         out = new DatagramPacket(data, data.length, InetAddress.getByName(this.address), this.port);
-        this.socket.send(out);
+        if (FAKELATENCTY > 0)
+            new java.util.Timer().schedule(new SendTask(this.socket, out), FAKELATENCTY);
+        else
+            this.socket.send(out);
         
         // Add it to our list of packets that need an ack
         if ((pkt.GetFlags() & PacketFlag.FLAG_UNRELIABLE.GetInt()) == 0 && pkt.GetSendAttempts() == 1) {
