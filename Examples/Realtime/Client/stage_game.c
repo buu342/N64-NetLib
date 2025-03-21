@@ -92,7 +92,7 @@ void stage_game_update(float dt)
     else if (global_contdata.stick_y > MAXSTICK || global_contdata.stick_y < -MAXSTICK)
         global_contdata.stick_y = (global_contdata.stick_y > 0) ? MAXSTICK : -MAXSTICK;
         
-    // Move the object based on the cont data
+    // Set the player's speed/direction based on the cont data
     objects_applycont(plyobj, global_contdata);
     
     // Handle toggling of different clientside improvements
@@ -120,7 +120,7 @@ void stage_game_update(float dt)
         objects_applyphys(plyobj, dt);
     
     // Send the client input to the server every 15hz (if you do too high a rate, you risk flooding the USB/router)
-    if (global_nextsend < curtime)
+    //if (global_nextsend < curtime)
     {
         netlib_start(PACKETID_CLIENTINPUT);
             netlib_writeqword((u64)curtime);
@@ -252,7 +252,7 @@ void stage_game_ackinput(OSTime time, Vector2D pos)
         listNode* node = global_packetstoack.head;
         
         // Go through the packets, and remove any that are outdated
-        // Since this list is FIFO, so as soon as we find a packet with a later time, all after should be as well
+        // Since this list is FIFO, so as soon as we find a packet with a later time, we can stop
         while (node != NULL)
         {
             InputToAck* in = (InputToAck*)node->data;
@@ -273,7 +273,7 @@ void stage_game_ackinput(OSTime time, Vector2D pos)
         list_remove(&global_packetstoack, clnup);
         free(clnup);
         
-        // Now go through all packets and reconcile the position
+        // Now go through all packets that are yet to be acknowledged and reapply them to reconcile the position
         node = global_packetstoack.head;
         while (node != NULL)
         {
