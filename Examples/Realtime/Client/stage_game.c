@@ -13,7 +13,7 @@ TODO
 #include "text.h"
 #include "objects.h"
 
-#define INPUTRATE        10.0f
+#define INPUTRATE        15.0f
 #define MAXPACKETSTOACK  (INPUTRATE*5*2)
 
 static NUContData global_contdata;
@@ -47,8 +47,12 @@ void stage_game_updatetext()
         text_create("Reconciliation: Enabled", 32, 32+16);
     else
         text_create("Reconciliation: Disabled", 32, 32+16);
+    if (global_interpolation)
+        text_create("Interpolation: Enabled", 32, 32+32);
+    else
+        text_create("Interpolation: Disabled", 32, 32+32);
     sprintf(buf, "Unacked inputs %d", global_packetstoack.size);
-    text_create(buf, 32, 32+32);
+    text_create(buf, 32, 32+48);
 }
 
 
@@ -66,8 +70,7 @@ void stage_game_init(void)
     global_interpolation = TRUE;
     global_packetstoack = EMPTY_LINKEDLIST;
     global_lastackedpos = ((GameObject*)global_players[netlib_getclient()-1].obj)->pos;
-    stage_game_updatetext();
-    
+    stage_game_updatetext();    
 }
 
 
@@ -78,6 +81,7 @@ void stage_game_init(void)
 
 void stage_game_update(float dt)
 {
+    u8 refreshtext = FALSE;
     OSTime curtime = osGetTime();
     GameObject* plyobj = global_players[netlib_getclient()-1].obj;
     
@@ -103,7 +107,7 @@ void stage_game_update(float dt)
             global_prediction = TRUE;
         else if (!global_reconciliation && global_packetstoack.size > 0)
             list_destroy_deep(&global_packetstoack);
-        stage_game_updatetext();
+        refreshtext = TRUE;
     }
     if (global_contdata.trigger & L_TRIG)
     {
@@ -112,15 +116,16 @@ void stage_game_update(float dt)
             global_reconciliation = FALSE;
         if (!global_reconciliation && global_packetstoack.size > 0)
             list_destroy_deep(&global_packetstoack);
-        stage_game_updatetext();
+        refreshtext = TRUE;
+    }
+    if (global_contdata.trigger & Z_TRIG)
+    {
+        global_interpolation = !global_interpolation;
+        refreshtext = TRUE;
     }
     
-    // Predict the player's movement before the server updates our position
-    if (global_prediction)
-        objects_applyphys(plyobj, dt);
-    
     // Send the client input to the server every 15hz (if you do too high a rate, you risk flooding the USB/router)
-    //if (global_nextsend < curtime)
+    if (global_nextsend < curtime)
     {
         netlib_start(PACKETID_CLIENTINPUT);
             netlib_writeqword((u64)curtime);
@@ -143,9 +148,13 @@ void stage_game_update(float dt)
                 free(clnup);
             }
             list_append(&global_packetstoack, in);
+            refreshtext = TRUE;
         }
     }
-    stage_game_updatetext();
+    
+    // Refresh debug text if necessary
+    if (refreshtext)
+        stage_game_updatetext();
 }
 
 
@@ -156,7 +165,11 @@ void stage_game_update(float dt)
 
 void stage_game_fixedupdate(float dt)
 {
-
+    GameObject* plyobj = global_players[netlib_getclient()-1].obj;
+    
+    // Predict the player's movement before the server updates our position
+    if (global_prediction)
+        objects_applyphys(plyobj, dt);
 }
 
 
@@ -169,40 +182,41 @@ void stage_game_draw(void)
 {
     int i;
     listNode* listit;
-    GameObject* plyobj = global_players[netlib_getclient()-1].obj;
     glistp = glist;
 
     // Initialize the RCP and framebuffer
     rcp_init();
     fb_clear(100, 100, 100);
     
-    // Render all objects except the player
+    // Render all objects
     listit = objects_getall()->head;
     while (listit != NULL)
     {
         GameObject* obj = (GameObject*)listit->data;
-        if (obj != plyobj)
+        gDPSetFillColor(glistp++, (GPACK_RGBA5551(obj->col.r, obj->col.g, obj->col.b, 1) << 16 | 
+                                   GPACK_RGBA5551(obj->col.r, obj->col.g, obj->col.b, 1)));
+        if (global_interpolation)
         {
-            gDPSetFillColor(glistp++, (GPACK_RGBA5551(obj->col.r, obj->col.g, obj->col.b, 1) << 16 | 
-                                       GPACK_RGBA5551(obj->col.r, obj->col.g, obj->col.b, 1)));
+            float subtick = stages_getsubtick();
+            float xpos = flerp(obj->oldpos.x, obj->pos.x, subtick);
+            float ypos = flerp(obj->oldpos.y, obj->pos.y, subtick);
             gDPFillRectangle(glistp++, 
-                obj->pos.x - (obj->size.x/2), obj->pos.y - (obj->size.y/2),
-                obj->pos.x + (obj->size.x/2), obj->pos.y + (obj->size.y/2)
+                xpos - (obj->size.x/2), ypos - (obj->size.y/2),
+                xpos + (obj->size.x/2), ypos + (obj->size.y/2)
             );
-            gDPPipeSync(glistp++);
         }
+        else
+        {
+            float xpos = obj->pos.x;
+            float ypos = obj->pos.y;
+            gDPFillRectangle(glistp++, 
+                xpos - (obj->size.x/2), ypos - (obj->size.y/2),
+                xpos + (obj->size.x/2), ypos + (obj->size.y/2)
+            );
+        }
+        gDPPipeSync(glistp++);
         listit = listit->next;
     }
-    
-    // Now render the player
-    gDPSetFillColor(glistp++, (GPACK_RGBA5551(plyobj->col.r, plyobj->col.g, plyobj->col.b, 1) << 16 | 
-                               GPACK_RGBA5551(plyobj->col.r, plyobj->col.g, plyobj->col.b, 1)));
-
-    gDPFillRectangle(glistp++,
-        plyobj->pos.x - (plyobj->size.x/2), plyobj->pos.y - (plyobj->size.y/2),
-        plyobj->pos.x + (plyobj->size.x/2), plyobj->pos.y + (plyobj->size.y/2)
-    );
-    gDPPipeSync(glistp++);
     
     // Render other stuff
     text_render();

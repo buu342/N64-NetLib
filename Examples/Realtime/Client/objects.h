@@ -19,6 +19,7 @@
     
     typedef struct {
         u32 id;
+        Vector2D oldpos;
         Vector2D pos;
         Vector2D dir;
         Vector2D size;

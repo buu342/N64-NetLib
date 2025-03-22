@@ -64,3 +64,14 @@ int timecompare(const void* a, const void* b)
 {
     return (*((OSTime*)a)) - (*((OSTime*)b));
 }
+
+
+/*==============================
+    flerp
+    TODO
+==============================*/
+
+f32 flerp(f32 a, f32 b, f32 f)
+{
+    return a + f*(b - a);
+}

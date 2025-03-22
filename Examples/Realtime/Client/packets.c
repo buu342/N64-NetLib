@@ -122,6 +122,8 @@ static GameObject* packet_readobject()
     // Assign the rest of the values
     netlib_readfloat(&obj->pos.x);
     netlib_readfloat(&obj->pos.y);
+    obj->oldpos.x = obj->pos.x;
+    obj->oldpos.y = obj->pos.y;
     netlib_readfloat(&obj->dir.x);
     netlib_readfloat(&obj->dir.y);
     netlib_readfloat(&obj->size.x);
@@ -153,6 +155,8 @@ static void packet_readobjectupdate(GameObject* obj, size_t size)
         switch (datatype)
         {
             case 0:
+                obj->oldpos.x = obj->pos.x;
+                obj->oldpos.y = obj->pos.y;
                 netlib_readfloat(&obj->pos.x);
                 netlib_readfloat(&obj->pos.y);
                 size -= sizeof(f32)*2;

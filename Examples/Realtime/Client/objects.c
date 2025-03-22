@@ -167,6 +167,8 @@ void objects_applyphys(GameObject* obj, float dt)
         target_offset.y = target_offset.y - 2*((obj->pos.y + obj->size.y/2 + target_offset.y) - 240);
     if (obj->pos.y - obj->size.y/2 + target_offset.y < 0) 
         target_offset.y =target_offset.y - 2*((obj->pos.y - obj->size.y/2 + target_offset.y) - 0);
+    obj->oldpos.x = obj->pos.x;
+    obj->oldpos.y = obj->pos.y;
     obj->pos.x += target_offset.x;
     obj->pos.y += target_offset.y;
 }

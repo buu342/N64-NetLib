@@ -26,6 +26,12 @@ Program entrypoint.
 #define SERVERTICKRATE  5.0f
 #define DELTATIME       1.0f/((float)SERVERTICKRATE)
 
+// Helper macros
+#define SEC_TO_USEC(a)   (((f64)a)*1000000.0f)
+#define MSEC_TO_USEC(a)  (((f64)a)*1000.0f)
+#define USEC_TO_MSEC(a)  (((f64)a)/1000.0f)
+#define USEC_TO_SEC(a)   (((f64)a)/1000000.0f)
+
 
 /*********************************
         Function Prototypes
@@ -42,14 +48,13 @@ static void callback_disconnect();
 *********************************/
 
 // Half a megabyte of heap memory
-char heapmem[1024*512];
+static char heapmem[1024*512];
 
 // Stage globals
-volatile StageNum global_curstage = STAGE_INIT;
-volatile StageNum global_nextstage = STAGE_NONE;
-StageDef global_stagetable[STAGE_COUNT];
-OSTime global_nexttick;
-OSTime global_lastupdate;
+static volatile StageNum global_curstage = STAGE_INIT;
+static volatile StageNum global_nextstage = STAGE_NONE;
+static StageDef global_stagetable[STAGE_COUNT];
+static float  global_subtick;
 
 
 /*==============================
@@ -135,24 +140,37 @@ void mainproc(void)
 
 static void callback_vsync(int tasksleft)
 {
+    const OSTime dt = OS_USEC_TO_CYCLES(SEC_TO_USEC(DELTATIME));
+    static OSTime accumulator = 0;
+    static OSTime lastupdate = 0;
+    OSTime frametime;
     OSTime curtime = osGetTime();
+    
+    // Initialize global_lastupdate if it hasn't been, and then calculate the frametime
+    if (lastupdate == 0)
+        lastupdate = curtime;
+    frametime = curtime - lastupdate;
+    lastupdate = curtime;
     
     // Poll the net library
     netlib_poll();
     
-    // Update the stage
-    global_stagetable[global_curstage].funcptr_update((((float)OS_CYCLES_TO_USEC(curtime - global_lastupdate))/1000.0f)/1000.0f);
-    global_lastupdate = curtime;
-    
-    // Perform the fixed updated
-    if (global_nexttick < osGetTime())
+    // Perform the fixed update
+    accumulator += frametime;
+    while (accumulator >= dt)
     {
         if (global_stagetable[global_curstage].funcptr_fixedupdate != NULL)
             global_stagetable[global_curstage].funcptr_fixedupdate(DELTATIME);
-        global_nexttick = osGetTime() + OS_USEC_TO_CYCLES((1/SERVERTICKRATE)*1000*1000);
+        accumulator -= dt;
     }
     
-    // Draw it
+    // Calculate the subtick
+    global_subtick = ((f64)accumulator)/((f64)dt);
+    
+    // Perform the un-fixed stage update
+    global_stagetable[global_curstage].funcptr_update(USEC_TO_SEC(OS_CYCLES_TO_USEC(frametime)));
+    
+    // Draw the stage
     if (tasksleft < 1 && global_nextstage == STAGE_NONE)
         global_stagetable[global_curstage].funcptr_draw();
 }
@@ -165,9 +183,6 @@ static void callback_vsync(int tasksleft)
 
 static void stagetable_init()
 {
-    global_nexttick = osGetTime();
-    global_lastupdate = osGetTime();
-
     global_stagetable[STAGE_INIT].funcptr_init = &stage_init_init;
     global_stagetable[STAGE_INIT].funcptr_update = &stage_init_update;
     global_stagetable[STAGE_INIT].funcptr_fixedupdate = NULL;
@@ -211,6 +226,17 @@ void stages_changeto(StageNum num)
 StageNum stages_getcurrent()
 {
     return global_curstage;
+}
+
+
+/*==============================
+    stages_getsubtick
+    TODO
+==============================*/
+
+float stages_getsubtick()
+{
+    return global_subtick;
 }
 
 
