@@ -77,8 +77,6 @@ class ServerBrowser : public wxFrame
     private:
         wxString    m_MasterAddress;
         int         m_MasterPort;
-        UDPHandler* m_MasterConnectionHandler;
-        wxDatagramSocket* m_Socket;
         ServerFinderThread* m_FinderThread;
         wxMenuBar* m_MenuBar;
         wxMenu* m_Menu_File;
@@ -102,12 +100,12 @@ class ServerBrowser : public wxFrame
         void m_DataViewListCtrl_Servers_OnDataViewListCtrlItemActivated(wxDataViewEvent& event);
         void m_DataViewListCtrl_Servers_OnMotion(wxMouseEvent& event);
 
-        void StartThread_Finder(bool startnow);
-        void StopThread_Finder(bool nullwindow);
+        void StartThread_Finder();
+        void StopThread_Finder();
         void ClearServers();
         void ThreadEvent(wxThreadEvent& event);
         void RequestDownload(wxString hash, wxString filepath);
-        void ConnectMaster(bool startnow);
+        void ConnectMaster();
 
     protected:
 
@@ -118,7 +116,6 @@ class ServerBrowser : public wxFrame
         void CreateClient(wxString rom, wxString addressport);
         wxString          GetAddress();
         int               GetPort();
-        wxDatagramSocket* GetSocket();
 };
 
 class ServerFinderThread : public wxThread
@@ -131,7 +128,6 @@ class ServerFinderThread : public wxThread
         void          DiscoveredServer(std::unordered_map<wxString, std::pair<FoundServer, wxLongLong>>* serverlist, S64Packet* pkt);
         FileDownload* BeginFileDownload(S64Packet* pkt, wxString filepath);
         void          HandleFileData(S64Packet* pkt, FileDownload** filedlp);
-        void          NotifyMainOfDeath();
 
     protected:
 

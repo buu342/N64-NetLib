@@ -24,11 +24,8 @@ The server browser window
 
 typedef enum {
     TEVENT_ADDSERVER,
-    TEVENT_THREADSTART,
-    TEVENT_THREADENDED,
 
     // User Input events
-    TEVENT_PROGEND,
     TEVENT_DOLIST,
     TEVENT_DODL,
     TEVENT_CANCELDL,
@@ -186,8 +183,6 @@ ServerBrowser::ServerBrowser(wxWindow* parent, wxWindowID id, const wxString& ti
 {
     wxString maddr;
     this->m_FinderThread = NULL;
-    this->m_Socket = NULL;
-    this->m_MasterConnectionHandler = NULL;
     this->m_DownloadWindow = NULL;
 
     // Initialize the master address from the config file
@@ -264,7 +259,7 @@ ServerBrowser::ServerBrowser(wxWindow* parent, wxWindowID id, const wxString& ti
     this->m_DataViewListCtrl_Servers->Connect(wxEVT_MOTION, wxMouseEventHandler(ServerBrowser::m_DataViewListCtrl_Servers_OnMotion), NULL, this);
 
     // Connect to the master server
-    this->ConnectMaster(true);
+    this->ConnectMaster();
 }
 
 
@@ -275,6 +270,9 @@ ServerBrowser::ServerBrowser(wxWindow* parent, wxWindowID id, const wxString& ti
 
 ServerBrowser::~ServerBrowser()
 {
+    // Kill the server finder thread
+    this->StopThread_Finder();
+
     // Disconnect events
     this->Disconnect(wxEVT_CLOSE_WINDOW, wxCloseEventHandler(ServerBrowser::m_Event_OnClose));
     this->Disconnect(wxID_ANY, wxEVT_THREAD, wxThreadEventHandler(ServerBrowser::ThreadEvent));
@@ -286,12 +284,11 @@ ServerBrowser::~ServerBrowser()
 /*==============================
     ServerBrowser::StartThread_Server
     Starts the server finder thread
-    @param Whether to start the thread right now (if possible)
 ==============================*/
 
-void ServerBrowser::StartThread_Finder(bool startnow)
+void ServerBrowser::StartThread_Finder()
 {
-    if (startnow && this->m_FinderThread == NULL)
+    if (this->m_FinderThread == NULL)
     {
         this->m_FinderThread = new ServerFinderThread(this);
         if (this->m_FinderThread->Run() != wxTHREAD_NO_ERROR)
@@ -300,31 +297,22 @@ void ServerBrowser::StartThread_Finder(bool startnow)
             this->m_FinderThread = NULL;
         }
     }
-    else
-    {
-        wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
-        evt.SetInt(TEVENT_THREADSTART);
-        if (this->m_FinderThread != NULL)
-            wxMilliSleep(100);
-        wxQueueEvent(this, evt.Clone());
-    }
 }
 
 
 /*==============================
     ServerBrowser::StopThread_Finder
     Stops the server finder thread
-    @param Whether to nullify the client window pointer
-           Only necessary during this object's destruction
 ==============================*/
 
-void ServerBrowser::StopThread_Finder(bool nullwindow)
+void ServerBrowser::StopThread_Finder()
 {
     if (this->m_FinderThread != NULL)
     {
-        if (nullwindow)
-            global_msgqueue_serverthread_input.Post(new InputMessage{TEVENT_PROGEND, NULL});
         this->m_FinderThread->Delete();
+        this->m_FinderThread->Wait(wxTHREAD_WAIT_BLOCK);
+        delete this->m_FinderThread;
+        this->m_FinderThread = NULL;
     }
 }
 
@@ -337,13 +325,6 @@ void ServerBrowser::StopThread_Finder(bool nullwindow)
 
 void ServerBrowser::m_Event_OnClose(wxCloseEvent& event)
 {
-    this->StopThread_Finder(true);
-
-    // Close the socket
-    if (this->m_Socket != NULL)
-        this->m_Socket->Destroy();
-
-    // Kill the window
     event.Skip();
 }
 
@@ -357,7 +338,7 @@ void ServerBrowser::m_Event_OnClose(wxCloseEvent& event)
 void ServerBrowser::m_Tool_Refresh_OnToolClicked(wxCommandEvent& event)
 {
     (void)event;
-    this->ConnectMaster(false);
+    this->ConnectMaster();
 }
 
 
@@ -524,22 +505,9 @@ void ServerBrowser::CreateClient(wxString rom, wxString addressport)
     wxString address;
     ClientWindow* cw = new ClientWindow(this);
 
-    // Kill the server finder thread so it doesn't steal packets from the client window
-    this->StopThread_Finder(false);
-
-    // Open a UDP socket if it's not open yet
-    if (this->m_Socket == NULL)
-    {
-        wxIPV4address localaddr;
-        localaddr.AnyAddress();
-        localaddr.Service(0);
-        this->m_Socket = new wxDatagramSocket(localaddr , wxSOCKET_NOWAIT);
-    }
-
     // Initialize the client window
     address_fromstr(addressport, &address, &port);
     cw->SetROM(rom);
-    cw->SetSocket(this->m_Socket);
     cw->SetAddress(address);
     cw->SetPortNumber(port);
     this->Lower();
@@ -555,23 +523,15 @@ void ServerBrowser::CreateClient(wxString rom, wxString addressport)
     @param Whether to start the thread right now (if possible)
 ==============================*/
 
-void ServerBrowser::ConnectMaster(bool startnow)
+void ServerBrowser::ConnectMaster()
 {
     // Clear the server list
     this->ClearServers();
 
-    // Open a UDP socket if it's not open yet
-    if (this->m_Socket == NULL)
-    {
-        wxIPV4address localaddr;
-        localaddr.AnyAddress();
-        localaddr.Service(0);
-        this->m_Socket = new wxDatagramSocket(localaddr , wxSOCKET_NOWAIT);
-    }
-
-    // Create the finder thread if it doesn't exist yet    
-    if (this->m_FinderThread == NULL)
-       this->StartThread_Finder(startnow);
+    // (Re)start the finder thread
+    if (this->m_FinderThread != NULL)
+        this->StopThread_Finder();
+    this->StartThread_Finder();
 
     // Send a message to the finder thread that we wanna connect to the master server
     printf("Requesting server list from Master Server\n");
@@ -608,18 +568,9 @@ void ServerBrowser::RequestDownload(wxString hash, wxString filepath)
         romhash[i/2] = (first << 4) | second;
     }
 
-    // Open a UDP socket if it's not open yet
-    if (this->m_Socket == NULL)
-    {
-        wxIPV4address localaddr;
-        localaddr.AnyAddress();
-        localaddr.Service(0);
-        this->m_Socket = new wxDatagramSocket(localaddr , wxSOCKET_NOWAIT);
-    }
-
     // Create the finder thread if it doesn't exist yet
     if (this->m_FinderThread == NULL)
-        this->StartThread_Finder(false);
+        this->StartThread_Finder();
 
     // Send a message to the finder thread that we wanna connect to download a ROM
     printf("Requesting ROM download from Master Server into '%s'\n", static_cast<const char*>(filepath.c_str()));
@@ -655,14 +606,6 @@ void ServerBrowser::ThreadEvent(wxThreadEvent& event)
 {
     switch ((ThreadEventType)event.GetInt())
     {
-        case TEVENT_THREADSTART:
-            this->StartThread_Finder(this->m_FinderThread == NULL);
-            break;
-        case TEVENT_THREADENDED:
-        {
-            this->m_FinderThread = NULL;
-            break;
-        }
         case TEVENT_ADDSERVER:
         {
             wxString rompath;
@@ -720,18 +663,6 @@ int ServerBrowser::GetPort()
 }
 
 
-/*==============================
-    ServerBrowser::GetSocket
-    Retreives the socket to use for networking
-    @return The socket to use
-==============================*/
-
-wxDatagramSocket* ServerBrowser::GetSocket()
-{
-    return this->m_Socket;
-}
-
-
 /*=============================================================
                      Server Finder Thread
 =============================================================*/
@@ -742,7 +673,7 @@ wxDatagramSocket* ServerBrowser::GetSocket()
     @param The parent window
 ==============================*/
 
-ServerFinderThread::ServerFinderThread(ServerBrowser* win)
+ServerFinderThread::ServerFinderThread(ServerBrowser* win) : wxThread(wxTHREAD_JOINABLE)
 {
     this->m_Window = win;
 }
@@ -755,7 +686,7 @@ ServerFinderThread::ServerFinderThread(ServerBrowser* win)
 
 ServerFinderThread::~ServerFinderThread()
 {
-    this->NotifyMainOfDeath();
+    // Nothing here
 }
 
 
@@ -768,8 +699,11 @@ ServerFinderThread::~ServerFinderThread()
 void* ServerFinderThread::Entry()
 {
     std::unordered_map<wxString, std::pair<FoundServer, wxLongLong>> serversleft; 
+    wxIPV4address localaddr;
+    localaddr.AnyAddress();
+    localaddr.Service(0);
     uint8_t* buff = (uint8_t*)malloc(4096);
-    wxDatagramSocket* sock = this->m_Window->GetSocket();
+    wxDatagramSocket* sock = new wxDatagramSocket(localaddr , wxSOCKET_NOWAIT);
     UDPHandler* handler = new UDPHandler(sock, this->m_Window->GetAddress(), this->m_Window->GetPort());
     FileDownload* filedl = NULL;
     wxString filedl_path = "";
@@ -878,6 +812,7 @@ void* ServerFinderThread::Entry()
         delete it.second.first.handler;
     delete handler;
     free(buff);
+    sock->Destroy();
     return NULL;
 }
 
@@ -897,9 +832,6 @@ void ServerFinderThread::HandleMainInput(UDPHandler* handler, FileDownload** fil
     {
         switch (usrinput->type)
         {
-            case TEVENT_PROGEND:
-                this->m_Window = NULL;
-                break;
             case TEVENT_DOLIST:
                 handler->SendPacket(new S64Packet("LIST", 0, NULL, FLAG_UNRELIABLE));
                 break;
@@ -1143,21 +1075,6 @@ void ServerFinderThread::HandleFileData(S64Packet* pkt, FileDownload** filedlp)
         return;
     }
     this->m_Window->m_DownloadWindow->UpdateDownloadProgress((1-((float)filedl->chunksize*filedl->chunksleft.size())/filedl->filesize)*100);
-}
-
-
-/*==============================
-    ServerFinderThread::NotifyMainOfDeath
-    Notify the main thread that this one died so that pointers can be nullified
-==============================*/
-
-void ServerFinderThread::NotifyMainOfDeath()
-{
-    if (this->m_Window == NULL)
-        return;
-    wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
-    evt.SetInt(TEVENT_THREADENDED);
-    wxQueueEvent(this->m_Window, evt.Clone());
 }
 
 
