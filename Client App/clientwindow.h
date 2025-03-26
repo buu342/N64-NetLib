@@ -51,7 +51,6 @@ class UploadThread;
 class ClientWindow : public wxFrame
 {
     private:
-        wxDatagramSocket* m_Socket;
         wxString m_ServerAddress;
         int m_ServerPort;
         wxGridBagSizer* m_Sizer_Input;
@@ -69,8 +68,8 @@ class ClientWindow : public wxFrame
         void ThreadEvent(wxThreadEvent& event);
         void StartThread_Device();
         void StartThread_Server();
-        void StopThread_Device(bool nullwindow);
-        void StopThread_Server(bool nullwindow);
+        void StopThread_Device();
+        void StopThread_Server();
         void SetClientDeviceStatus(ClientDeviceStatus status);
 
     protected:
@@ -87,7 +86,6 @@ class ClientWindow : public wxFrame
         void SetSocket(wxDatagramSocket* socket);
         void SetAddress(wxString addr);
         void SetPortNumber(int port);
-        wxDatagramSocket* GetSocket();
         wxString GetAddress();
         int GetPort();
 };
@@ -109,7 +107,6 @@ class DeviceThread : public wxThread
         void SetClientDeviceStatus(ClientDeviceStatus status);
         void SetUploadProgress(int progress);
         void UploadROM(wxString path);
-        void NotifyDeath();
 
     protected:
 
@@ -148,7 +145,6 @@ class ServerConnectionThread : public wxThread
         void TransferPacket(NetLibPacket* pkt);
         void WriteConsole(wxString str);
         void WriteConsoleError(wxString str);
-        void NotifyDeath();
 
     protected:
 

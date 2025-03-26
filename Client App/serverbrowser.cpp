@@ -505,6 +505,9 @@ void ServerBrowser::CreateClient(wxString rom, wxString addressport)
     wxString address;
     ClientWindow* cw = new ClientWindow(this);
 
+    // Stop the server browser thread to ensure that the UDP handler used for pinging servers doesn't eat packets
+    this->StopThread_Finder();
+
     // Initialize the client window
     address_fromstr(addressport, &address, &port);
     cw->SetROM(rom);
@@ -529,8 +532,7 @@ void ServerBrowser::ConnectMaster()
     this->ClearServers();
 
     // (Re)start the finder thread
-    if (this->m_FinderThread != NULL)
-        this->StopThread_Finder();
+    this->StopThread_Finder();
     this->StartThread_Finder();
 
     // Send a message to the finder thread that we wanna connect to the master server

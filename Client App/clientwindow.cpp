@@ -20,6 +20,8 @@ The client window that handles USB and server communication
 
 #define DATATYPE_NETPACKET  (USBDataType)0x27
 
+#define STOPONERROR  0
+
 
 /******************************
              Types
@@ -31,13 +33,8 @@ typedef enum {
     TEVENT_WRITECONSOLEERROR,
     TEVENT_SETSTATUS,
     TEVENT_UPLOADPROGRESS,
-    TEVENT_START_DEVICE,
-    TEVENT_START_SERVER,
-    TEVENT_DEATH_DEVICE,
-    TEVENT_DEATH_SERVER,
 
     // User Input events
-    TEVENT_PROGEND,
     TEVENT_LOADROM,
     TEVENT_CANCELLOAD,
 } ThreadEventType;
@@ -55,7 +52,6 @@ typedef struct {
 static wxMessageQueue<NetLibPacket*> global_msgqueue_usbthread_pkt;
 static wxMessageQueue<NetLibPacket*> global_msgqueue_serverthread_pkt;
 static wxMessageQueue<InputMessage*> global_msgqueue_usbthread_input;
-static wxMessageQueue<InputMessage*> global_msgqueue_serverthread_input;
 
 
 /*=============================================================
@@ -144,13 +140,13 @@ ClientWindow::ClientWindow(wxWindow* parent, wxWindowID id, const wxString& titl
 
 ClientWindow::~ClientWindow()
 {
+    // Kill threads
+    this->StopThread_Server(); // Kill server thread first otherwise USB will keep receiving messages and sending them
+    this->StopThread_Device();
+
     // Disconnect events
     this->m_Button_Reconnect->Disconnect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(ClientWindow::m_Button_Reconnect_OnButtonClick), NULL, this);
     this->m_Button_Send->Disconnect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(ClientWindow::m_Button_Send_OnButtonClick), NULL, this);
-
-    // Kill threads
-    this->StopThread_Device(true);
-    this->StopThread_Server(true);
 
     // Safe to disconnect the thread handler event
     this->Disconnect(wxID_ANY, wxEVT_THREAD, wxThreadEventHandler(ClientWindow::ThreadEvent));
@@ -228,17 +224,16 @@ void ClientWindow::StartThread_Server()
 /*==============================
     ClientWindow::StopThread_Device
     Stops the USB device thread
-    @param Whether to nullify the client window pointer
-           Only necessary during this object's destruction
 ==============================*/
 
-void ClientWindow::StopThread_Device(bool nullwindow)
+void ClientWindow::StopThread_Device()
 {
     if (this->m_DeviceThread != NULL)
     {
-        if (nullwindow)
-            global_msgqueue_usbthread_input.Post(new InputMessage{TEVENT_PROGEND, NULL});
         this->m_DeviceThread->Delete();
+        this->m_DeviceThread->Wait(wxTHREAD_WAIT_BLOCK);
+        delete this->m_DeviceThread;
+        this->m_DeviceThread = NULL;
     }
 }
 
@@ -246,17 +241,16 @@ void ClientWindow::StopThread_Device(bool nullwindow)
 /*==============================
     ClientWindow::StopThread_Server
     Stops the server socket thread
-    @param Whether to nullify the client window pointer
-           Only necessary during this object's destruction
 ==============================*/
 
-void ClientWindow::StopThread_Server(bool nullwindow)
+void ClientWindow::StopThread_Server()
 {
     if (this->m_ServerThread != NULL)
     {
-        if (nullwindow)
-            global_msgqueue_serverthread_input.Post(new InputMessage{TEVENT_PROGEND, NULL});
         this->m_ServerThread->Delete();
+        this->m_ServerThread->Wait(wxTHREAD_WAIT_BLOCK);
+        delete this->m_ServerThread;
+        this->m_ServerThread = NULL;
     }
 }
 
@@ -371,12 +365,6 @@ void ClientWindow::ThreadEvent(wxThreadEvent& event)
                 int prog = event.GetExtraLong();
                 this->m_Gauge_Upload->SetValue(prog);
             }
-            break;        case TEVENT_DEATH_DEVICE:
-            this->m_DeviceThread = NULL;
-            break;
-        case TEVENT_DEATH_SERVER:
-            this->m_ServerThread = NULL;
-            this->m_Button_Reconnect->Enable();
             break;
         default:
             break;
@@ -393,18 +381,6 @@ void ClientWindow::ThreadEvent(wxThreadEvent& event)
 void ClientWindow::SetROM(wxString rom)
 {
     this->m_ROMPath = rom;
-}
-
-
-/*==============================
-    ClientWindow::SetSocket
-    Sets the socket to use for networking
-    @param The socket to use
-==============================*/
-
-void ClientWindow::SetSocket(wxDatagramSocket* socket)
-{
-    this->m_Socket = socket;
 }
 
 
@@ -429,18 +405,6 @@ void ClientWindow::SetAddress(wxString addr)
 void ClientWindow::SetPortNumber(int port)
 {
     this->m_ServerPort = port;
-}
-
-
-/*==============================
-    ClientWindow::GetSocket
-    Retreives the socket to use for networking
-    @return The socket to use
-==============================*/
-
-wxDatagramSocket* ClientWindow::GetSocket()
-{
-    return this->m_Socket;
 }
 
 
@@ -478,7 +442,7 @@ int ClientWindow::GetPort()
     @param The parent window
 ==============================*/
 
-DeviceThread::DeviceThread(ClientWindow* win)
+DeviceThread::DeviceThread(ClientWindow* win) : wxThread(wxTHREAD_JOINABLE)
 {
     this->m_Window = win;
     this->m_UploadThread = NULL;
@@ -497,7 +461,6 @@ DeviceThread::~DeviceThread()
 {
     if (device_isopen())
         device_close();
-    this->NotifyDeath();
 }
 
 
@@ -510,7 +473,6 @@ DeviceThread::~DeviceThread()
 void* DeviceThread::Entry()
 {
     wxString rompath = "";
-    float oldprogress = 0;
     DeviceError deverr = device_find();
 
     // Search for a cart
@@ -561,7 +523,7 @@ void* DeviceThread::Entry()
     device_setprotocol(USBPROTOCOL_LATEST);
 
     // Handle USB communication in a loop
-    while (!TestDestroy() && device_isopen() && this->m_Window != NULL)
+    while (!TestDestroy() && device_isopen())
     {
         uint8_t* outbuff = NULL;
         uint32_t dataheader = 0;
@@ -574,39 +536,47 @@ void* DeviceThread::Entry()
 
             // Create upload thread and update the status bar as it's uploading
             this->UploadROM(rompath);
-            while (oldprogress < 100.0f && this->m_Window != NULL)
+            if (this->m_UploadThread != NULL)
             {
-                float curprog = device_getuploadprogress();
-                if (curprog != oldprogress)
+                bool cancelled = false;
+                float oldprogress = 0;
+                while (oldprogress < 100.0f)
                 {
-                    oldprogress = curprog;
-                    this->SetUploadProgress(device_getuploadprogress());
+                    float curprog = device_getuploadprogress();
+                    if (curprog != oldprogress)
+                    {
+                        oldprogress = curprog;
+                        this->SetUploadProgress(device_getuploadprogress());
+                    }
+
+                    // Take a small break;
+                    wxMilliSleep(10);
+
+                    // Check for a thread kill request
+                    if (TestDestroy() || this->HandleMainInput(&rompath))
+                    {
+                        device_cancelupload();
+                        this->WriteConsoleError("\nUpload interrupted.\n");
+                        this->m_FirstPrint = true;
+                        cancelled = true;
+                        break;
+                    }
                 }
-
-                // Take a small break;
-                wxMilliSleep(10);
-
-                // Check for a thread kill request
-                if (TestDestroy() || this->HandleMainInput(&rompath))
-                {
-                    device_cancelupload();
-                    wxMilliSleep(500);
-                    this->WriteConsoleError("\nUpload interrupted.\n");
-                    rompath = "";
-                    this->m_FirstPrint = true;
-                    break;
-                }
-            }
-            this->SetClientDeviceStatus(CLSTATUS_UPLOADDONE);
-
-            // Finished uploading
-            if (rompath != "")
-            {
-                this->WriteConsole("Finished uploading.\n");
-                if (device_getcart() != CART_EVERDRIVE)
-                    this->WriteConsole("You may now boot the console.\n");
                 rompath = "";
-                wxMilliSleep(100); // Prevent the next receivedata call from reading any extra data from the upload process
+                this->m_UploadThread->Wait();
+                delete this->m_UploadThread;
+                this->m_UploadThread = NULL;
+                this->SetClientDeviceStatus(CLSTATUS_UPLOADDONE);
+
+                // Finished uploading
+                if (!cancelled)
+                {
+                    this->WriteConsole("Finished uploading.\n");
+                    if (device_getcart() != CART_EVERDRIVE)
+                        this->WriteConsole("You may now boot the console.\n");
+                    rompath = "";
+                    wxMilliSleep(100); // Prevent the next receivedata call from reading any extra data from the upload process
+                }
             }
         }
 
@@ -614,7 +584,9 @@ void* DeviceThread::Entry()
         if (device_receivedata(&dataheader, &outbuff) != DEVICEERR_OK)
         {
             this->WriteConsoleError("\nError receiving data from the flashcart.\n");
-            //break;
+            #if STOPONERROR
+            break;
+            #endif
         }
 
         // If we have a valid USB data header
@@ -631,7 +603,7 @@ void* DeviceThread::Entry()
                 case DATATYPE_HEARTBEAT: this->ParseUSB_HeartbeatPacket(outbuff, size); break;
                 default:
                     this->WriteConsoleError(wxString::Format("\nError: Received unknown datatype '%02X' from the flashcart.\n", command));
-                    //break;
+                    break;
             }
 
             // Cleanup
@@ -680,9 +652,6 @@ bool DeviceThread::HandleMainInput(wxString* rompath)
     {
         switch (usrinput->type)
         {
-            case TEVENT_PROGEND:
-                this->m_Window = NULL;
-                break;
             case TEVENT_LOADROM:
                 *rompath = wxString(usrinput->data);
                 break;
@@ -808,8 +777,6 @@ void DeviceThread::ParseUSB_HeartbeatPacket(uint8_t* buff, uint32_t size)
 
 void DeviceThread::ClearConsole()
 {
-    if (this->m_Window == NULL)
-        return;
     wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
     evt.SetInt(TEVENT_CLEARCONSOLE);
     wxQueueEvent(this->m_Window, evt.Clone());
@@ -824,8 +791,6 @@ void DeviceThread::ClearConsole()
 
 void DeviceThread::WriteConsole(wxString str)
 {
-    if (this->m_Window == NULL)
-        return;
     wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
     evt.SetInt(TEVENT_WRITECONSOLE);
     evt.SetString(str.c_str());
@@ -841,8 +806,6 @@ void DeviceThread::WriteConsole(wxString str)
 
 void DeviceThread::WriteConsoleError(wxString str)
 {
-    if (this->m_Window == NULL)
-        return;
     wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
     evt.SetInt(TEVENT_WRITECONSOLEERROR);
     evt.SetString(str.c_str());
@@ -875,8 +838,6 @@ void DeviceThread::SetClientDeviceStatus(ClientDeviceStatus status)
 
 void DeviceThread::SetUploadProgress(int progress)
 {
-    if (this->m_Window == NULL)
-        return;
     wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
     evt.SetInt(TEVENT_UPLOADPROGRESS);
     evt.SetExtraLong(progress);
@@ -894,22 +855,10 @@ void DeviceThread::UploadROM(wxString path)
 {
     this->m_UploadThread = new UploadThread(this->m_Window, path);
     if (this->m_UploadThread->Run() != wxTHREAD_NO_ERROR)
+    {
         delete this->m_UploadThread;
-}
-
-
-/*==============================
-    DeviceThread::NotifyDeath
-    Notify the main thread that this one died so that pointers can be nullified
-==============================*/
-
-void DeviceThread::NotifyDeath()
-{
-    if (this->m_Window == NULL)
-        return;
-    wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
-    evt.SetInt(TEVENT_DEATH_DEVICE);
-    wxQueueEvent(this->m_Window, evt.Clone());
+        this->m_UploadThread = NULL;
+    }
 }
 
 
@@ -924,7 +873,7 @@ void DeviceThread::NotifyDeath()
     @param The path to the ROM to upload
 ==============================*/
 
-UploadThread::UploadThread(ClientWindow* win, wxString path)
+UploadThread::UploadThread(ClientWindow* win, wxString path) : wxThread(wxTHREAD_JOINABLE)
 {
     this->m_Window = win;
     this->m_FilePath = path;
@@ -999,8 +948,6 @@ void* UploadThread::Entry()
 
 void UploadThread::WriteConsole(wxString str)
 {
-    if (this->m_Window == NULL)
-        return;
     wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
     evt.SetInt(TEVENT_WRITECONSOLE);
     evt.SetString(str.c_str());
@@ -1016,8 +963,6 @@ void UploadThread::WriteConsole(wxString str)
 
 void UploadThread::WriteConsoleError(wxString str)
 {
-    if (this->m_Window == NULL)
-        return;
     wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
     evt.SetInt(TEVENT_WRITECONSOLEERROR);
     evt.SetString(str.c_str());
@@ -1036,7 +981,7 @@ void UploadThread::WriteConsoleError(wxString str)
     @param The path to the ROM to upload
 ==============================*/
 
-ServerConnectionThread::ServerConnectionThread(ClientWindow* win)
+ServerConnectionThread::ServerConnectionThread(ClientWindow* win) : wxThread(wxTHREAD_JOINABLE)
 {
     this->m_Window = win;
     global_msgqueue_serverthread_pkt.Clear();
@@ -1050,7 +995,7 @@ ServerConnectionThread::ServerConnectionThread(ClientWindow* win)
 
 ServerConnectionThread::~ServerConnectionThread()
 {
-    this->NotifyDeath();
+    // Does nothing
 }
 
 
@@ -1062,13 +1007,16 @@ ServerConnectionThread::~ServerConnectionThread()
 
 void* ServerConnectionThread::Entry()
 {
+    wxIPV4address localaddr;
+    localaddr.AnyAddress();
+    localaddr.Service(0);
     uint8_t* buff = (uint8_t*)malloc(4096);
-    wxDatagramSocket* socket = this->m_Window->GetSocket();
+    wxDatagramSocket* socket = new wxDatagramSocket(localaddr , wxSOCKET_NOWAIT);
     UDPHandler* handler = new UDPHandler(socket, this->m_Window->GetAddress(), this->m_Window->GetPort());
 
     // Handle packets coming from the server
     this->WriteConsole("Establishing connection to server once ROM is ready.\n");
-    while (!TestDestroy() && this->m_Window != NULL)
+    while (!TestDestroy())
     {
         try
         {
@@ -1098,45 +1046,19 @@ void* ServerConnectionThread::Entry()
             this->WriteConsoleError("\nServer timed out. Disconnected.\n");
             break;
         }
-
-        // Check for input messages from the main thread
-        this->HandleMainInput();
     }
 
     // Cleanup
     delete handler;
     free(buff);
+    socket->Destroy();
     return NULL;
 }
 
 
 /*==============================
-    ServerConnectionThread::HandleMainInput
-    Handle input from the main thread
-==============================*/
-
-void ServerConnectionThread::HandleMainInput()
-{
-    InputMessage* usrinput;
-    while (global_msgqueue_serverthread_input.ReceiveTimeout(0, usrinput) == wxMSGQUEUE_NO_ERROR)
-    {
-        switch (usrinput->type)
-        {
-            case TEVENT_PROGEND:
-                this->m_Window = NULL;
-                break;
-            default:
-                break;
-        }
-        free(usrinput->data);
-        delete usrinput;
-    }
-}
-
-
-/*==============================
     ServerConnectionThread::TransferPacket
-    Transfers a packet from the server to the main thread (so it can be relayed to USB)
+    Transfers a packet from the server to the USB thread
     @param The packet to transfer
 ==============================*/
 
@@ -1154,8 +1076,6 @@ void ServerConnectionThread::TransferPacket(NetLibPacket* pkt)
 
 void ServerConnectionThread::WriteConsole(wxString str)
 {
-    if (this->m_Window == NULL)
-        return;
     wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
     evt.SetInt(TEVENT_WRITECONSOLE);
     evt.SetString(str.c_str());
@@ -1171,25 +1091,8 @@ void ServerConnectionThread::WriteConsole(wxString str)
 
 void ServerConnectionThread::WriteConsoleError(wxString str)
 {
-    if (this->m_Window == NULL)
-        return;
     wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
     evt.SetInt(TEVENT_WRITECONSOLEERROR);
     evt.SetString(str.c_str());
-    wxQueueEvent(this->m_Window, evt.Clone());
-}
-
-
-/*==============================
-    ServerConnectionThread::NotifyDeath
-    Notify the main thread that this one died so that pointers can be nullified
-==============================*/
-
-void ServerConnectionThread::NotifyDeath()
-{
-    if (this->m_Window == NULL)
-        return;
-    wxThreadEvent evt = wxThreadEvent(wxEVT_THREAD, wxID_ANY);
-    evt.SetInt(TEVENT_DEATH_SERVER);
     wxQueueEvent(this->m_Window, evt.Clone());
 }
