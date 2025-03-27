@@ -96,16 +96,32 @@ public class Game implements Runnable  {
                         final float MAXSTICK = 80, MAXSPEED = 50;
                         GameObject obj = sender.GetObject();
                         ByteBuffer bb = ByteBuffer.wrap(pkt.GetData());
-                        long sendtime = bb.getLong();
-                        if (sender.GetLastUpdate() < sendtime)
+                        int inputcount = bb.get();
+                        for (int i=0; i<inputcount; i++)
                         {
-                            float stickx = (float)bb.get();
-                            float sticky = (float)bb.get();
-                            Vector2D dir = new Vector2D(stickx, -sticky);
-                            dir.Normalize();
-                            obj.SetDirection(dir);
-                            obj.SetSpeed(((float)Math.sqrt(stickx*stickx + sticky*sticky)/MAXSTICK)*MAXSPEED);
-                            sender.SetLastUpdate(sendtime);
+                            long sendtime = bb.getLong();
+                            if (sender.GetLastUpdate() < sendtime)
+                            {
+                                float fdt = bb.getFloat();
+                                float stickx = (float)bb.get();
+                                float sticky = (float)bb.get();
+                                Vector2D dir = new Vector2D(stickx, -sticky);
+                                dir.Normalize();
+                                obj.SetDirection(dir);
+                                obj.SetSpeed(((float)Math.sqrt(stickx*stickx + sticky*sticky)/MAXSTICK)*MAXSPEED);
+                                sender.SetLastUpdate(sendtime);
+                                
+                                Vector2D target_offset = new Vector2D(obj.GetDirection().GetX()*obj.GetSpeed()*fdt, obj.GetDirection().GetY()*obj.GetSpeed()*fdt);
+                                if (obj.GetPos().GetX() + obj.GetSize().GetX()/2 + target_offset.GetX() > 320)
+                                    target_offset.SetX(target_offset.GetX() - 2*((obj.GetPos().GetX() + obj.GetSize().GetX()/2 + target_offset.GetX()) - 320));
+                                if (obj.GetPos().GetX() - obj.GetSize().GetX()/2 + target_offset.GetX() < 0)
+                                    target_offset.SetX(target_offset.GetX() - 2*((obj.GetPos().GetX() - obj.GetSize().GetX()/2 + target_offset.GetX()) - 0));
+                                if (obj.GetPos().GetY() + obj.GetSize().GetY()/2 + target_offset.GetY() > 240)
+                                    target_offset.SetY(target_offset.GetY() - 2*((obj.GetPos().GetY() + obj.GetSize().GetY()/2 + target_offset.GetY()) - 240));
+                                if (obj.GetPos().GetY() - obj.GetSize().GetY()/2 + target_offset.GetY() < 0)
+                                    target_offset.SetY(target_offset.GetY() - 2*((obj.GetPos().GetY() - obj.GetSize().GetY()/2 + target_offset.GetY()) - 0));
+                                obj.SetPos(Vector2D.Add(obj.GetPos(), target_offset));
+                            }
                         }
                     }
                 } catch (Exception e) {
@@ -113,23 +129,6 @@ public class Game implements Runnable  {
                 }
             }
             pkt = this.messages.poll();
-        }
-        
-        // Update player positions
-        for (Player ply : this.players) {
-            if (ply != null) {
-                GameObject obj = ply.GetObject();
-                Vector2D target_offset = new Vector2D(obj.GetDirection().GetX()*obj.GetSpeed()*dt, obj.GetDirection().GetY()*obj.GetSpeed()*dt);
-                if (obj.GetPos().GetX() + obj.GetSize().GetX()/2 + target_offset.GetX() > 320)
-                    target_offset.SetX(target_offset.GetX() - 2*((obj.GetPos().GetX() + obj.GetSize().GetX()/2 + target_offset.GetX()) - 320));
-                if (obj.GetPos().GetX() - obj.GetSize().GetX()/2 + target_offset.GetX() < 0)
-                    target_offset.SetX(target_offset.GetX() - 2*((obj.GetPos().GetX() - obj.GetSize().GetX()/2 + target_offset.GetX()) - 0));
-                if (obj.GetPos().GetY() + obj.GetSize().GetY()/2 + target_offset.GetY() > 240)
-                    target_offset.SetY(target_offset.GetY() - 2*((obj.GetPos().GetY() + obj.GetSize().GetY()/2 + target_offset.GetY()) - 240));
-                if (obj.GetPos().GetY() - obj.GetSize().GetY()/2 + target_offset.GetY() < 0)
-                    target_offset.SetY(target_offset.GetY() - 2*((obj.GetPos().GetY() - obj.GetSize().GetY()/2 + target_offset.GetY()) - 0));
-                obj.SetPos(Vector2D.Add(obj.GetPos(), target_offset));
-            }
         }
         
         // Update object positions

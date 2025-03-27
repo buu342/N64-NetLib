@@ -24,7 +24,8 @@ static bool global_prediction;
 static bool global_reconciliation;
 static bool global_interpolation;
 
-static linkedList global_packetstoack;
+static linkedList global_inputstoack;
+static linkedList global_inputstosend;
 static Vector2D   global_lastackedpos;
 
 
@@ -51,7 +52,7 @@ void stage_game_updatetext()
         text_create("Interpolation: Enabled", 32, 32+32);
     else
         text_create("Interpolation: Disabled", 32, 32+32);
-    sprintf(buf, "Unacked inputs %d", global_packetstoack.size);
+    sprintf(buf, "Unacked inputs %d", global_inputstoack.size);
     text_create(buf, 32, 32+48);
 }
 
@@ -67,8 +68,9 @@ void stage_game_init(void)
     global_nextsend = curtime;
     global_prediction = TRUE;
     global_reconciliation = TRUE;
-    global_interpolation = TRUE;
-    global_packetstoack = EMPTY_LINKEDLIST;
+    global_interpolation = FALSE;
+    global_inputstoack = EMPTY_LINKEDLIST;
+    global_inputstosend = EMPTY_LINKEDLIST;
     global_lastackedpos = ((GameObject*)global_players[netlib_getclient()-1].obj)->pos;
     stage_game_updatetext();    
 }
@@ -84,6 +86,7 @@ void stage_game_update(float dt)
     u8 refreshtext = FALSE;
     OSTime curtime = osGetTime();
     GameObject* plyobj = global_players[netlib_getclient()-1].obj;
+    InputToAck* in;
     
     // Get controller data and apply some basic deadzoning to it
     nuContDataGetEx(&global_contdata, 0);
@@ -96,8 +99,17 @@ void stage_game_update(float dt)
     else if (global_contdata.stick_y > MAXSTICK || global_contdata.stick_y < -MAXSTICK)
         global_contdata.stick_y = (global_contdata.stick_y > 0) ? MAXSTICK : -MAXSTICK;
         
-    // Set the player's speed/direction based on the cont data
+    // Buffer this input so that we can dump it to the server later
+    in = (InputToAck*)malloc(sizeof(InputToAck));
+    in->time = curtime;
+    in->contdata = global_contdata;
+    in->dt = dt;
+    list_append(&global_inputstosend, in);
+
+    // Predict the player's movement before the server updates our position
     objects_applycont(plyobj, global_contdata);
+    if (global_prediction)
+        objects_applyphys(plyobj, dt);
     
     // Handle toggling of different clientside improvements
     if (global_contdata.trigger & R_TRIG)
@@ -105,8 +117,8 @@ void stage_game_update(float dt)
         global_reconciliation = !global_reconciliation;
         if (global_reconciliation && !global_prediction)
             global_prediction = TRUE;
-        else if (!global_reconciliation && global_packetstoack.size > 0)
-            list_destroy_deep(&global_packetstoack);
+        else if (!global_reconciliation && global_inputstoack.size > 0)
+            list_destroy_deep(&global_inputstoack);
         refreshtext = TRUE;
     }
     if (global_contdata.trigger & L_TRIG)
@@ -114,8 +126,8 @@ void stage_game_update(float dt)
         global_prediction = !global_prediction;
         if (!global_prediction && global_reconciliation)
             global_reconciliation = FALSE;
-        if (!global_reconciliation && global_packetstoack.size > 0)
-            list_destroy_deep(&global_packetstoack);
+        if (!global_reconciliation && global_inputstoack.size > 0)
+            list_destroy_deep(&global_inputstoack);
         refreshtext = TRUE;
     }
     if (global_contdata.trigger & Z_TRIG)
@@ -127,29 +139,37 @@ void stage_game_update(float dt)
     // Send the client input to the server every 15hz (if you do too high a rate, you risk flooding the USB/router)
     if (global_nextsend < curtime)
     {
+        listNode* node = global_inputstosend.head;
+        
+        // Dump the input data that we buffered over previous frames
         netlib_start(PACKETID_CLIENTINPUT);
-            netlib_writeqword((u64)curtime);
-            netlib_writebyte((u8)global_contdata.stick_x);
-            netlib_writebyte((u8)global_contdata.stick_y);
+            netlib_writebyte((u8)global_inputstosend.size);
+            while (node != NULL)
+            {
+                InputToAck* insend = (InputToAck*)node->data;
+                netlib_writeqword((u64)insend->time);
+                netlib_writefloat((f32)insend->dt);
+                netlib_writebyte((u8)insend->contdata.stick_x);
+                netlib_writebyte((u8)insend->contdata.stick_y);
+                node = node->next;
+            }
         netlib_sendtoserver();
         global_nextsend = curtime + OS_USEC_TO_CYCLES((u64)(1000000.0f*(1.0f/INPUTRATE)));
         
-        // If we want to reconcile, we need to keep track of what inputs we sent at what time
+        // If we want to reconcile, add the buffered inputs to the reconcile list
         if (global_reconciliation)
         {
-            InputToAck* in = (InputToAck*)malloc(sizeof(InputToAck));
-            in->time = curtime;
-            in->contdata = global_contdata;
-            in->dt = dt;
-            if (global_packetstoack.size == MAXPACKETSTOACK)
+            node = global_inputstosend.head;
+            while (node != NULL)
             {
-                InputToAck* clnup = global_packetstoack.head->data;
-                list_remove(&global_packetstoack, clnup);
-                free(clnup);
+                list_append(&global_inputstoack, node->data);
+                node = node->next;
             }
-            list_append(&global_packetstoack, in);
+            list_destroy(&global_inputstosend);
             refreshtext = TRUE;
         }
+        else // Otherwise just destroy the data to free the memory
+            list_destroy_deep(&global_inputstosend);
     }
     
     // Refresh debug text if necessary
@@ -165,11 +185,7 @@ void stage_game_update(float dt)
 
 void stage_game_fixedupdate(float dt)
 {
-    GameObject* plyobj = global_players[netlib_getclient()-1].obj;
-    
-    // Predict the player's movement before the server updates our position
-    if (global_prediction)
-        objects_applyphys(plyobj, dt);
+    // Nothing
 }
 
 
@@ -249,7 +265,7 @@ void stage_game_cleanup(void)
     
     // Other cleanup
     text_cleanup();
-    list_destroy_deep(&global_packetstoack);
+    list_destroy_deep(&global_inputstoack);
 }
 
 
@@ -263,7 +279,7 @@ void stage_game_ackinput(OSTime time, Vector2D pos)
     {
         InputToAck* clnup;
         GameObject* plyobj = global_players[netlib_getclient()-1].obj;
-        listNode* node = global_packetstoack.head;
+        listNode* node = global_inputstoack.head;
         
         // Go through the packets, and remove any that are outdated
         // Since this list is FIFO, so as soon as we find a packet with a later time, we can stop
@@ -272,7 +288,7 @@ void stage_game_ackinput(OSTime time, Vector2D pos)
             InputToAck* in = (InputToAck*)node->data;
             if (in->time < time)
             {
-                list_remove(&global_packetstoack, in);
+                list_remove(&global_inputstoack, in);
                 free(in);
             }
             else
@@ -283,12 +299,12 @@ void stage_game_ackinput(OSTime time, Vector2D pos)
         // The head of the list should be the packet currently being acknowledged, so set our pos to it
         global_lastackedpos = pos;
         plyobj->pos = global_lastackedpos;
-        clnup = global_packetstoack.head->data;
-        list_remove(&global_packetstoack, clnup);
+        clnup = global_inputstoack.head->data;
+        list_remove(&global_inputstoack, clnup);
         free(clnup);
         
         // Now go through all packets that are yet to be acknowledged and reapply them to reconcile the position
-        node = global_packetstoack.head;
+        node = global_inputstoack.head;
         while (node != NULL)
         {
             InputToAck* in = (InputToAck*)node->data;
