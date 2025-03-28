@@ -39,6 +39,7 @@ public class Game implements Runnable  {
         this.objs = new LinkedList<GameObject>();
         this.obj_npc = new GameObject(new Vector2D(320/2, 240/2));
         this.obj_npc.SetSpeed(100);
+        this.obj_npc.SetBounce(true);
         this.objs.add(this.obj_npc);
         this.window = new PreviewWindow(this);
         this.gametime = 0;
