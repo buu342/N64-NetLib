@@ -110,17 +110,7 @@ public class Game implements Runnable  {
                                 obj.SetDirection(dir);
                                 obj.SetSpeed(((float)Math.sqrt(stickx*stickx + sticky*sticky)/MAXSTICK)*MAXSPEED);
                                 sender.SetLastUpdate(sendtime);
-                                
-                                Vector2D target_offset = new Vector2D(obj.GetDirection().GetX()*obj.GetSpeed()*fdt, obj.GetDirection().GetY()*obj.GetSpeed()*fdt);
-                                if (obj.GetPos().GetX() + obj.GetSize().GetX()/2 + target_offset.GetX() > 320)
-                                    target_offset.SetX(target_offset.GetX() - 2*((obj.GetPos().GetX() + obj.GetSize().GetX()/2 + target_offset.GetX()) - 320));
-                                if (obj.GetPos().GetX() - obj.GetSize().GetX()/2 + target_offset.GetX() < 0)
-                                    target_offset.SetX(target_offset.GetX() - 2*((obj.GetPos().GetX() - obj.GetSize().GetX()/2 + target_offset.GetX()) - 0));
-                                if (obj.GetPos().GetY() + obj.GetSize().GetY()/2 + target_offset.GetY() > 240)
-                                    target_offset.SetY(target_offset.GetY() - 2*((obj.GetPos().GetY() + obj.GetSize().GetY()/2 + target_offset.GetY()) - 240));
-                                if (obj.GetPos().GetY() - obj.GetSize().GetY()/2 + target_offset.GetY() < 0)
-                                    target_offset.SetY(target_offset.GetY() - 2*((obj.GetPos().GetY() - obj.GetSize().GetY()/2 + target_offset.GetY()) - 0));
-                                obj.SetPos(Vector2D.Add(obj.GetPos(), target_offset));
+                                this.ApplyObjectPhysics(obj, fdt);
                             }
                         }
                     }
@@ -134,24 +124,7 @@ public class Game implements Runnable  {
         // Update object positions
         for (GameObject obj : this.objs) {
             if (obj != null) {
-                Vector2D target_offset = new Vector2D(obj.GetDirection().GetX()*obj.GetSpeed()*dt, obj.GetDirection().GetY()*obj.GetSpeed()*dt);
-                if (obj.GetPos().GetX() + obj.GetSize().GetX()/2 + target_offset.GetX() > 320) {
-                    target_offset.SetX(target_offset.GetX() - 2*((obj.GetPos().GetX() + obj.GetSize().GetX()/2 + target_offset.GetX()) - 320));
-                    obj.SetDirection(new Vector2D(-obj.GetDirection().GetX(), obj.GetDirection().GetY()));
-                }
-                if (obj.GetPos().GetX() - obj.GetSize().GetX()/2 + target_offset.GetX() < 0) {
-                    target_offset.SetX(target_offset.GetX() - 2*((obj.GetPos().GetX() - obj.GetSize().GetX()/2 + target_offset.GetX()) - 0));
-                    obj.SetDirection(new Vector2D(-obj.GetDirection().GetX(), obj.GetDirection().GetY()));
-                }
-                if (obj.GetPos().GetY() + obj.GetSize().GetY()/2 + target_offset.GetY() > 240) {
-                    target_offset.SetY(target_offset.GetY() - 2*((obj.GetPos().GetY() + obj.GetSize().GetY()/2 + target_offset.GetY()) - 240));
-                    obj.SetDirection(new Vector2D(obj.GetDirection().GetX(), -obj.GetDirection().GetY()));
-                }
-                if (obj.GetPos().GetY() - obj.GetSize().GetY()/2 + target_offset.GetY() < 0) {
-                    target_offset.SetY(target_offset.GetY() - 2*((obj.GetPos().GetY() - obj.GetSize().GetY()/2 + target_offset.GetY()) - 0));
-                    obj.SetDirection(new Vector2D(obj.GetDirection().GetX(), -obj.GetDirection().GetY()));
-                }
-                obj.SetPos(Vector2D.Add(obj.GetPos(), target_offset));
+                this.ApplyObjectPhysics(obj, dt);
             }
         }
     }
@@ -238,6 +211,31 @@ public class Game implements Runnable  {
                 e.printStackTrace();
             }
         }
+    }
+    
+    public void ApplyObjectPhysics(GameObject obj, float dt) {
+        Vector2D target_offset = new Vector2D(obj.GetDirection().GetX()*obj.GetSpeed()*dt, obj.GetDirection().GetY()*obj.GetSpeed()*dt);
+        if (obj.GetPos().GetX() + obj.GetSize().GetX()/2 + target_offset.GetX() > 320) {
+            target_offset.SetX(target_offset.GetX() - 2*((obj.GetPos().GetX() + obj.GetSize().GetX()/2 + target_offset.GetX()) - 320));
+            if (obj.GetBounce())
+                obj.SetDirection(new Vector2D(-obj.GetDirection().GetX(), obj.GetDirection().GetY()));
+        }
+        if (obj.GetPos().GetX() - obj.GetSize().GetX()/2 + target_offset.GetX() < 0) {
+            target_offset.SetX(target_offset.GetX() - 2*((obj.GetPos().GetX() - obj.GetSize().GetX()/2 + target_offset.GetX()) - 0));
+            if (obj.GetBounce())
+                obj.SetDirection(new Vector2D(-obj.GetDirection().GetX(), obj.GetDirection().GetY()));
+        }
+        if (obj.GetPos().GetY() + obj.GetSize().GetY()/2 + target_offset.GetY() > 240) {
+            target_offset.SetY(target_offset.GetY() - 2*((obj.GetPos().GetY() + obj.GetSize().GetY()/2 + target_offset.GetY()) - 240));
+            if (obj.GetBounce())
+                obj.SetDirection(new Vector2D(obj.GetDirection().GetX(), -obj.GetDirection().GetY()));
+        }
+        if (obj.GetPos().GetY() - obj.GetSize().GetY()/2 + target_offset.GetY() < 0) {
+            target_offset.SetY(target_offset.GetY() - 2*((obj.GetPos().GetY() - obj.GetSize().GetY()/2 + target_offset.GetY()) - 0));
+            if (obj.GetBounce())
+                obj.SetDirection(new Vector2D(obj.GetDirection().GetX(), -obj.GetDirection().GetY()));
+        }
+        obj.SetPos(Vector2D.Add(obj.GetPos(), target_offset));
     }
     
     /**

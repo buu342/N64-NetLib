@@ -25,6 +25,7 @@
         Vector2D size;
         float speed;
         Color col;
+        u8 bounce;
     } GameObject;
 
     

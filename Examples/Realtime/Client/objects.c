@@ -160,13 +160,29 @@ void objects_applyphys(GameObject* obj, float dt)
 {
     Vector2D target_offset = (Vector2D){obj->dir.x*obj->speed*dt, obj->dir.y*obj->speed*dt};
     if (obj->pos.x + obj->size.x/2 + target_offset.x > 320)
+    {
         target_offset.x = target_offset.x - 2*((obj->pos.x + obj->size.x/2 + target_offset.x) - 320);
+        if (obj->bounce)
+            obj->dir.x = -obj->dir.x;
+    }
     if (obj->pos.x - obj->size.x/2 + target_offset.x < 0)
+    {
         target_offset.x = target_offset.x - 2*((obj->pos.x - obj->size.x/2 + target_offset.x) - 0);
+        if (obj->bounce)
+            obj->dir.x = -obj->dir.x;
+    }
     if (obj->pos.y + obj->size.y/2 + target_offset.y > 240)
+    {
         target_offset.y = target_offset.y - 2*((obj->pos.y + obj->size.y/2 + target_offset.y) - 240);
-    if (obj->pos.y - obj->size.y/2 + target_offset.y < 0) 
+        if (obj->bounce)
+            obj->dir.y = -obj->dir.y;
+    }
+    if (obj->pos.y - obj->size.y/2 + target_offset.y < 0)
+    {
         target_offset.y =target_offset.y - 2*((obj->pos.y - obj->size.y/2 + target_offset.y) - 0);
+        if (obj->bounce)
+            obj->dir.y = -obj->dir.y;
+    }
     obj->oldpos.x = obj->pos.x;
     obj->oldpos.y = obj->pos.y;
     obj->pos.x += target_offset.x;

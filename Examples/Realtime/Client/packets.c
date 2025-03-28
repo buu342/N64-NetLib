@@ -129,6 +129,7 @@ static GameObject* packet_readobject()
     netlib_readfloat(&obj->size.x);
     netlib_readfloat(&obj->size.y);
     netlib_readfloat(&obj->speed);
+    netlib_readbyte(&obj->bounce);
     netlib_readbyte(&obj->col.r);
     netlib_readbyte(&obj->col.g);
     netlib_readbyte(&obj->col.b);

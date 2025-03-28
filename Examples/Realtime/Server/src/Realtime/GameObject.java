@@ -14,6 +14,7 @@ public class GameObject {
     private Vector2D size;
     private float speed;
     private float oldspeed;
+    private boolean bounce;
     private Color col;
     
     public GameObject(Vector2D pos) {
@@ -70,6 +71,14 @@ public class GameObject {
         this.speed = speed;
     }
     
+    public void SetBounce(boolean doesbounce) {
+        this.bounce = doesbounce;
+    }
+    
+    public boolean GetBounce() {
+        return this.bounce;
+    }
+    
     public byte[] GetData() throws IOException {
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         bytes.write(ByteBuffer.allocate(4).putInt(this.id).array());
@@ -80,6 +89,7 @@ public class GameObject {
         bytes.write(ByteBuffer.allocate(4).putFloat(this.size.GetX()).array());
         bytes.write(ByteBuffer.allocate(4).putFloat(this.size.GetY()).array());
         bytes.write(ByteBuffer.allocate(4).putFloat(this.speed).array());
+        bytes.write(ByteBuffer.allocate(1).put((byte)(this.bounce ? 1 : 0)).array());
         bytes.write(ByteBuffer.allocate(1).put((byte)this.col.getRed()).array());
         bytes.write(ByteBuffer.allocate(1).put((byte)this.col.getGreen()).array());
         bytes.write(ByteBuffer.allocate(1).put((byte)this.col.getBlue()).array());
