@@ -75,8 +75,8 @@ void list_combine(linkedList* dest, linkedList* list)
 /*==============================
     list_remove
     Removes data from a linked list
-    @param The linked list to append to
-    @param The data to append
+    @param The linked list to remove from
+    @param The data to remove
     @return The removed node
 ==============================*/
 

@@ -75,8 +75,8 @@ void list_combine(linkedList* dest, linkedList* list)
 /*==============================
     list_remove
     Removes data from a linked list
-    @param The linked list to append to
-    @param The data to append
+    @param The linked list to remove from
+    @param The data to remove
     @return The removed node
 ==============================*/
 
@@ -217,7 +217,8 @@ listNode* list_node_from_index(linkedList* list, int index)
 listNode* list_swapindex_withlist(linkedList* dest, int index, linkedList* list)
 {
     int cindex = 0;
-    listNode* curnode, *previous = NULL;
+    listNode* curnode = NULL;
+    listNode* previous = NULL;
     
     // Stop if the lists don't exist, the index is invalid, or the destination is empty
     if (dest == NULL || list == NULL || index < 0 || dest->size == 0 || list->size == 0)
@@ -229,7 +230,7 @@ listNode* list_swapindex_withlist(linkedList* dest, int index, linkedList* list)
         list->tail->next = dest->head->next;
         dest->head = list->head;
         dest->size += list->size-1;
-        return curnode;
+        return dest->head;
     }
         
     // Go to the n'th element
@@ -306,7 +307,6 @@ dictNode* dict_append(Dictionary* dict, int key, void* value)
 
 dictNode* dict_get(Dictionary* dict, int key)
 {
-    int i;
     dictNode* curnode;
     
     // Make sure we have a valid dictionary
