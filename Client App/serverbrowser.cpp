@@ -700,13 +700,10 @@ ServerFinderThread::~ServerFinderThread()
 
 void* ServerFinderThread::Entry()
 {
-    std::unordered_map<wxString, std::pair<FoundServer, wxLongLong>> serversleft; 
-    wxIPV4address localaddr;
-    localaddr.AnyAddress();
-    localaddr.Service(0);
-    uint8_t* buff = (uint8_t*)malloc(4096);
-    wxDatagramSocket* sock = new wxDatagramSocket(localaddr , wxSOCKET_NOWAIT);
+    std::unordered_map<wxString, std::pair<FoundServer, wxLongLong>> serversleft;
+    ASIOSocket* sock = new ASIOSocket(this->m_Window->GetAddress(), this->m_Window->GetPort());
     UDPHandler* handler = new UDPHandler(sock, this->m_Window->GetAddress(), this->m_Window->GetPort());
+    uint8_t* buff = (uint8_t*)malloc(4096);
     FileDownload* filedl = NULL;
     wxString filedl_path = "";
 
@@ -814,7 +811,7 @@ void* ServerFinderThread::Entry()
         delete it.second.first.handler;
     delete handler;
     free(buff);
-    sock->Destroy();
+    delete sock;
     return NULL;
 }
 
@@ -868,7 +865,7 @@ void ServerFinderThread::HandleMainInput(UDPHandler* handler, FileDownload** fil
     @param The packet with the server info
 ==============================*/
 
-FoundServer ServerFinderThread::ParsePacket_Server(wxDatagramSocket* socket, S64Packet* pkt)
+FoundServer ServerFinderThread::ParsePacket_Server(ASIOSocket* socket, S64Packet* pkt)
 {
     uint8_t hash[32];
     uint32_t read32;

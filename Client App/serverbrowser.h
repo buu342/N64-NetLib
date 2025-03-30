@@ -17,7 +17,6 @@ typedef struct IUnknown IUnknown;
 #include <wx/toolbar.h>
 #include <wx/gbsizer.h>
 #include <wx/frame.h>
-#include <wx/socket.h>
 #include <wx/artprov.h>
 #include <wx/stattext.h>
 #include <wx/filepicker.h>
@@ -124,7 +123,7 @@ class ServerFinderThread : public wxThread
         ServerBrowser* m_Window;
         
         void          HandleMainInput(UDPHandler* handler, FileDownload** filedl, wxString* filedl_path);
-        FoundServer   ParsePacket_Server(wxDatagramSocket* socket, S64Packet* pkt);
+        FoundServer   ParsePacket_Server(ASIOSocket* socket, S64Packet* pkt);
         void          DiscoveredServer(std::unordered_map<wxString, std::pair<FoundServer, wxLongLong>>* serverlist, S64Packet* pkt);
         FileDownload* BeginFileDownload(S64Packet* pkt, wxString filepath);
         void          HandleFileData(S64Packet* pkt, FileDownload** filedlp);

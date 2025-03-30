@@ -27,6 +27,58 @@ communication handler.
 #define TIME_ACKRETRY  1000*5
 
 
+/******************************
+            Globals
+******************************/
+
+asio::io_context* global_asiocontext;
+
+
+/*=============================================================
+                         ASIO Wrapper
+=============================================================*/
+
+void ASIOSocket::InitASIO()
+{
+    global_asiocontext = new asio::io_context();
+}
+
+ASIOSocket::ASIOSocket(wxString address, int port)
+{
+    this->m_Address = address;
+    this->m_Port = port;
+    this->m_Resolver = new udp::resolver(*global_asiocontext);
+    this->m_EndPoint = this->m_Resolver->resolve(udp::v4(), address.ToStdString(), wxString::Format(wxT("%d"), (int)port).ToStdString());
+    this->m_Socket = new udp::socket(*global_asiocontext, udp::endpoint(udp::v4(), 0));
+    this->m_Socket->non_blocking(true);
+    this->m_LastReadCount = 0;
+}
+
+ASIOSocket::~ASIOSocket()
+{
+    this->m_Socket->close();
+    delete this->m_Socket;
+    delete this->m_Resolver;
+}
+
+void ASIOSocket::Read(uint8_t* buff, size_t size)
+{
+    asio::error_code error;
+    udp::endpoint sendpoint;
+    this->m_LastReadCount = this->m_Socket->receive_from(asio::buffer(buff, size), sendpoint, 0, error);
+}
+
+void ASIOSocket::Send(uint8_t* buff, size_t size)
+{
+    this->m_Socket->send_to(asio::buffer(buff, size), *(this->m_EndPoint.begin()));
+}
+
+size_t ASIOSocket::LastReadCount()
+{
+    return this->m_LastReadCount;
+}
+
+
 /*=============================================================
                        Helper Functions
 =============================================================*/
@@ -135,8 +187,9 @@ static AbstractPacket* MakeAck_NetLibPacket()
     @param The port of the destination
 ==============================*/
 
-UDPHandler::UDPHandler(wxDatagramSocket* socket, wxString address, int port)
+UDPHandler::UDPHandler(ASIOSocket* socket, wxString address, int port)
 {
+    printf("Creating UDP handler for %s:%d\n", static_cast<const char*>(address.c_str()), port);
     this->m_Socket = socket;
     this->m_Address = address;
     this->m_Port = port;
@@ -145,6 +198,7 @@ UDPHandler::UDPHandler(wxDatagramSocket* socket, wxString address, int port)
     this->m_AckBitfield = 0;
     this->m_AcksLeft_RX = std::deque<AbstractPacket*>();
     this->m_AcksLeft_TX = std::deque<AbstractPacket*>();
+    printf("Created UDP handler for %s:%d\n", static_cast<const char*>(address.c_str()), port);
 }
 
 
@@ -155,8 +209,9 @@ UDPHandler::UDPHandler(wxDatagramSocket* socket, wxString address, int port)
     @param The address and port combination for the handler to connect to
 ==============================*/
 
-UDPHandler::UDPHandler(wxDatagramSocket* socket, wxString fulladdress)
+UDPHandler::UDPHandler(ASIOSocket* socket, wxString fulladdress)
 {
+    printf("Creating UDP handler for %s\n", static_cast<const char*>(fulladdress.c_str()));
     wxStringTokenizer tokenizer(fulladdress, ":");
     this->m_Address = tokenizer.GetNextToken();
     if (tokenizer.HasMoreTokens())
@@ -167,6 +222,7 @@ UDPHandler::UDPHandler(wxDatagramSocket* socket, wxString fulladdress)
     this->m_AckBitfield = 0;
     this->m_AcksLeft_RX = std::deque<AbstractPacket*>();
     this->m_AcksLeft_TX = std::deque<AbstractPacket*>();
+    printf("Created UDP handler for %s\n", static_cast<const char*>(fulladdress.c_str()));
 }
 
 
@@ -177,10 +233,12 @@ UDPHandler::UDPHandler(wxDatagramSocket* socket, wxString fulladdress)
 
 UDPHandler::~UDPHandler()
 {
+    printf("Destroying UDP handler for %s:%d\n", static_cast<const char*>(this->m_Address.c_str()), this->m_Port);
     for (AbstractPacket* pkt : this->m_AcksLeft_RX)
         free(pkt);
     for (AbstractPacket* pkt : this->m_AcksLeft_TX)
         free(pkt);
+    printf("Destroyed UDP handler for %s:%d\n", static_cast<const char*>(this->m_Address.c_str()), this->m_Port);
 }
 
 
@@ -214,7 +272,7 @@ int UDPHandler::GetPort()
     @return The socket to use
 ==============================*/
 
-wxDatagramSocket* UDPHandler::GetSocket()
+ASIOSocket* UDPHandler::GetSocket()
 {
     return this->m_Socket;
 }
@@ -231,7 +289,6 @@ void UDPHandler::SendPacket(AbstractPacket* pkt)
 {
     uint8_t* data;
     uint16_t ackbitfield = 0;
-    wxIPV4address address;
         
     // Check for timeouts
     pkt->UpdateSendAttempt();
@@ -251,9 +308,7 @@ void UDPHandler::SendPacket(AbstractPacket* pkt)
 
     // Send the packet
     data = pkt->GetAsBytes();
-    address.Hostname(this->m_Address);
-    address.Service(this->m_Port);
-    this->m_Socket->SendTo(address, data, pkt->GetAsBytes_Size());
+    this->m_Socket->Send(data, pkt->GetAsBytes_Size());
     
     // Add it to our list of packets that need an ack
     if ((pkt->GetFlags() & FLAG_UNRELIABLE) == 0 && pkt->GetSendAttempts() == 1)

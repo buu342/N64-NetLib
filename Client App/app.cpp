@@ -6,7 +6,6 @@ This file handles the wxWidgets initialization.
 
 #include "app.h"
 #include <wx/stdpaths.h>
-#include <wx/socket.h>
 #include <wx/config.h>
 #include <wx/fileconf.h>
 #include <wx/dir.h>
@@ -64,7 +63,9 @@ bool App::OnInit()
 
     // Initialize image handlers
     wxInitAllImageHandlers();
-    wxSocketBase::Initialize();
+
+    // Initialize asio
+    ASIOSocket::InitASIO();
 
     // Initialize config file
     wxStandardPaths::Get().SetFileLayout(wxStandardPaths::FileLayout_XDG);

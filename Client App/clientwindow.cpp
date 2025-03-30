@@ -984,7 +984,7 @@ void UploadThread::WriteConsoleError(wxString str)
 ServerConnectionThread::ServerConnectionThread(ClientWindow* win) : wxThread(wxTHREAD_JOINABLE)
 {
     this->m_Window = win;
-    global_msgqueue_serverthread_pkt.Clear();
+    global_msgqueue_serverthread_pkt.Clear(); // TODO: Manually empty the queue to prevent leaks?
 }
 
 
@@ -1007,11 +1007,8 @@ ServerConnectionThread::~ServerConnectionThread()
 
 void* ServerConnectionThread::Entry()
 {
-    wxIPV4address localaddr;
-    localaddr.AnyAddress();
-    localaddr.Service(0);
     uint8_t* buff = (uint8_t*)malloc(4096);
-    wxDatagramSocket* socket = new wxDatagramSocket(localaddr , wxSOCKET_NOWAIT);
+    ASIOSocket* socket = new ASIOSocket(this->m_Window->GetAddress(), this->m_Window->GetPort());
     UDPHandler* handler = new UDPHandler(socket, this->m_Window->GetAddress(), this->m_Window->GetPort());
 
     // Handle packets coming from the server
@@ -1023,7 +1020,7 @@ void* ServerConnectionThread::Entry()
             bool workdone = false;
             NetLibPacket* pkt = NULL;
 
-            // Check for messages from the main thread (which are relayed from the N64's USB) to send to the server
+            // Check for messages from the USB thread to send to the server
             while (global_msgqueue_serverthread_pkt.ReceiveTimeout(0, pkt) == wxMSGQUEUE_NO_ERROR)
                 handler->SendPacket(pkt);
 
@@ -1051,7 +1048,7 @@ void* ServerConnectionThread::Entry()
     // Cleanup
     delete handler;
     free(buff);
-    socket->Destroy();
+    delete socket;
     return NULL;
 }
 

@@ -1,10 +1,12 @@
 #pragma once
 
 #include <stdint.h>
+#include "Include/asio.hpp"
 #include <wx/string.h>
-#include <wx/socket.h>
 #include <wx/msgqueue.h>
 #include <deque>
+
+using asio::ip::udp;
 
 
 /******************************
@@ -33,9 +35,39 @@ class S64Packet;
 class NetLibPacket;
 
 
+/******************************
+            Globals
+******************************/
+
+extern asio::io_context* global_asiocontext;
+
+
 /*********************************
              Classes
 *********************************/
+
+// Wrapper class for ASIO
+class ASIOSocket
+{
+    private:
+        udp::resolver* m_Resolver;
+        udp::resolver::results_type m_EndPoint;
+        udp::socket* m_Socket;
+        size_t m_LastReadCount;
+        wxString m_Address;
+        int m_Port;
+
+    protected:
+
+    public:
+        static void InitASIO();
+
+        ASIOSocket(wxString address, int port);
+        ~ASIOSocket();
+        void Read(uint8_t* buff, size_t size);
+        void Send(uint8_t* buff, size_t size);
+        size_t LastReadCount();
+};
 
 // Main UDP Handler class
 class UDPHandler
@@ -43,7 +75,7 @@ class UDPHandler
     private:
         wxString m_Address;
         int      m_Port;
-        wxDatagramSocket* m_Socket;
+        ASIOSocket* m_Socket;
         uint16_t m_LocalSeqNum;
         uint16_t m_RemoteSeqNum;
         uint16_t m_AckBitfield;
@@ -55,10 +87,10 @@ class UDPHandler
     protected:
 
     public:
-        UDPHandler(wxDatagramSocket* socket, wxString address, int port);
-        UDPHandler(wxDatagramSocket* socket, wxString fulladdress);
+        UDPHandler(ASIOSocket* socket, wxString address, int port);
+        UDPHandler(ASIOSocket* socket, wxString fulladdress);
         ~UDPHandler();
-        wxDatagramSocket* GetSocket();
+        ASIOSocket* GetSocket();
         wxString GetAddress();
         int      GetPort();
         void SendPacket(AbstractPacket* pkt);

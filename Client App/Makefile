@@ -18,7 +18,7 @@ OS_NAME := $(shell uname -s)
 CXX = `$(WX_CONFIG) --cxx`
 
 # Standard flags for C++ 
-CXXFLAGS ?= -D LINUX
+CXXFLAGS ?= -D LINUX -IInclude
 ifeq ($(OS_NAME),Darwin)
 	CXXFLAGS += -D MACOS
 endif

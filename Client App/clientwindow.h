@@ -20,7 +20,6 @@ typedef struct IUnknown IUnknown;
 #include <wx/sizer.h>
 #include <wx/statusbr.h>
 #include <wx/frame.h>
-#include <wx/socket.h>
 #include <stdint.h>
 #include "packets.h"
 
@@ -83,7 +82,6 @@ class ClientWindow : public wxFrame
         void BeginWorking();
         void LoadROM();
         void SetROM(wxString rom);
-        void SetSocket(wxDatagramSocket* socket);
         void SetAddress(wxString addr);
         void SetPortNumber(int port);
         wxString GetAddress();
@@ -138,7 +136,7 @@ class UploadThread : public wxThread
 class ServerConnectionThread : public wxThread
 {
     private:
-        wxDatagramSocket* m_Socket;
+        udp::socket* m_Socket;
         ClientWindow* m_Window;
 
         void HandleMainInput();
