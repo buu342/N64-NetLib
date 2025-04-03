@@ -51,7 +51,6 @@ class ASIOSocket
 {
     private:
         udp::resolver* m_Resolver;
-        udp::resolver::results_type m_EndPoint;
         udp::socket* m_Socket;
         size_t m_LastReadCount;
         wxString m_Address;
@@ -62,10 +61,11 @@ class ASIOSocket
     public:
         static void InitASIO();
 
+        ASIOSocket(wxString fulladdress);
         ASIOSocket(wxString address, int port);
         ~ASIOSocket();
         void Read(uint8_t* buff, size_t size);
-        void Send(uint8_t* buff, size_t size);
+        void Send(wxString address, int port, uint8_t* buff, size_t size);
         size_t LastReadCount();
 };
 

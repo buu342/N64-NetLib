@@ -43,12 +43,23 @@ void ASIOSocket::InitASIO()
     global_asiocontext = new asio::io_context();
 }
 
+ASIOSocket::ASIOSocket(wxString fulladdress)
+{
+    wxStringTokenizer tokenizer(fulladdress, ":");
+    this->m_Address = tokenizer.GetNextToken();
+    if (tokenizer.HasMoreTokens())
+        tokenizer.GetNextToken().ToInt(&this->m_Port);
+    this->m_Resolver = new udp::resolver(*global_asiocontext);
+    this->m_Socket = new udp::socket(*global_asiocontext, udp::endpoint(udp::v4(), 0));
+    this->m_Socket->non_blocking(true);
+    this->m_LastReadCount = 0;
+}
+
 ASIOSocket::ASIOSocket(wxString address, int port)
 {
     this->m_Address = address;
     this->m_Port = port;
     this->m_Resolver = new udp::resolver(*global_asiocontext);
-    this->m_EndPoint = this->m_Resolver->resolve(udp::v4(), address.ToStdString(), wxString::Format(wxT("%d"), (int)port).ToStdString());
     this->m_Socket = new udp::socket(*global_asiocontext, udp::endpoint(udp::v4(), 0));
     this->m_Socket->non_blocking(true);
     this->m_LastReadCount = 0;
@@ -66,11 +77,15 @@ void ASIOSocket::Read(uint8_t* buff, size_t size)
     asio::error_code error;
     udp::endpoint sendpoint;
     this->m_LastReadCount = this->m_Socket->receive_from(asio::buffer(buff, size), sendpoint, 0, error);
+    if (this->m_LastReadCount != 0)
+        printf("Read %ld bytes from %s:%d\n", this->m_LastReadCount, (const char*)this->m_Address.mb_str(), this->m_Port);
 }
 
-void ASIOSocket::Send(uint8_t* buff, size_t size)
+void ASIOSocket::Send(wxString address, int port, uint8_t* buff, size_t size)
 {
-    this->m_Socket->send_to(asio::buffer(buff, size), *(this->m_EndPoint.begin()));
+    udp::resolver::results_type endp = this->m_Resolver->resolve(udp::v4(), address.ToStdString(), wxString::Format(wxT("%d"), (int)port).ToStdString());
+    size_t sent = this->m_Socket->send_to(asio::buffer(buff, size), *(endp.begin()));
+    printf("Sent %ld bytes to %s:%d\n", sent, (const char*)address.mb_str(), port);
 }
 
 size_t ASIOSocket::LastReadCount()
@@ -308,7 +323,7 @@ void UDPHandler::SendPacket(AbstractPacket* pkt)
 
     // Send the packet
     data = pkt->GetAsBytes();
-    this->m_Socket->Send(data, pkt->GetAsBytes_Size());
+    this->m_Socket->Send(this->m_Address, this->m_Port, data, pkt->GetAsBytes_Size());
     
     // Add it to our list of packets that need an ack
     if ((pkt->GetFlags() & FLAG_UNRELIABLE) == 0 && pkt->GetSendAttempts() == 1)
