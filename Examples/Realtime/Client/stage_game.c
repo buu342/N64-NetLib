@@ -5,6 +5,7 @@ TODO
 ***************************************************************/
 
 #include <nusys.h>
+#include <malloc.h>
 #include "config.h"
 #include "netlib.h"
 #include "packets.h"
@@ -36,6 +37,8 @@ static Vector2D   global_lastackedpos;
 void stage_game_updatetext()
 {
     char buf[32];
+    struct malloc_status_st st;
+    malloc_memcheck(&st);
     text_cleanup();
     text_setfont(&font_small);
     text_setalign(ALIGN_LEFT);
@@ -54,6 +57,8 @@ void stage_game_updatetext()
         text_create("Interpolation: Disabled", 32, 32+32);
     sprintf(buf, "Unacked inputs %d", global_inputstoack.size);
     text_create(buf, 32, 32+48);
+    sprintf(buf, "Free mem %d", st.freeMemSize);
+    text_create(buf, 32, 32+64);
 }
 
 
@@ -159,21 +164,15 @@ void stage_game_update(float dt)
         // If we want to reconcile, add the buffered inputs to the reconcile list
         if (global_reconciliation)
         {
-            node = global_inputstosend.head;
-            while (node != NULL)
-            {
-                list_append(&global_inputstoack, node->data);
-                node = node->next;
-            }
-            list_destroy(&global_inputstosend);
-            refreshtext = TRUE;
+            list_combine(&global_inputstoack, &global_inputstosend);
+            global_inputstosend = EMPTY_LINKEDLIST;
         }
         else // Otherwise just destroy the data to free the memory
             list_destroy_deep(&global_inputstosend);
     }
     
     // Refresh debug text if necessary
-    if (refreshtext)
+    //if (refreshtext)
         stage_game_updatetext();
 }
 
@@ -266,6 +265,7 @@ void stage_game_cleanup(void)
     // Other cleanup
     text_cleanup();
     list_destroy_deep(&global_inputstoack);
+    list_destroy_deep(&global_inputstosend);
 }
 
 
@@ -277,18 +277,17 @@ void stage_game_ackinput(OSTime time, Vector2D pos)
 {
     if (global_reconciliation)
     {
-        InputToAck* clnup;
         GameObject* plyobj = global_players[netlib_getclient()-1].obj;
         listNode* node = global_inputstoack.head;
         
         // Go through the packets, and remove any that are outdated
-        // Since this list is FIFO, so as soon as we find a packet with a later time, we can stop
+        // Since this list is FIFO, as soon as we find a packet with a later time, we can stop
         while (node != NULL)
         {
             InputToAck* in = (InputToAck*)node->data;
-            if (in->time < time)
+            if (in->time <= time)
             {
-                list_remove(&global_inputstoack, in);
+                free(list_remove(&global_inputstoack, in));
                 free(in);
             }
             else
@@ -296,12 +295,9 @@ void stage_game_ackinput(OSTime time, Vector2D pos)
             node = node->next;
         }
         
-        // The head of the list should be the packet currently being acknowledged, so set our pos to it
+        // Set our pos to the acknowledged position
         global_lastackedpos = pos;
         plyobj->pos = global_lastackedpos;
-        clnup = global_inputstoack.head->data;
-        list_remove(&global_inputstoack, clnup);
-        free(clnup);
         
         // Now go through all packets that are yet to be acknowledged and reapply them to reconcile the position
         node = global_inputstoack.head;

@@ -85,7 +85,7 @@ linkedList* objects_getall()
 
 void objects_destroy(GameObject* obj)
 {
-    list_remove(&global_levelobjects, obj);
+    free(list_remove(&global_levelobjects, obj));
     free(obj);
 }
 
