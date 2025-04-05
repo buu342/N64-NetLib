@@ -309,4 +309,13 @@
     
     extern void netlib_readbytes(byte* output, size_t size);
     
+    
+    /*==============================
+        netlib_skipbytes
+        Skips a number of bytes from the received net packet
+        @param The number of bytes to skip
+    ==============================*/
+    
+    extern void netlib_skipbytes(size_t count);
+    
 #endif

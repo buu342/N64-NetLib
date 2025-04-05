@@ -582,3 +582,15 @@ void netlib_readbytes(byte* output, size_t size)
 {
     usb_read(output, size);
 }
+    
+    
+/*==============================
+    netlib_skipbytes
+    Skips a number of bytes from the received net packet
+    @param The number of bytes to skip
+==============================*/
+
+void netlib_skipbytes(size_t count)
+{
+    usb_skip(count);
+}
