@@ -156,24 +156,42 @@ static void packet_readobjectupdate(GameObject* obj, size_t size)
         switch (datatype)
         {
             case 0:
-                obj->oldpos.x = obj->pos.x;
-                obj->oldpos.y = obj->pos.y;
-                netlib_readfloat(&obj->pos.x);
-                netlib_readfloat(&obj->pos.y);
+                if (obj != NULL)
+                {
+                    obj->oldpos.x = obj->pos.x;
+                    obj->oldpos.y = obj->pos.y;
+                    netlib_readfloat(&obj->pos.x);
+                    netlib_readfloat(&obj->pos.y);
+                }
+                else
+                    netlib_skipbytes(sizeof(f32)*2);
                 size -= sizeof(f32)*2;
                 break;
             case 1:
-                netlib_readfloat(&obj->dir.x);
-                netlib_readfloat(&obj->dir.y);
+                if (obj != NULL)
+                {
+                    netlib_readfloat(&obj->dir.x);
+                    netlib_readfloat(&obj->dir.y);
+                }
+                else
+                    netlib_skipbytes(sizeof(f32)*2);
                 size -= sizeof(f32)*2;
                 break;
             case 2:
-                netlib_readfloat(&obj->size.x);
-                netlib_readfloat(&obj->size.y);
+                if (obj != NULL)
+                {
+                    netlib_readfloat(&obj->size.x);
+                    netlib_readfloat(&obj->size.y);
+                }
+                else
+                    netlib_skipbytes(sizeof(f32)*2);
                 size -= sizeof(f32)*2;
                 break;
             case 3:
-                netlib_readfloat(&obj->speed);
+                if (obj != NULL)
+                    netlib_readfloat(&obj->speed);
+                else
+                    netlib_skipbytes(sizeof(f32));
                 size -= sizeof(u32);
                 break;
         }
@@ -255,19 +273,26 @@ static void netcallback_createobject(size_t size)
 
 static void netcallback_updateobject(size_t size)
 {
-    u32 id;
-    GameObject* obj;
+    u8 objcount;
     
-    // Get the affected object's ID
-    netlib_readdword((u32*)&id);
-    size -= sizeof(u32);
+    // Read the object count
+    netlib_readbyte((u8*)&objcount);
     
-    // Find the object
-    obj = objects_findbyid(id);
-    if (obj == NULL)
-        return;
-    
-    packet_readobjectupdate(obj, size);
+    // Read each object's data
+    while (objcount > 0)
+    {
+        u32 id;
+        GameObject* obj;
+        
+        // Get the affected object's ID
+        netlib_readdword((u32*)&id);
+        obj = objects_findbyid(id);
+        size -= sizeof(u32);
+        
+        // Update the object and handle the next one
+        packet_readobjectupdate(obj, size);
+        objcount--;
+    }
 }
 
 
@@ -279,24 +304,31 @@ static void netcallback_updateobject(size_t size)
 
 static void netcallback_updateplayer(size_t size)
 {
-    u8 plynum;
-    u64 time;
-    static u64 lasttime = 0;
+    u8 objcount;
     
-    // Get the affected object's ID
-    netlib_readbyte(&plynum);
-    size -= sizeof(u8);
-    netlib_readqword(&time);
-    size -= sizeof(u64);
+    // Read the object count
+    netlib_readbyte((u8*)&objcount);
     
-    // Read the object update data if it makes sense to
-    if (time > lasttime)
+    // Read each object's data
+    while (objcount > 0)
     {
-        GameObject* obj = global_players[plynum-1].obj;
-        if (obj == NULL)
-            return;
+        u8 plynum;
+        u64 time;
+        GameObject* obj;
+        
+        // Get the affected player's object
+        netlib_readbyte(&plynum);
+        obj = global_players[plynum-1].obj;
+        size -= sizeof(u8);
+        
+        // Read the player update data
+        netlib_readqword(&time);
+        size -= sizeof(u64);
         packet_readobjectupdate(obj, size);
-        stage_game_ackinput(time, obj->pos);
-        lasttime = time;
+        
+        // Acknowledge the input if the player is us, then handle the next player
+        if (obj != NULL && plynum == netlib_getclient())
+            stage_game_ackinput(time, obj->pos);
+        objcount--;
     }
 }
