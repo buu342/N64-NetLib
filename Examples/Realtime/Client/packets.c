@@ -276,7 +276,8 @@ static void netcallback_updateobject(size_t size)
     u8 objcount;
     
     // Read the object count
-    netlib_readbyte((u8*)&objcount);
+    netlib_readbyte(&objcount);
+    size -= sizeof(u8);
     
     // Read each object's data
     while (objcount > 0)
@@ -285,9 +286,9 @@ static void netcallback_updateobject(size_t size)
         GameObject* obj;
         
         // Get the affected object's ID
-        netlib_readdword((u32*)&id);
-        obj = objects_findbyid(id);
+        netlib_readdword(&id);
         size -= sizeof(u32);
+        obj = objects_findbyid(id);
         
         // Update the object and handle the next one
         packet_readobjectupdate(obj, size);
@@ -307,7 +308,8 @@ static void netcallback_updateplayer(size_t size)
     u8 objcount;
     
     // Read the object count
-    netlib_readbyte((u8*)&objcount);
+    netlib_readbyte(&objcount);
+    size -= sizeof(u8);
     
     // Read each object's data
     while (objcount > 0)
@@ -318,8 +320,8 @@ static void netcallback_updateplayer(size_t size)
         
         // Get the affected player's object
         netlib_readbyte(&plynum);
-        obj = global_players[plynum-1].obj;
         size -= sizeof(u8);
+        obj = global_players[plynum-1].obj;
         
         // Read the player update data
         netlib_readqword(&time);

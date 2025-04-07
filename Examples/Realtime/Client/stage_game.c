@@ -88,7 +88,6 @@ void stage_game_init(void)
 
 void stage_game_update(float dt)
 {
-    u8 refreshtext = FALSE;
     OSTime curtime = osGetTime();
     GameObject* plyobj = global_players[netlib_getclient()-1].obj;
     InputToAck* in;
@@ -124,7 +123,6 @@ void stage_game_update(float dt)
             global_prediction = TRUE;
         else if (!global_reconciliation && global_inputstoack.size > 0)
             list_destroy_deep(&global_inputstoack);
-        refreshtext = TRUE;
     }
     if (global_contdata.trigger & L_TRIG)
     {
@@ -133,13 +131,9 @@ void stage_game_update(float dt)
             global_reconciliation = FALSE;
         if (!global_reconciliation && global_inputstoack.size > 0)
             list_destroy_deep(&global_inputstoack);
-        refreshtext = TRUE;
     }
     if (global_contdata.trigger & Z_TRIG)
-    {
         global_interpolation = !global_interpolation;
-        refreshtext = TRUE;
-    }
     
     // Send the client input to the server every 15hz (if you do too high a rate, you risk flooding the USB/router)
     if (global_nextsend < curtime)
@@ -171,9 +165,8 @@ void stage_game_update(float dt)
             list_destroy_deep(&global_inputstosend);
     }
     
-    // Refresh debug text if necessary
-    //if (refreshtext)
-        stage_game_updatetext();
+    // Refresh debug text
+    stage_game_updatetext();
 }
 
 
