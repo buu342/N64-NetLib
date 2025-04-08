@@ -305,17 +305,22 @@ static void netcallback_updateobject(size_t size)
 
 static void netcallback_updateplayer(size_t size)
 {
+    GameObject* clobj;
     u8 objcount;
+    u64 time;
     
     // Read the object count
     netlib_readbyte(&objcount);
     size -= sizeof(u8);
     
+    // Read the last acknowledged input time
+    netlib_readqword(&time);
+    size -= sizeof(u64);
+    
     // Read each object's data
     while (objcount > 0)
     {
         u8 plynum;
-        u64 time;
         GameObject* obj;
         
         // Get the affected player's object
@@ -324,13 +329,11 @@ static void netcallback_updateplayer(size_t size)
         obj = global_players[plynum-1].obj;
         
         // Read the player update data
-        netlib_readqword(&time);
-        size -= sizeof(u64);
         packet_readobjectupdate(obj, size);
-        
-        // Acknowledge the input if the player is us, then handle the next player
-        if (obj != NULL && plynum == netlib_getclient())
-            stage_game_ackinput(time, obj->pos);
         objcount--;
     }
+    
+    // Acknowledge our last input
+    clobj = global_players[netlib_getclient()-1].obj;
+    stage_game_ackinput(time, clobj->pos);
 }

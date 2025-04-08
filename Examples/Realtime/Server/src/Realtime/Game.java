@@ -137,49 +137,61 @@ public class Game implements Runnable  {
             int objcount = 0;
             ByteArrayOutputStream bytes = new ByteArrayOutputStream();
             bytes.write(ByteBuffer.allocate(1).put((byte)0).array()); // First byte is object count. We will fill this in later
+            bytes.write(ByteBuffer.allocate(8).putLong(0).array()); // Next 8 bytes is the last acknowledged input for a player. Will also be filled later
             
+            // Check each player for status changes
             for (Player ply : this.players) {
                 if (ply != null) {
-                        ByteArrayOutputStream thisbytes = new ByteArrayOutputStream();
-                        GameObject obj = ply.GetObject();
-                        thisbytes.write(ByteBuffer.allocate(1).put((byte)ply.GetNumber()).array());
-                        thisbytes.write(ByteBuffer.allocate(8).putLong(ply.GetLastUpdate()).array());
-        	        	if (obj.GetPos().GetX() != obj.GetPos().GetPreviousX() || obj.GetPos().GetY() != obj.GetPos().GetPreviousY()) {
-        	        	    thisbytes.write(ByteBuffer.allocate(1).put((byte)0).array());
-        	        	    thisbytes.write(ByteBuffer.allocate(4).putFloat(obj.GetPos().GetX()).array());
-        	        	    thisbytes.write(ByteBuffer.allocate(4).putFloat(obj.GetPos().GetY()).array());
-        	        	}
-        	        	if (obj.GetDirection().GetX() != obj.GetDirection().GetPreviousX() || obj.GetDirection().GetY() != obj.GetDirection().GetPreviousY()) {
-        	        	    thisbytes.write(ByteBuffer.allocate(1).put((byte)1).array());
-        					thisbytes.write(ByteBuffer.allocate(4).putFloat(obj.GetDirection().GetX()).array());
-        					thisbytes.write(ByteBuffer.allocate(4).putFloat(obj.GetDirection().GetY()).array());
-        	        	}
-        	        	if (obj.GetSize().GetX() != obj.GetSize().GetPreviousX() || obj.GetSize().GetY() != obj.GetSize().GetPreviousY()) {
-        	        	    thisbytes.write(ByteBuffer.allocate(1).put((byte)2).array());
-        	        	    thisbytes.write(ByteBuffer.allocate(4).putFloat(obj.GetSize().GetX()).array());
-        	        	    thisbytes.write(ByteBuffer.allocate(4).putFloat(obj.GetSize().GetY()).array());
-        	        	}
-        	        	if (obj.GetOldSpeed() != obj.GetSpeed()) {
-        	        	    thisbytes.write(ByteBuffer.allocate(1).put((byte)3).array());
-        	        	    thisbytes.write(ByteBuffer.allocate(4).putFloat(obj.GetSpeed()).array());
-        	        	}
-        	        	
-        	        	// Only attach this to the output buffer if we actually have stuff to network
-        	        	if (thisbytes.size() > 10) {
-        	        	    bytes.write(thisbytes.toByteArray());
-        	        	    objcount++;
-        	        	}
+                    ByteArrayOutputStream thisbytes = new ByteArrayOutputStream();
+                    GameObject obj = ply.GetObject();
+                    thisbytes.write(ByteBuffer.allocate(1).put((byte)ply.GetNumber()).array());
+    	        	if (obj.GetPos().GetX() != obj.GetPos().GetPreviousX() || obj.GetPos().GetY() != obj.GetPos().GetPreviousY()) {
+    	        	    thisbytes.write(ByteBuffer.allocate(1).put((byte)0).array());
+    	        	    thisbytes.write(ByteBuffer.allocate(4).putFloat(obj.GetPos().GetX()).array());
+    	        	    thisbytes.write(ByteBuffer.allocate(4).putFloat(obj.GetPos().GetY()).array());
+    	        	}
+    	        	if (obj.GetDirection().GetX() != obj.GetDirection().GetPreviousX() || obj.GetDirection().GetY() != obj.GetDirection().GetPreviousY()) {
+    	        	    thisbytes.write(ByteBuffer.allocate(1).put((byte)1).array());
+    					thisbytes.write(ByteBuffer.allocate(4).putFloat(obj.GetDirection().GetX()).array());
+    					thisbytes.write(ByteBuffer.allocate(4).putFloat(obj.GetDirection().GetY()).array());
+    	        	}
+    	        	if (obj.GetSize().GetX() != obj.GetSize().GetPreviousX() || obj.GetSize().GetY() != obj.GetSize().GetPreviousY()) {
+    	        	    thisbytes.write(ByteBuffer.allocate(1).put((byte)2).array());
+    	        	    thisbytes.write(ByteBuffer.allocate(4).putFloat(obj.GetSize().GetX()).array());
+    	        	    thisbytes.write(ByteBuffer.allocate(4).putFloat(obj.GetSize().GetY()).array());
+    	        	}
+    	        	if (obj.GetOldSpeed() != obj.GetSpeed()) {
+    	        	    thisbytes.write(ByteBuffer.allocate(1).put((byte)3).array());
+    	        	    thisbytes.write(ByteBuffer.allocate(4).putFloat(obj.GetSpeed()).array());
+    	        	}
+    	        	
+    	        	// Only attach this to the output buffer if we actually have stuff to network
+    	        	if (thisbytes.size() > 4) {
+    	        	    bytes.write(thisbytes.toByteArray());
+    	        	    objcount++;
+    	        	}
                 }
             }
-            
-            // Send if something was updated
-            if (objcount > 0) {
-                for (Player ply2send : this.players) {
-                    if (ply2send != null) {
-                        byte finalarray[] = bytes.toByteArray();
-                        finalarray[0] = (byte)objcount; // Correct the object count
-                        ply2send.SendMessage(null, new NetLibPacket(PacketIDs.PACKETID_PLAYERUPDATE.GetInt(), finalarray));
-                    }
+
+            // Send everyone the updates + input acks
+            for (Player ply2send : this.players) {
+                if (ply2send != null) {
+                    ByteBuffer updbytes = ByteBuffer.allocate(8);
+                    byte finalarray[] = bytes.toByteArray();
+                    byte longarr[];
+                    
+                    // Correct the object count
+                    finalarray[0] = (byte)objcount; 
+                    
+                    // Correct the last player input
+                    System.out.println("Last update was "+ply2send.GetLastUpdate());
+                    updbytes.putLong(ply2send.GetLastUpdate());
+                    longarr = updbytes.array();
+                    for (int i=0; i<8; i++)
+                        finalarray[i] = longarr[i];
+                    
+                    // Send the packet
+                    ply2send.SendMessage(null, new NetLibPacket(PacketIDs.PACKETID_PLAYERUPDATE.GetInt(), finalarray));
                 }
             }
         } catch (IOException e) {
@@ -215,7 +227,7 @@ public class Game implements Runnable  {
                 }
                 
                 // Only attach this to the output buffer if we actually have stuff to network
-                if (thisbytes.size() > 4) {
+                if (thisbytes.size() > 5) {
                     bytes.write(thisbytes.toByteArray());
                     objcount++;
                 }
@@ -223,10 +235,10 @@ public class Game implements Runnable  {
 
             // Send if something was updated
             if (objcount > 0) {
+                byte finalarray[] = bytes.toByteArray();
+                finalarray[0] = (byte)objcount; // Correct the object count
                 for (Player ply : this.players) {
                     if (ply != null) {
-                        byte finalarray[] = bytes.toByteArray();
-                        finalarray[0] = (byte)objcount; // Correct the object count
                         ply.SendMessage(null, new NetLibPacket(PacketIDs.PACKETID_OBJECTUPDATE.GetInt(), finalarray));
                     }
                 }

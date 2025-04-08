@@ -159,6 +159,12 @@ void stage_game_update(float dt)
         if (global_reconciliation)
         {
             list_combine(&global_inputstoack, &global_inputstosend);
+            while (global_inputstoack.size > MAXPACKETSTOACK)
+            {
+                InputToAck* inclean = global_inputstoack.head->data;
+                free(list_remove(&global_inputstoack, inclean));
+                free(inclean);
+            }
             global_inputstosend = EMPTY_LINKEDLIST;
         }
         else // Otherwise just destroy the data to free the memory
@@ -265,9 +271,10 @@ void stage_game_cleanup(void)
 /*==============================
     TODO
 ==============================*/
-
+#include "usb.h"
 void stage_game_ackinput(OSTime time, Vector2D pos)
 {
+
     if (global_reconciliation)
     {
         GameObject* plyobj = global_players[netlib_getclient()-1].obj;
