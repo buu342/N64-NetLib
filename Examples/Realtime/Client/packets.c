@@ -305,9 +305,9 @@ static void netcallback_updateobject(size_t size)
 
 static void netcallback_updateplayer(size_t size)
 {
-    GameObject* clobj;
     u8 objcount;
     u64 time;
+    GameObject* clobj = global_players[netlib_getclient()-1].obj;
     
     // Read the object count
     netlib_readbyte(&objcount);
@@ -334,6 +334,5 @@ static void netcallback_updateplayer(size_t size)
     }
     
     // Acknowledge our last input
-    clobj = global_players[netlib_getclient()-1].obj;
     stage_game_ackinput(time, clobj->pos);
 }

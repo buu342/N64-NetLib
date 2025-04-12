@@ -563,7 +563,7 @@ void* DeviceThread::Entry()
                     }
                 }
                 rompath = "";
-                this->m_UploadThread->Wait();
+                this->m_UploadThread->Wait(); // TODO: 64Drive upload can get stuck, causing this thread join to freeze the server browser
                 delete this->m_UploadThread;
                 this->m_UploadThread = NULL;
                 this->SetClientDeviceStatus(CLSTATUS_UPLOADDONE);

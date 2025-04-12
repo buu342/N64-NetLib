@@ -77,15 +77,21 @@ void ASIOSocket::Read(uint8_t* buff, size_t size)
     asio::error_code error;
     udp::endpoint sendpoint;
     this->m_LastReadCount = this->m_Socket->receive_from(asio::buffer(buff, size), sendpoint, 0, error);
-    if (this->m_LastReadCount != 0)
-        printf("Read %ld bytes from %s:%d\n", this->m_LastReadCount, (const char*)this->m_Address.mb_str(), this->m_Port);
+    #if DEBUGPRINTS
+        if (this->m_LastReadCount != 0)
+            printf("Read %ld bytes from %s:%d\n", this->m_LastReadCount, (const char*)this->m_Address.mb_str(), this->m_Port);
+    #endif
 }
 
 void ASIOSocket::Send(wxString address, int port, uint8_t* buff, size_t size)
 {
     udp::resolver::results_type endp = this->m_Resolver->resolve(udp::v4(), address.ToStdString(), wxString::Format(wxT("%d"), (int)port).ToStdString());
     size_t sent = this->m_Socket->send_to(asio::buffer(buff, size), *(endp.begin()));
-    printf("Sent %ld bytes to %s:%d\n", sent, (const char*)address.mb_str(), port);
+    #if DEBUGPRINTS
+        printf("Sent %ld bytes to %s:%d\n", sent, (const char*)address.mb_str(), port);
+    #else
+        (void)sent;
+    #endif
 }
 
 size_t ASIOSocket::LastReadCount()
@@ -204,7 +210,6 @@ static AbstractPacket* MakeAck_NetLibPacket()
 
 UDPHandler::UDPHandler(ASIOSocket* socket, wxString address, int port)
 {
-    printf("Creating UDP handler for %s:%d\n", static_cast<const char*>(address.c_str()), port);
     this->m_Socket = socket;
     this->m_Address = address;
     this->m_Port = port;
@@ -213,7 +218,9 @@ UDPHandler::UDPHandler(ASIOSocket* socket, wxString address, int port)
     this->m_AckBitfield = 0;
     this->m_AcksLeft_RX = std::deque<AbstractPacket*>();
     this->m_AcksLeft_TX = std::deque<AbstractPacket*>();
-    printf("Created UDP handler for %s:%d\n", static_cast<const char*>(address.c_str()), port);
+    #if DEBUGPRINTS
+        printf("Created UDP handler for %s:%d\n", static_cast<const char*>(address.c_str()), port);
+    #endif
 }
 
 
@@ -226,7 +233,6 @@ UDPHandler::UDPHandler(ASIOSocket* socket, wxString address, int port)
 
 UDPHandler::UDPHandler(ASIOSocket* socket, wxString fulladdress)
 {
-    printf("Creating UDP handler for %s\n", static_cast<const char*>(fulladdress.c_str()));
     wxStringTokenizer tokenizer(fulladdress, ":");
     this->m_Address = tokenizer.GetNextToken();
     if (tokenizer.HasMoreTokens())
@@ -237,7 +243,9 @@ UDPHandler::UDPHandler(ASIOSocket* socket, wxString fulladdress)
     this->m_AckBitfield = 0;
     this->m_AcksLeft_RX = std::deque<AbstractPacket*>();
     this->m_AcksLeft_TX = std::deque<AbstractPacket*>();
-    printf("Created UDP handler for %s\n", static_cast<const char*>(fulladdress.c_str()));
+    #if DEBUGPRINTS
+        printf("Created UDP handler for %s\n", static_cast<const char*>(fulladdress.c_str()));
+    #endif
 }
 
 
@@ -248,12 +256,13 @@ UDPHandler::UDPHandler(ASIOSocket* socket, wxString fulladdress)
 
 UDPHandler::~UDPHandler()
 {
-    printf("Destroying UDP handler for %s:%d\n", static_cast<const char*>(this->m_Address.c_str()), this->m_Port);
     for (AbstractPacket* pkt : this->m_AcksLeft_RX)
         free(pkt);
     for (AbstractPacket* pkt : this->m_AcksLeft_TX)
         free(pkt);
-    printf("Destroyed UDP handler for %s:%d\n", static_cast<const char*>(this->m_Address.c_str()), this->m_Port);
+    #if DEBUGPRINTS
+        printf("Destroyed UDP handler for %s:%d\n", static_cast<const char*>(this->m_Address.c_str()), this->m_Port);
+    #endif
 }
 
 

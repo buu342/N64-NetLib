@@ -15,7 +15,7 @@ TODO
 #include "objects.h"
 
 #define INPUTRATE        15.0f
-#define MAXPACKETSTOACK  (INPUTRATE*5*2)
+#define MAXPACKETSTOACK  100
 
 static NUContData global_contdata;
 
@@ -111,9 +111,11 @@ void stage_game_update(float dt)
     list_append(&global_inputstosend, in);
 
     // Predict the player's movement before the server updates our position
-    objects_applycont(plyobj, global_contdata);
     if (global_prediction)
+    {
+        objects_applycont(plyobj, global_contdata);
         objects_applyphys(plyobj, dt);
+    }
     
     // Handle toggling of different clientside improvements
     if (global_contdata.trigger & R_TRIG)
@@ -271,10 +273,9 @@ void stage_game_cleanup(void)
 /*==============================
     TODO
 ==============================*/
-#include "usb.h"
+
 void stage_game_ackinput(OSTime time, Vector2D pos)
 {
-
     if (global_reconciliation)
     {
         GameObject* plyobj = global_players[netlib_getclient()-1].obj;
