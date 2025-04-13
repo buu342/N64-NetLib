@@ -2,6 +2,7 @@
 #define REALTIME_OBJECTS_H
 
     #include <nusys.h>
+    #include "config.h"
     #include "datastructs.h"
     #include "mathtypes.h"
 
@@ -19,13 +20,14 @@
     
     typedef struct {
         u32 id;
-        Vector2D oldpos;
+        Vector2D oldpos[CLIENTLAG];
         Vector2D pos;
         Vector2D dir;
         Vector2D size;
         float speed;
         Color col;
         u8 bounce;
+        OSTime lastupdate;
     } GameObject;
 
     

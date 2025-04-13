@@ -112,6 +112,9 @@ public class Game implements Runnable  {
                                 obj.SetSpeed(((float)Math.sqrt(stickx*stickx + sticky*sticky)/MAXSTICK)*MAXSPEED);
                                 sender.SetLastUpdate(sendtime);
                                 this.ApplyObjectPhysics(obj, fdt);
+                                // To prevent cheating, you should check the total fdt in this packet and ensure it makes sense given how much
+                                // time elapsed since the last message from the player. That will prevent hacked clients from providing huge fdt
+                                // values so that they can move faster than others.
                             }
                         }
                     }
@@ -166,7 +169,7 @@ public class Game implements Runnable  {
     	        	}
     	        	
     	        	// Only attach this to the output buffer if we actually have stuff to network
-    	        	if (thisbytes.size() > 4) {
+    	        	if (thisbytes.size() > 1) {
     	        	    bytes.write(thisbytes.toByteArray());
     	        	    objcount++;
     	        	}
@@ -184,11 +187,10 @@ public class Game implements Runnable  {
                     finalarray[0] = (byte)objcount; 
                     
                     // Correct the last player input
-                    System.out.println("Last update was "+ply2send.GetLastUpdate());
                     updbytes.putLong(ply2send.GetLastUpdate());
                     longarr = updbytes.array();
                     for (int i=0; i<8; i++)
-                        finalarray[i] = longarr[i];
+                        finalarray[i+1] = longarr[i];
                     
                     // Send the packet
                     ply2send.SendMessage(null, new NetLibPacket(PacketIDs.PACKETID_PLAYERUPDATE.GetInt(), finalarray));
@@ -203,6 +205,7 @@ public class Game implements Runnable  {
             int objcount = 0;
             ByteArrayOutputStream bytes = new ByteArrayOutputStream();
             bytes.write(ByteBuffer.allocate(1).put((byte)0).array()); // First byte is object count. We will fill this in later
+            bytes.write(ByteBuffer.allocate(8).putLong(this.gametime).array());
             for (GameObject obj : this.objs) {
                 ByteArrayOutputStream thisbytes = new ByteArrayOutputStream();
                 thisbytes.write(ByteBuffer.allocate(4).putInt(obj.GetID()).array());
@@ -227,7 +230,7 @@ public class Game implements Runnable  {
                 }
                 
                 // Only attach this to the output buffer if we actually have stuff to network
-                if (thisbytes.size() > 5) {
+                if (thisbytes.size() > 4) {
                     bytes.write(thisbytes.toByteArray());
                     objcount++;
                 }
@@ -235,8 +238,14 @@ public class Game implements Runnable  {
 
             // Send if something was updated
             if (objcount > 0) {
+                ByteBuffer updbytes = ByteBuffer.allocate(8);
                 byte finalarray[] = bytes.toByteArray();
-                finalarray[0] = (byte)objcount; // Correct the object count
+                byte longarr[];
+                
+                // Correct the object count
+                finalarray[0] = (byte)objcount; 
+                
+                // Send the data to all players
                 for (Player ply : this.players) {
                     if (ply != null) {
                         ply.SendMessage(null, new NetLibPacket(PacketIDs.PACKETID_OBJECTUPDATE.GetInt(), finalarray));

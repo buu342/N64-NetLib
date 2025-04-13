@@ -21,17 +21,6 @@ Program entrypoint.
               Macros
 *********************************/
 
-// In a real game, you would have the server send this value during connection
-// I'm forgoing that just for simplification reasons
-#define SERVERTICKRATE  5.0f
-#define DELTATIME       1.0f/((float)SERVERTICKRATE)
-
-// Helper macros
-#define SEC_TO_USEC(a)   (((f64)a)*1000000.0f)
-#define MSEC_TO_USEC(a)  (((f64)a)*1000.0f)
-#define USEC_TO_MSEC(a)  (((f64)a)/1000.0f)
-#define USEC_TO_SEC(a)   (((f64)a)/1000000.0f)
-
 
 /*********************************
         Function Prototypes
@@ -54,7 +43,6 @@ static char heapmem[1024*512];
 static volatile StageNum global_curstage = STAGE_INIT;
 static volatile StageNum global_nextstage = STAGE_NONE;
 static StageDef global_stagetable[STAGE_COUNT];
-static float  global_subtick;
 
 
 /*==============================
@@ -164,9 +152,6 @@ static void callback_vsync(int tasksleft)
         accumulator -= dt;
     }
     
-    // Calculate the subtick
-    global_subtick = ((f64)accumulator)/((f64)dt);
-    
     // Perform the un-fixed stage update
     global_stagetable[global_curstage].funcptr_update(USEC_TO_SEC(OS_CYCLES_TO_USEC(frametime)));
     
@@ -226,17 +211,6 @@ void stages_changeto(StageNum num)
 StageNum stages_getcurrent()
 {
     return global_curstage;
-}
-
-
-/*==============================
-    stages_getsubtick
-    TODO
-==============================*/
-
-float stages_getsubtick()
-{
-    return global_subtick;
 }
 
 

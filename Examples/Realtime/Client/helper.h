@@ -1,5 +1,20 @@
 #ifndef REALTIME_HELPER_H
 #define REALTIME_HELPER_H
+
+    /*********************************
+                  Macros
+    *********************************/
+    
+    #ifndef MIN
+        #define MIN(a, b) (((a) < (b)) ? (a) : (b))
+        #define MAX(a, b) (((a) > (b)) ? (a) : (b))
+    #endif
+    #define CLAMP(val, min, max) (MAX(min, MIN(max, val)))
+    
+    #define SEC_TO_USEC(a)   (((f64)a)*1000000.0f)
+    #define MSEC_TO_USEC(a)  (((f64)a)*1000.0f)
+    #define USEC_TO_MSEC(a)  (((f64)a)/1000.0f)
+    #define USEC_TO_SEC(a)   (((f64)a)/1000000.0f)
     
 
     /*********************************

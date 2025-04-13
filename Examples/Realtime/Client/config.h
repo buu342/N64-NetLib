@@ -20,6 +20,14 @@
     // Array sizes
     #define GLIST_LENGTH 4096
     #define HEAP_LENGTH  1024
+
+    // In a real game, you would have the server send this value during connection
+    // I'm forgoing that just for simplification reasons
+    #define SERVERTICKRATE  5.0f
+    #define DELTATIME       1.0f/((float)SERVERTICKRATE)
+    
+    // Interpolation
+    #define CLIENTLAG  2 // How many ticks the client lags behind the server (should always be at least 1). The higher SERVERTICKRATE, the higher this should be
     
     // Controller config
     #define MAXSTICK 80

@@ -197,6 +197,7 @@ void stage_game_fixedupdate(float dt)
 void stage_game_draw(void)
 {
     int i;
+    OSTime curtime = osGetTime();
     listNode* listit;
     glistp = glist;
 
@@ -211,11 +212,30 @@ void stage_game_draw(void)
         GameObject* obj = (GameObject*)listit->data;
         gDPSetFillColor(glistp++, (GPACK_RGBA5551(obj->col.r, obj->col.g, obj->col.b, 1) << 16 | 
                                    GPACK_RGBA5551(obj->col.r, obj->col.g, obj->col.b, 1)));
-        if (global_interpolation)
+        if (global_interpolation && obj != global_players[netlib_getclient()-1].obj) // Interpolate if not the client (since there's no need to)
         {
-            float subtick = stages_getsubtick();
-            float xpos = flerp(obj->oldpos.x, obj->pos.x, subtick);
-            float ypos = flerp(obj->oldpos.y, obj->pos.y, subtick);
+            const double tickdelta = 1.0f/(OS_USEC_TO_CYCLES(SEC_TO_USEC(DELTATIME)));
+            OSTime timediff = (curtime - obj->lastupdate);
+            double ticklag = CLAMP(timediff*tickdelta, 0.0f, 2.0f);
+            int ticklagi = (int)ticklag;
+            Vector2D frompos, topos;
+            float xpos, ypos;
+            
+            // Calculate which object position timestamp to use
+            if (ticklag < 1.0f)
+            {
+                frompos = obj->oldpos[0];
+                topos = obj->pos;
+            }
+            else
+            {
+                frompos = obj->oldpos[ticklagi-2];
+                topos = obj->oldpos[ticklagi-1];
+            }
+            
+            // Draw the object at the interpolated position
+            xpos = flerp(frompos.x, topos.x, ticklag - ticklagi);
+            ypos = flerp(frompos.y, topos.y, ticklag - ticklagi);
             gDPFillRectangle(glistp++, 
                 xpos - (obj->size.x/2), ypos - (obj->size.y/2),
                 xpos + (obj->size.x/2), ypos + (obj->size.y/2)
@@ -297,6 +317,8 @@ void stage_game_ackinput(OSTime time, Vector2D pos)
         }
         
         // Set our pos to the acknowledged position
+        // For less "abrasive" correction, you should lerp to this value over some frames instead of setting it instantly.
+        // Like that the client won't just teleport if the prediction was off.
         global_lastackedpos = pos;
         plyobj->pos = global_lastackedpos;
         

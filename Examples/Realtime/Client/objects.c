@@ -158,6 +158,7 @@ void objects_applycont(GameObject* obj, NUContData contdata)
 
 void objects_applyphys(GameObject* obj, float dt)
 {
+    int i;
     Vector2D target_offset = (Vector2D){obj->dir.x*obj->speed*dt, obj->dir.y*obj->speed*dt};
     if (obj->pos.x + obj->size.x/2 + target_offset.x > 320)
     {
@@ -183,8 +184,13 @@ void objects_applyphys(GameObject* obj, float dt)
         if (obj->bounce)
             obj->dir.y = -obj->dir.y;
     }
-    obj->oldpos.x = obj->pos.x;
-    obj->oldpos.y = obj->pos.y;
+    for (i=CLIENTLAG-1; i>0; i--)
+    {
+        obj->oldpos[i].x = obj->oldpos[i-1].x;
+        obj->oldpos[i].y = obj->oldpos[i-1].y;
+    }
+    obj->oldpos[0].x = obj->pos.x;
+    obj->oldpos[0].y = obj->pos.y;
     obj->pos.x += target_offset.x;
     obj->pos.y += target_offset.y;
 }

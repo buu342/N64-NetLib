@@ -107,6 +107,7 @@ static void netcallback_clocksync(size_t size)
 
 static GameObject* packet_readobject()
 {
+    int i;
     u32 objid;
     GameObject* obj;
     
@@ -122,8 +123,11 @@ static GameObject* packet_readobject()
     // Assign the rest of the values
     netlib_readfloat(&obj->pos.x);
     netlib_readfloat(&obj->pos.y);
-    obj->oldpos.x = obj->pos.x;
-    obj->oldpos.y = obj->pos.y;
+    for (i=0; i<CLIENTLAG; i++)
+    {
+        obj->oldpos[i].x = obj->pos.x;
+        obj->oldpos[i].y = obj->pos.y;
+    }
     netlib_readfloat(&obj->dir.x);
     netlib_readfloat(&obj->dir.y);
     netlib_readfloat(&obj->size.x);
@@ -158,8 +162,14 @@ static void packet_readobjectupdate(GameObject* obj, size_t size)
             case 0:
                 if (obj != NULL)
                 {
-                    obj->oldpos.x = obj->pos.x;
-                    obj->oldpos.y = obj->pos.y;
+                    int i;
+                    for (i=CLIENTLAG-1; i>0; i--)
+                    {
+                        obj->oldpos[i].x = obj->oldpos[i-1].x;
+                        obj->oldpos[i].y = obj->oldpos[i-1].y;
+                    }
+                    obj->oldpos[0].x = obj->pos.x;
+                    obj->oldpos[0].y = obj->pos.y;
                     netlib_readfloat(&obj->pos.x);
                     netlib_readfloat(&obj->pos.y);
                 }
@@ -274,10 +284,17 @@ static void netcallback_createobject(size_t size)
 static void netcallback_updateobject(size_t size)
 {
     u8 objcount;
+    u64 time;
+    OSTime ctime;
     
     // Read the object count
     netlib_readbyte(&objcount);
     size -= sizeof(u8);
+    
+    // Read the update time
+    netlib_readqword(&time);
+    size -= sizeof(u64);
+    ctime = OS_NSEC_TO_CYCLES(time);
     
     // Read each object's data
     while (objcount > 0)
@@ -292,6 +309,8 @@ static void netcallback_updateobject(size_t size)
         
         // Update the object and handle the next one
         packet_readobjectupdate(obj, size);
+        if (obj != NULL)
+            obj->lastupdate = ctime;
         objcount--;
     }
 }
@@ -330,6 +349,8 @@ static void netcallback_updateplayer(size_t size)
         
         // Read the player update data
         packet_readobjectupdate(obj, size);
+        if (obj != NULL)
+            obj->lastupdate = time;
         objcount--;
     }
     

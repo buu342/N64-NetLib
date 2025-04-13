@@ -41,7 +41,6 @@
     *********************************/
 
     extern StageNum stages_getcurrent();
-    extern float stages_getsubtick();
     extern void stages_changeto(StageNum num);
 
     extern void stage_init_init();
