@@ -123,11 +123,8 @@ static GameObject* packet_readobject()
     // Assign the rest of the values
     netlib_readfloat(&obj->pos.x);
     netlib_readfloat(&obj->pos.y);
-    for (i=0; i<CLIENTLAG; i++)
-    {
-        obj->oldpos[i].x = obj->pos.x;
-        obj->oldpos[i].y = obj->pos.y;
-    }
+    for (i=0; i<TICKSTOKEEP; i++)
+        obj->oldpos[i] = obj->pos;
     netlib_readfloat(&obj->dir.x);
     netlib_readfloat(&obj->dir.y);
     netlib_readfloat(&obj->size.x);
@@ -163,13 +160,9 @@ static void packet_readobjectupdate(GameObject* obj, size_t size)
                 if (obj != NULL)
                 {
                     int i;
-                    for (i=CLIENTLAG-1; i>0; i--)
-                    {
-                        obj->oldpos[i].x = obj->oldpos[i-1].x;
-                        obj->oldpos[i].y = obj->oldpos[i-1].y;
-                    }
-                    obj->oldpos[0].x = obj->pos.x;
-                    obj->oldpos[0].y = obj->pos.y;
+                    for (i=TICKSTOKEEP-1; i>0; i--)
+                        obj->oldpos[i] = obj->oldpos[i-1];
+                    obj->oldpos[0] = obj->pos;
                     netlib_readfloat(&obj->pos.x);
                     netlib_readfloat(&obj->pos.y);
                 }

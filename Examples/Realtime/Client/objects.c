@@ -184,13 +184,9 @@ void objects_applyphys(GameObject* obj, float dt)
         if (obj->bounce)
             obj->dir.y = -obj->dir.y;
     }
-    for (i=CLIENTLAG-1; i>0; i--)
-    {
-        obj->oldpos[i].x = obj->oldpos[i-1].x;
-        obj->oldpos[i].y = obj->oldpos[i-1].y;
-    }
-    obj->oldpos[0].x = obj->pos.x;
-    obj->oldpos[0].y = obj->pos.y;
+    for (i=TICKSTOKEEP-1; i>0; i--)
+        obj->oldpos[i] = obj->oldpos[i-1];
+    obj->oldpos[0] = obj->pos;
     obj->pos.x += target_offset.x;
     obj->pos.y += target_offset.y;
 }

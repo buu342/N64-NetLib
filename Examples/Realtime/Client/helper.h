@@ -5,10 +5,6 @@
                   Macros
     *********************************/
     
-    #ifndef MIN
-        #define MIN(a, b) (((a) < (b)) ? (a) : (b))
-        #define MAX(a, b) (((a) > (b)) ? (a) : (b))
-    #endif
     #define CLAMP(val, min, max) (MAX(min, MIN(max, val)))
     
     #define SEC_TO_USEC(a)   (((f64)a)*1000000.0f)

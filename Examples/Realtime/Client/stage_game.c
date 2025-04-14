@@ -214,28 +214,15 @@ void stage_game_draw(void)
                                    GPACK_RGBA5551(obj->col.r, obj->col.g, obj->col.b, 1)));
         if (global_interpolation && obj != global_players[netlib_getclient()-1].obj) // Interpolate if not the client (since there's no need to)
         {
-            const double tickdelta = 1.0f/(OS_USEC_TO_CYCLES(SEC_TO_USEC(DELTATIME)));
-            OSTime timediff = (curtime - obj->lastupdate);
-            double ticklag = CLAMP(timediff*tickdelta, 0.0f, 2.0f);
-            int ticklagi = (int)ticklag;
-            Vector2D frompos, topos;
+            const OSTime tickdelta = OS_USEC_TO_CYCLES(SEC_TO_USEC(DELTATIME));
+            double timediff = ((double)(curtime - obj->lastupdate))/((double)tickdelta);
+            Vector2D frompos = obj->oldpos[1];
+            Vector2D topos = obj->oldpos[0];
             float xpos, ypos;
             
-            // Calculate which object position timestamp to use
-            if (ticklag < 1.0f)
-            {
-                frompos = obj->oldpos[0];
-                topos = obj->pos;
-            }
-            else
-            {
-                frompos = obj->oldpos[ticklagi-2];
-                topos = obj->oldpos[ticklagi-1];
-            }
-            
             // Draw the object at the interpolated position
-            xpos = flerp(frompos.x, topos.x, ticklag - ticklagi);
-            ypos = flerp(frompos.y, topos.y, ticklag - ticklagi);
+            xpos = flerp(frompos.x, topos.x, timediff);
+            ypos = flerp(frompos.y, topos.y, timediff);
             gDPFillRectangle(glistp++, 
                 xpos - (obj->size.x/2), ypos - (obj->size.y/2),
                 xpos + (obj->size.x/2), ypos + (obj->size.y/2)

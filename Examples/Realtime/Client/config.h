@@ -27,7 +27,7 @@
     #define DELTATIME       1.0f/((float)SERVERTICKRATE)
     
     // Interpolation
-    #define CLIENTLAG  2 // How many ticks the client lags behind the server (should always be at least 1). The higher SERVERTICKRATE, the higher this should be
+    #define TICKSTOKEEP  2 // Should be at least 2
     
     // Controller config
     #define MAXSTICK 80
