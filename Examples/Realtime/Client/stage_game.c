@@ -27,7 +27,6 @@ static bool global_interpolation;
 
 static linkedList global_inputstoack;
 static linkedList global_inputstosend;
-static Vector2D   global_lastackedpos;
 
 
 /*==============================
@@ -76,7 +75,6 @@ void stage_game_init(void)
     global_interpolation = FALSE;
     global_inputstoack = EMPTY_LINKEDLIST;
     global_inputstosend = EMPTY_LINKEDLIST;
-    global_lastackedpos = ((GameObject*)global_players[netlib_getclient()-1].obj)->pos;
     stage_game_updatetext();    
 }
 
@@ -84,6 +82,7 @@ void stage_game_init(void)
 /*==============================
     stage_game_update
     Update stage variables every frame
+    @param The deltatime (in seconds)
 ==============================*/
 
 void stage_game_update(float dt)
@@ -281,42 +280,28 @@ void stage_game_cleanup(void)
     TODO
 ==============================*/
 
-void stage_game_ackinput(OSTime time, Vector2D pos)
+void stage_game_ackinput(OSTime time, bool reconcile)
 {
     if (global_reconciliation)
     {
         GameObject* plyobj = global_players[netlib_getclient()-1].obj;
         listNode* node = global_inputstoack.head;
         
-        // Go through the packets, and remove any that are outdated
-        // Since this list is FIFO, as soon as we find a packet with a later time, we can stop
+        // Go through the packets, remove any that are acknowledged, and reapply the rest to reconcile the position
         while (node != NULL)
         {
             InputToAck* in = (InputToAck*)node->data;
+            node = node->next;
             if (in->time <= time)
-            {
+            {                
                 free(list_remove(&global_inputstoack, in));
                 free(in);
             }
-            else
-                break;
-            node = node->next;
-        }
-        
-        // Set our pos to the acknowledged position
-        // For less "abrasive" correction, you should lerp to this value over some frames instead of setting it instantly.
-        // Like that the client won't just teleport if the prediction was off.
-        global_lastackedpos = pos;
-        plyobj->pos = global_lastackedpos;
-        
-        // Now go through all packets that are yet to be acknowledged and reapply them to reconcile the position
-        node = global_inputstoack.head;
-        while (node != NULL)
-        {
-            InputToAck* in = (InputToAck*)node->data;
-            objects_applycont(plyobj, in->contdata);
-            objects_applyphys(plyobj, in->dt);
-            node = node->next;
+            else if (reconcile)
+            {
+                objects_applycont(plyobj, in->contdata);
+                objects_applyphys(plyobj, in->dt);
+            }
         }
     }
 }

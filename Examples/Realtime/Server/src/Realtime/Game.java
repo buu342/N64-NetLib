@@ -238,9 +238,7 @@ public class Game implements Runnable  {
 
             // Send if something was updated
             if (objcount > 0) {
-                ByteBuffer updbytes = ByteBuffer.allocate(8);
                 byte finalarray[] = bytes.toByteArray();
-                byte longarr[];
                 
                 // Correct the object count
                 finalarray[0] = (byte)objcount; 

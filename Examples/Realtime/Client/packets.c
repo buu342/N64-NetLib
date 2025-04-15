@@ -134,6 +134,7 @@ static GameObject* packet_readobject()
     netlib_readbyte(&obj->col.r);
     netlib_readbyte(&obj->col.g);
     netlib_readbyte(&obj->col.b);
+    obj->lastupdate = osGetTime();
     return obj;
 }
 
@@ -319,6 +320,7 @@ static void netcallback_updateplayer(size_t size)
 {
     u8 objcount;
     u64 time;
+    bool reconcile = FALSE;
     GameObject* clobj = global_players[netlib_getclient()-1].obj;
     
     // Read the object count
@@ -340,13 +342,22 @@ static void netcallback_updateplayer(size_t size)
         size -= sizeof(u8);
         obj = global_players[plynum-1].obj;
         
+        // If this object is the client, then we need to reconcile later
+        if (obj == clobj)
+            reconcile = TRUE;
+        
         // Read the player update data
+        // We pass in obj, even if null, so that it still reads the data from the packet (rather, skips the data)
         packet_readobjectupdate(obj, size);
         if (obj != NULL)
             obj->lastupdate = time;
+        
+        // Next object
         objcount--;
     }
-    
-    // Acknowledge our last input
-    stage_game_ackinput(time, clobj->pos);
+        
+    // Reconcile input
+    // For less "abrasive" correction, you should lerp to this value over some frames instead of setting it instantly.
+    // Like that the client won't just teleport if the prediction was off.
+    stage_game_ackinput(time, reconcile);
 }
