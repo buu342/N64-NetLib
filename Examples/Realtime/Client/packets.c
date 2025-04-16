@@ -121,20 +121,21 @@ static GameObject* packet_readobject()
     }
     
     // Assign the rest of the values
-    netlib_readfloat(&obj->pos.x);
-    netlib_readfloat(&obj->pos.y);
-    for (i=0; i<TICKSTOKEEP; i++)
-        obj->oldpos[i] = obj->pos;
-    netlib_readfloat(&obj->dir.x);
-    netlib_readfloat(&obj->dir.y);
-    netlib_readfloat(&obj->size.x);
-    netlib_readfloat(&obj->size.y);
-    netlib_readfloat(&obj->speed);
+    netlib_readfloat(&obj->sv_trans.pos.x);
+    netlib_readfloat(&obj->sv_trans.pos.y);
+    netlib_readfloat(&obj->sv_trans.dir.x);
+    netlib_readfloat(&obj->sv_trans.dir.y);
+    netlib_readfloat(&obj->sv_trans.size.x);
+    netlib_readfloat(&obj->sv_trans.size.y);
+    netlib_readfloat(&obj->sv_trans.speed);
     netlib_readbyte(&obj->bounce);
-    netlib_readbyte(&obj->col.r);
-    netlib_readbyte(&obj->col.g);
-    netlib_readbyte(&obj->col.b);
-    obj->lastupdate = osGetTime();
+    netlib_readbyte(&obj->sv_trans.col.r);
+    netlib_readbyte(&obj->sv_trans.col.g);
+    netlib_readbyte(&obj->sv_trans.col.b);
+    for (i=0; i<TICKSTOKEEP-1; i++)
+        obj->old_trans[i].timestamp = 0;
+    obj->sv_trans.timestamp = osGetTime();
+    objects_synctransforms(obj);
     return obj;
 }
 
@@ -148,7 +149,7 @@ static GameObject* packet_readobject()
 ==============================*/
 
 static void packet_readobjectupdate(GameObject* obj, size_t size)
-{
+{   
     // Read the data in the packet
     while (size > 0)
     {
@@ -161,11 +162,8 @@ static void packet_readobjectupdate(GameObject* obj, size_t size)
                 if (obj != NULL)
                 {
                     int i;
-                    for (i=TICKSTOKEEP-1; i>0; i--)
-                        obj->oldpos[i] = obj->oldpos[i-1];
-                    obj->oldpos[0] = obj->pos;
-                    netlib_readfloat(&obj->pos.x);
-                    netlib_readfloat(&obj->pos.y);
+                    netlib_readfloat(&obj->sv_trans.pos.x);
+                    netlib_readfloat(&obj->sv_trans.pos.y);
                 }
                 else
                     netlib_skipbytes(sizeof(f32)*2);
@@ -174,8 +172,8 @@ static void packet_readobjectupdate(GameObject* obj, size_t size)
             case 1:
                 if (obj != NULL)
                 {
-                    netlib_readfloat(&obj->dir.x);
-                    netlib_readfloat(&obj->dir.y);
+                    netlib_readfloat(&obj->sv_trans.dir.x);
+                    netlib_readfloat(&obj->sv_trans.dir.y);
                 }
                 else
                     netlib_skipbytes(sizeof(f32)*2);
@@ -184,8 +182,8 @@ static void packet_readobjectupdate(GameObject* obj, size_t size)
             case 2:
                 if (obj != NULL)
                 {
-                    netlib_readfloat(&obj->size.x);
-                    netlib_readfloat(&obj->size.y);
+                    netlib_readfloat(&obj->sv_trans.size.x);
+                    netlib_readfloat(&obj->sv_trans.size.y);
                 }
                 else
                     netlib_skipbytes(sizeof(f32)*2);
@@ -193,7 +191,7 @@ static void packet_readobjectupdate(GameObject* obj, size_t size)
                 break;
             case 3:
                 if (obj != NULL)
-                    netlib_readfloat(&obj->speed);
+                    netlib_readfloat(&obj->sv_trans.speed);
                 else
                     netlib_skipbytes(sizeof(f32));
                 size -= sizeof(u32);
@@ -302,9 +300,13 @@ static void netcallback_updateobject(size_t size)
         obj = objects_findbyid(id);
         
         // Update the object and handle the next one
+        objects_pusholdtransforms(obj);
         packet_readobjectupdate(obj, size);
         if (obj != NULL)
-            obj->lastupdate = ctime;
+        {
+            obj->sv_trans.timestamp = ctime;
+            objects_synctransforms(obj);
+        }
         objcount--;
     }
 }
@@ -348,16 +350,20 @@ static void netcallback_updateplayer(size_t size)
         
         // Read the player update data
         // We pass in obj, even if null, so that it still reads the data from the packet (rather, skips the data)
+        objects_pusholdtransforms(obj);
         packet_readobjectupdate(obj, size);
         if (obj != NULL)
-            obj->lastupdate = time;
+        {
+            obj->sv_trans.timestamp = time;
+            objects_synctransforms(obj);
+        }
         
         // Next object
         objcount--;
     }
         
     // Reconcile input
-    // For less "abrasive" correction, you should lerp to this value over some frames instead of setting it instantly.
+    // For less "abrasive" correction, you should lerp to the player's position over some frames instead of setting it instantly.
     // Like that the client won't just teleport if the prediction was off.
     stage_game_ackinput(time, reconcile);
 }

@@ -19,15 +19,20 @@
     } Player;
     
     typedef struct {
-        u32 id;
-        Vector2D oldpos[TICKSTOKEEP];
         Vector2D pos;
         Vector2D dir;
         Vector2D size;
         float speed;
         Color col;
+        OSTime timestamp;
+    } Transform;
+    
+    typedef struct {
+        u32 id;
         u8 bounce;
-        OSTime lastupdate;
+        Transform cl_trans;
+        Transform sv_trans;
+        Transform old_trans[TICKSTOKEEP];
     } GameObject;
 
     
@@ -55,5 +60,8 @@
     
     extern void objects_applycont(GameObject* obj, NUContData contdata);
     extern void objects_applyphys(GameObject* obj, float dt);
+    
+    extern void objects_pusholdtransforms(GameObject* obj);
+    extern void objects_synctransforms(GameObject* obj);
     
 #endif

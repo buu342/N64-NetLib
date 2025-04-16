@@ -56,7 +56,7 @@
     extern void stage_game_fixedupdate(float dt);
     extern void stage_game_draw();
     extern void stage_game_cleanup();
-    extern void stage_game_ackinput(OSTime time, bool reconcile);
+    extern void stage_game_ackinput(OSTime time, u8 reconcile);
 
     extern void stage_disconnected_init();
     extern void stage_disconnected_update(float dt);

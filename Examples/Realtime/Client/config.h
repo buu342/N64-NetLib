@@ -27,7 +27,8 @@
     #define DELTATIME       1.0f/((float)SERVERTICKRATE)
     
     // Interpolation
-    #define TICKSTOKEEP  2 // Should be at least 2
+    #define VIEWLAG      0.4f // Time (in seconds) that the view should be behind the server's
+    #define TICKSTOKEEP  5 // Should be at least 2, and enough to cover VIEWLAG
     
     // Controller config
     #define MAXSTICK 80

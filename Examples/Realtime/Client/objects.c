@@ -8,6 +8,7 @@ TODO
 #include <malloc.h>
 #include "objects.h"
 #include "config.h"
+#include "helper.h"
 
 
 /*********************************
@@ -147,8 +148,8 @@ void objects_applycont(GameObject* obj, NUContData contdata)
         contdata.stick_y = 0;
     else if (contdata.stick_y > MAXSTICK || contdata.stick_y < -MAXSTICK)
         contdata.stick_y = (contdata.stick_y > 0) ? MAXSTICK : -MAXSTICK;
-    obj->dir = vector_normalize((Vector2D){contdata.stick_x, -contdata.stick_y});
-    obj->speed = (sqrtf(contdata.stick_x*contdata.stick_x + contdata.stick_y*contdata.stick_y)/MAXSTICK)*MAXSPEED;
+    obj->cl_trans.dir = vector_normalize((Vector2D){contdata.stick_x, -contdata.stick_y});
+    obj->cl_trans.speed = (sqrtf(contdata.stick_x*contdata.stick_x + contdata.stick_y*contdata.stick_y)/MAXSTICK)*MAXSPEED;
 }
 
 
@@ -159,34 +160,78 @@ void objects_applycont(GameObject* obj, NUContData contdata)
 void objects_applyphys(GameObject* obj, float dt)
 {
     int i;
-    Vector2D target_offset = (Vector2D){obj->dir.x*obj->speed*dt, obj->dir.y*obj->speed*dt};
-    if (obj->pos.x + obj->size.x/2 + target_offset.x > 320)
+    Vector2D target_offset = (Vector2D){obj->cl_trans.dir.x*obj->cl_trans.speed*dt, obj->cl_trans.dir.y*obj->cl_trans.speed*dt};
+    if (obj->cl_trans.pos.x + obj->cl_trans.size.x/2 + target_offset.x > 320)
     {
-        target_offset.x = target_offset.x - 2*((obj->pos.x + obj->size.x/2 + target_offset.x) - 320);
+        target_offset.x = target_offset.x - 2*((obj->cl_trans.pos.x + obj->cl_trans.size.x/2 + target_offset.x) - 320);
         if (obj->bounce)
-            obj->dir.x = -obj->dir.x;
+            obj->cl_trans.dir.x = -obj->cl_trans.dir.x;
     }
-    if (obj->pos.x - obj->size.x/2 + target_offset.x < 0)
+    if (obj->cl_trans.pos.x - obj->cl_trans.size.x/2 + target_offset.x < 0)
     {
-        target_offset.x = target_offset.x - 2*((obj->pos.x - obj->size.x/2 + target_offset.x) - 0);
+        target_offset.x = target_offset.x - 2*((obj->cl_trans.pos.x - obj->cl_trans.size.x/2 + target_offset.x) - 0);
         if (obj->bounce)
-            obj->dir.x = -obj->dir.x;
+            obj->cl_trans.dir.x = -obj->cl_trans.dir.x;
     }
-    if (obj->pos.y + obj->size.y/2 + target_offset.y > 240)
+    if (obj->cl_trans.pos.y + obj->cl_trans.size.y/2 + target_offset.y > 240)
     {
-        target_offset.y = target_offset.y - 2*((obj->pos.y + obj->size.y/2 + target_offset.y) - 240);
+        target_offset.y = target_offset.y - 2*((obj->cl_trans.pos.y + obj->cl_trans.size.y/2 + target_offset.y) - 240);
         if (obj->bounce)
-            obj->dir.y = -obj->dir.y;
+            obj->cl_trans.dir.y = -obj->cl_trans.dir.y;
     }
-    if (obj->pos.y - obj->size.y/2 + target_offset.y < 0)
+    if (obj->cl_trans.pos.y - obj->cl_trans.size.y/2 + target_offset.y < 0)
     {
-        target_offset.y =target_offset.y - 2*((obj->pos.y - obj->size.y/2 + target_offset.y) - 0);
+        target_offset.y =target_offset.y - 2*((obj->cl_trans.pos.y - obj->cl_trans.size.y/2 + target_offset.y) - 0);
         if (obj->bounce)
-            obj->dir.y = -obj->dir.y;
+            obj->cl_trans.dir.y = -obj->cl_trans.dir.y;
     }
+    obj->cl_trans.pos.x += target_offset.x;
+    obj->cl_trans.pos.y += target_offset.y;
+}
+
+
+/*==============================
+    TODO
+==============================*/
+
+void objects_pusholdtransforms(GameObject* obj)
+{
+    int i;
+    if (obj == NULL)
+        return;
     for (i=TICKSTOKEEP-1; i>0; i--)
-        obj->oldpos[i] = obj->oldpos[i-1];
-    obj->oldpos[0] = obj->pos;
-    obj->pos.x += target_offset.x;
-    obj->pos.y += target_offset.y;
+        obj->old_trans[i] = obj->old_trans[i-1];
+    obj->old_trans[0] = obj->sv_trans;
+}
+
+
+/*==============================
+    TODO
+==============================*/
+
+void objects_synctransforms(GameObject* obj)
+{
+    int i;
+    u8 propagate = FALSE;
+    if (obj == NULL)
+        return;
+    obj->cl_trans = obj->sv_trans;
+    
+    // Since the server only sends object updates when something changes, we have a bit of a problem
+    // because it can be many ticks without an object being updated. This means that if we try to interpolate
+    // based on these timestamps, it will be wrong. So we need to fill in the gaps if the time delta is too big.
+    // I'm not doing this in the most accurate way, just the fastest way.
+    for (i=-1; i<TICKSTOKEEP-1; i++)
+    {
+        Transform* older = &obj->old_trans[i+1];
+        Transform* newer = ((i != -1) ? (&obj->old_trans[i]) : (&obj->sv_trans));
+        OSTime delta = newer->timestamp - older->timestamp;
+        if (!propagate && delta > OS_USEC_TO_CYCLES(SEC_TO_USEC(DELTATIME*1.5f)))
+            propagate = TRUE;
+        if (propagate)
+        {
+            *older = *newer;
+            older->timestamp = newer->timestamp - OS_USEC_TO_CYCLES(SEC_TO_USEC(DELTATIME));
+        }
+    }
 }

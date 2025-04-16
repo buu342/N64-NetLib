@@ -70,8 +70,8 @@ void stage_game_init(void)
 {
     OSTime curtime = osGetTime();
     global_nextsend = curtime;
-    global_prediction = TRUE;
-    global_reconciliation = TRUE;
+    global_prediction = FALSE;
+    global_reconciliation = FALSE;
     global_interpolation = FALSE;
     global_inputstoack = EMPTY_LINKEDLIST;
     global_inputstosend = EMPTY_LINKEDLIST;
@@ -195,6 +195,7 @@ void stage_game_fixedupdate(float dt)
 
 void stage_game_draw(void)
 {
+    char buff[128];
     int i;
     OSTime curtime = osGetTime();
     listNode* listit;
@@ -208,34 +209,49 @@ void stage_game_draw(void)
     listit = objects_getall()->head;
     while (listit != NULL)
     {
+        float xpos, ypos;
         GameObject* obj = (GameObject*)listit->data;
-        gDPSetFillColor(glistp++, (GPACK_RGBA5551(obj->col.r, obj->col.g, obj->col.b, 1) << 16 | 
-                                   GPACK_RGBA5551(obj->col.r, obj->col.g, obj->col.b, 1)));
+        gDPSetFillColor(glistp++, (GPACK_RGBA5551(obj->cl_trans.col.r, obj->cl_trans.col.g, obj->cl_trans.col.b, 1) << 16 | 
+                                   GPACK_RGBA5551(obj->cl_trans.col.r, obj->cl_trans.col.g, obj->cl_trans.col.b, 1)));
         if (global_interpolation && obj != global_players[netlib_getclient()-1].obj) // Interpolate if not the client (since there's no need to)
         {
-            const OSTime tickdelta = OS_USEC_TO_CYCLES(SEC_TO_USEC(DELTATIME));
-            double timediff = ((double)(curtime - obj->lastupdate))/((double)tickdelta);
-            Vector2D frompos = obj->oldpos[1];
-            Vector2D topos = obj->oldpos[0];
-            float xpos, ypos;
+            float timediff;
+        	OSTime time = curtime - OS_USEC_TO_CYCLES(SEC_TO_USEC(VIEWLAG));
+            Transform* before;
+            Transform* after;
+	
+            // Find two points that surround our current view time
+            if (obj->old_trans[0].timestamp <= time)
+            {
+                before = &obj->old_trans[0];
+                after = &obj->sv_trans;
+            }
+            else
+            {
+                int i;
+                for (i=0; i<TICKSTOKEEP-1; i++)
+                {
+                    before = &obj->old_trans[i+1];
+                    after = &obj->old_trans[i];
+                    if (before->timestamp <= time)
+                        break;
+                }
+            }
+            timediff = ((double)(time - before->timestamp))/((double)(after->timestamp - before->timestamp));
+            timediff = CLAMP(timediff, 0.0f, 1.0f);
             
-            // Draw the object at the interpolated position
-            xpos = flerp(frompos.x, topos.x, timediff);
-            ypos = flerp(frompos.y, topos.y, timediff);
-            gDPFillRectangle(glistp++, 
-                xpos - (obj->size.x/2), ypos - (obj->size.y/2),
-                xpos + (obj->size.x/2), ypos + (obj->size.y/2)
-            );
+            // Set the clientside position to the interpolated value
+            obj->cl_trans.pos.x = flerp(before->pos.x, after->pos.x, timediff);
+            obj->cl_trans.pos.y = flerp(before->pos.y, after->pos.y, timediff);
         }
-        else
-        {
-            float xpos = obj->pos.x;
-            float ypos = obj->pos.y;
-            gDPFillRectangle(glistp++, 
-                xpos - (obj->size.x/2), ypos - (obj->size.y/2),
-                xpos + (obj->size.x/2), ypos + (obj->size.y/2)
-            );
-        }
+        
+        // Draw the object at the clientside position
+        xpos = obj->cl_trans.pos.x;
+        ypos = obj->cl_trans.pos.y;
+        gDPFillRectangle(glistp++, 
+            xpos - (obj->cl_trans.size.x/2), ypos - (obj->cl_trans.size.y/2),
+            xpos + (obj->cl_trans.size.x/2), ypos + (obj->cl_trans.size.y/2)
+        );
         gDPPipeSync(glistp++);
         listit = listit->next;
     }
@@ -277,10 +293,15 @@ void stage_game_cleanup(void)
 
 
 /*==============================
-    TODO
+    stage_game_ackinput
+    Acknowledge the input and reconcile our position
+    @param The last acknowledged input time
+    @param Whether to reconcile or not.
+           Since the server only sends position updates when it changes, we
+           can only re-apply the inputs if our position was changed this packet.
 ==============================*/
 
-void stage_game_ackinput(OSTime time, bool reconcile)
+void stage_game_ackinput(OSTime time, u8 reconcile)
 {
     if (global_reconciliation)
     {
