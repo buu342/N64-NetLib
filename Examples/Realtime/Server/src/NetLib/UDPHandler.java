@@ -5,31 +5,13 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.util.LinkedList;
-import java.util.TimerTask;
-
-class SendTask extends TimerTask {
-    DatagramSocket socket;
-    DatagramPacket out;
-    SendTask(DatagramSocket socket, DatagramPacket out)
-    {
-        this.socket = socket;
-        this.out = out;
-    }
-    public void run() {
-        try {
-            this.socket.send(this.out);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-}
 
 public class UDPHandler {
 
     // Constants
     public static final int TIME_RESEND   = 1000;
     public static final int MAX_RESEND    = 5;
-    public static final int FAKELATENCTY  = 250; // Change to a different value to introduce fake latency (in ms) for testing purposes
+    public static final int FAKELATENCTY  = 0; // Change to a different value to introduce fake latency (in ms) for testing purposes
     
     // Debug constants
     private static final boolean DEBUGPRINTS = false;
@@ -85,7 +67,7 @@ public class UDPHandler {
      * @throws ClientTimeoutException  If the packet is sent MAX_RESEND times without an acknowledgement
      * @throws IOException             If an I/O error occurs
      */
-    @SuppressWarnings("unused")
+    @SuppressWarnings("unused") // Needed to remove warning from debug code
     public void SendPacket(AbstractPacket pkt) throws ClientTimeoutException, IOException {
         
         byte[] data;
@@ -111,7 +93,7 @@ public class UDPHandler {
         data = pkt.GetBytes();
         out = new DatagramPacket(data, data.length, InetAddress.getByName(this.address), this.port);
         if (FAKELATENCTY > 0)
-            new java.util.Timer().schedule(new SendTask(this.socket, out), FAKELATENCTY);
+            new java.util.Timer().schedule(new LaggedPacketTask(this.socket, out), FAKELATENCTY);
         else
             this.socket.send(out);
         

@@ -11,20 +11,28 @@ import javax.swing.JPanel;
 
 public class PreviewWindow extends JPanel {
 
+    // Window variables
     private Game game;
     private JFrame frame;
     private static final long serialVersionUID = 1L;
 
+    /**
+     * Preview window of the game simulation
+     * @param game  The game simulation to use
+     */
     PreviewWindow(Game game) {
         super();
         this.setPreferredSize(new Dimension(320, 240));
         this.game = game;
         this.frame = new JFrame();
         this.frame.setTitle("Realtime Server Preview");
+        this.frame.setResizable(false);
         this.frame.add(this);
         this.frame.pack();
         this.frame.setLocationRelativeTo(null);
         this.frame.setVisible(true);
+        
+        // Kill the game if the preview window is closed
         this.frame.addWindowListener(new WindowAdapter() {
             public void windowClosing(WindowEvent e) {
                 // Disconnect all players before ending the game
@@ -35,7 +43,11 @@ public class PreviewWindow extends JPanel {
             }
         });
     }
-    
+
+    /**
+     * Draw the window every frame
+     * @param g  The graphics context to draw to
+     */
     public void paintComponent(Graphics g) {
         Graphics2D g2d = (Graphics2D)g;
         

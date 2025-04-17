@@ -48,20 +48,20 @@ public class TicTacToeServer {
         // Check for program arguments
         ReadArguments(args);
         
-        // If the name or ROM arguments are invalid, exit
-        if (servername.equals("") || romname.equals("")) {
-            ShowHelp();
-            System.exit(1);
-        }
-        
-        // Try to open the ROM
-        romname = ValidateN64ROM(romname);
-        
         // Read the master server address
         if (register) {
             int cpos = masteraddress.indexOf(":");
             masterport = Integer.parseInt(masteraddress.substring(cpos+1 , masteraddress.length()));
             masteraddress = masteraddress.substring(0 , cpos);
+            
+            // If the name or ROM arguments are invalid, exit
+            if (servername.equals("") || romname.equals("")) {
+                ShowHelp();
+                System.exit(1);
+            }
+            
+            // Try to open the ROM
+            romname = ValidateN64ROM(romname);
         }
         
         // Try to UPnP the port

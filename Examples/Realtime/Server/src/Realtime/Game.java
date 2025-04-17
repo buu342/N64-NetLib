@@ -12,6 +12,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class Game implements Runnable  {
 
+    // Constants
     public static final int    MAXPLAYERS = 32;
     private static final int   TICKRATE = 5;
     private static final float DELTATIME = 1.0f/((float)TICKRATE);
@@ -25,13 +26,13 @@ public class Game implements Runnable  {
     private LinkedList<GameObject> objs;
     private GameObject obj_npc;
     private long gametime;
-    private static AtomicInteger counter = new AtomicInteger();
+    private static AtomicInteger idcounter = new AtomicInteger();
     
     // Thread communication
     private Queue<NetLibPacket> messages;
 
     /**
-     * Object representation of the Ultimate TicTacToe game
+     * Object representation of the realtime game
      */
     public Game() {
     	this.messages = new ConcurrentLinkedQueue<NetLibPacket>();
@@ -54,6 +55,7 @@ public class Game implements Runnable  {
             float accumulator = 0;
             long oldtime = System.nanoTime();
             
+            // Game loop
             Thread.currentThread().setName("Game");
             while (true) {
                 long curtime = System.nanoTime();
@@ -84,23 +86,35 @@ public class Game implements Runnable  {
             e.printStackTrace();
         }
     }
-    
+
+    /**
+     * Called every game loop in a fixed timestep
+     * @param dt  The timestep this loop (in seconds)
+     */
     private void do_update(float dt) {
         
         // Check for player messages
         NetLibPacket pkt = this.messages.poll();
         while (pkt != null) {
+            
+            // Get the player that sent the message
             Player sender = this.players[pkt.GetSender()-1];
             if (sender != null) {
                 try {
+                    
+                    // Handle different received types
                     if (pkt.GetType() == PacketIDs.PACKETID_CLIENTINPUT.GetInt()) {
                         final float MAXSTICK = 80, MAXSPEED = 50;
                         GameObject obj = sender.GetObject();
                         ByteBuffer bb = ByteBuffer.wrap(pkt.GetData());
                         int inputcount = bb.get();
+                        
+                        // Iterate through all the inputs stored in this packet
                         for (int i=0; i<inputcount; i++)
                         {
                             long sendtime = bb.getLong();
+                            
+                            // If this is a new input, apply it
                             if (sender.GetLastUpdate() < sendtime)
                             {
                                 float fdt = bb.getFloat();
@@ -122,17 +136,22 @@ public class Game implements Runnable  {
                     System.err.println(e);
                 }
             }
+            
+            // Get the next message
             pkt = this.messages.poll();
         }
         
-        // Update object positions
+        // Update object positions by applying physics
         for (GameObject obj : this.objs) {
             if (obj != null) {
                 this.ApplyObjectPhysics(obj, dt);
             }
         }
     }
-    
+
+    /**
+     * Send game state updates to all connected clients
+     */
     private void send_updates() {
         
         // Start by sending player updates
@@ -148,6 +167,8 @@ public class Game implements Runnable  {
                     ByteArrayOutputStream thisbytes = new ByteArrayOutputStream();
                     GameObject obj = ply.GetObject();
                     thisbytes.write(ByteBuffer.allocate(1).put((byte)ply.GetNumber()).array());
+                    
+                    // Check for object state changes
     	        	if (obj.GetPos().GetX() != obj.GetPos().GetPreviousX() || obj.GetPos().GetY() != obj.GetPos().GetPreviousY()) {
     	        	    thisbytes.write(ByteBuffer.allocate(1).put((byte)0).array());
     	        	    thisbytes.write(ByteBuffer.allocate(4).putFloat(obj.GetPos().GetX()).array());
@@ -186,7 +207,7 @@ public class Game implements Runnable  {
                     // Correct the object count
                     finalarray[0] = (byte)objcount; 
                     
-                    // Correct the last player input
+                    // Correct the timestamp of the last acknowledged input
                     updbytes.putLong(ply2send.GetLastUpdate());
                     longarr = updbytes.array();
                     for (int i=0; i<8; i++)
@@ -209,6 +230,8 @@ public class Game implements Runnable  {
             for (GameObject obj : this.objs) {
                 ByteArrayOutputStream thisbytes = new ByteArrayOutputStream();
                 thisbytes.write(ByteBuffer.allocate(4).putInt(obj.GetID()).array());
+                
+                // Check for object state changes
                 if (obj.GetPos().GetX() != obj.GetPos().GetPreviousX() || obj.GetPos().GetY() != obj.GetPos().GetPreviousY()) {
                     thisbytes.write(ByteBuffer.allocate(1).put((byte)0).array());
                     thisbytes.write(ByteBuffer.allocate(4).putFloat(obj.GetPos().GetX()).array());
@@ -254,7 +277,12 @@ public class Game implements Runnable  {
             e.printStackTrace();
         }
     }
-    
+
+    /**
+     * Simulate the object's physics based on its properties and timestep
+     * @param obj  The object to apply physics to
+     * @param dt   The timestep (in seconds)
+     */
     public void ApplyObjectPhysics(GameObject obj, float dt) {
         Vector2D target_offset = new Vector2D(obj.GetDirection().GetX()*obj.GetSpeed()*dt, obj.GetDirection().GetY()*obj.GetSpeed()*dt);
         if (obj.GetPos().GetX() + obj.GetSize().GetX()/2 + target_offset.GetX() > 320) {
@@ -301,7 +329,7 @@ public class Game implements Runnable  {
      * @return  The unique object ID.
      */
     public static int NewObjectID() {
-        return counter.getAndIncrement();
+        return idcounter.getAndIncrement();
     }
 
     /**
