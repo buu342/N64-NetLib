@@ -68,7 +68,11 @@ int timecompare(const void* a, const void* b)
 
 /*==============================
     flerp
-    TODO
+    Performs linear interpolation on two floats
+    @param  The starting value
+    @param  The target value
+    @param  The percentage from the starting to the target value
+    @return The linear interpolation of A to B
 ==============================*/
 
 f32 flerp(f32 a, f32 b, f32 f)

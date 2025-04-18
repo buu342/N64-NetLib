@@ -18,6 +18,11 @@
         u8 a;
     } Color;
     
+
+    /*********************************
+                Functions
+    *********************************/
+    
     Vector2D vector_normalize(Vector2D v);
     
 #endif

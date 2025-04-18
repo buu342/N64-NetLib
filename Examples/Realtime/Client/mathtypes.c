@@ -1,6 +1,14 @@
 #include <ultra64.h>
 #include "mathtypes.h"
 
+
+/*==============================
+    vector_normalize
+    Normalizes a vector so that its length becomes one.
+    @param  The input vector
+    @return The normalized result
+==============================*/
+
 Vector2D vector_normalize(Vector2D v)
 {
     float mag = sqrtf(v.x*v.x + v.y*v.y);

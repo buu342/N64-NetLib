@@ -5,6 +5,11 @@
     #include "config.h"
     #include "datastructs.h"
     #include "mathtypes.h"
+    
+    
+    /*********************************
+                  Macros
+    *********************************/
 
     #define MAXPLAYERS 32
     
@@ -44,7 +49,7 @@
 
 
     /*********************************
-            Function Prototypes
+           Function Prototypes
     *********************************/
     
     extern void objects_initsystem();

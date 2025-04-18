@@ -1,7 +1,7 @@
 /***************************************************************
                           stage_game.c
                                
-TODO
+The main room where all the players and NPCs interact
 ***************************************************************/
 
 #include <nusys.h>
@@ -14,23 +14,36 @@ TODO
 #include "text.h"
 #include "objects.h"
 
+
+/*********************************
+              Macros
+*********************************/
+
 #define INPUTRATE        15.0f
 #define MAXPACKETSTOACK  100
 
-static NUContData global_contdata;
 
+/*********************************
+             Globals
+*********************************/
+
+// Controller related
+static NUContData global_contdata;
 static OSTime global_nextsend;
 
+// Clientside improvements
 static bool global_prediction;
 static bool global_reconciliation;
 static bool global_interpolation;
 
+// Synchronization related
 static linkedList global_inputstoack;
 static linkedList global_inputstosend;
 
 
 /*==============================
-    TODO
+    stage_game_updatetext
+    Refreshes the text on the screen
 ==============================*/
 
 void stage_game_updatetext()
@@ -178,17 +191,6 @@ void stage_game_update(float dt)
 
 
 /*==============================
-    stage_game_fixedupdate
-    Update stage variables every tick
-==============================*/
-
-void stage_game_fixedupdate(float dt)
-{
-    // Nothing
-}
-
-
-/*==============================
     stage_game_draw
     Draw the stage
 ==============================*/
@@ -298,7 +300,7 @@ void stage_game_cleanup(void)
     @param The last acknowledged input time
     @param Whether to reconcile or not.
            Since the server only sends position updates when it changes, we
-           can only re-apply the inputs if our position was changed this packet.
+           should only re-apply the inputs if our position was changed this packet.
 ==============================*/
 
 void stage_game_ackinput(OSTime time, u8 reconcile)

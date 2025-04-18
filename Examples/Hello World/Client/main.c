@@ -28,7 +28,7 @@ static void callback_vsync(int tasksleft);
 *********************************/
 
 // Half a megabyte of heap memory
-char heapmem[1024*512];
+char heapmem[HEAP_LENGTH];
 
 
 /*==============================

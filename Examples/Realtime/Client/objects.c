@@ -1,7 +1,7 @@
 /***************************************************************
                            objects.c
                                
-TODO
+Handles the object system used in this game
 ***************************************************************/
 
 #include <nusys.h>
@@ -21,7 +21,8 @@ static linkedList global_levelobjects;
 
 /*==============================
     objects_initsystem
-    TODO
+    Initializes the object system.
+    Call once at the start of the game.
 ==============================*/
 
 void objects_initsystem()
@@ -38,7 +39,8 @@ void objects_initsystem()
 
 /*==============================
     objects_create
-    TODO
+    Creates a new game object.
+    @return The newly created object
 ==============================*/
 
 GameObject* objects_create()
@@ -51,7 +53,9 @@ GameObject* objects_create()
 
 /*==============================
     objects_findbyid
-    TODO
+    Finds an object by searching for its unique ID
+    @param  The ID of the object to find
+    @return The found object, or NULL
 ==============================*/
 
 GameObject* objects_findbyid(u32 id)
@@ -70,7 +74,8 @@ GameObject* objects_findbyid(u32 id)
 
 /*==============================
     objects_getall
-    TODO
+    Gets the list of all the objects in the game
+    @return A pointer to the list of objects in the game
 ==============================*/
 
 linkedList* objects_getall()
@@ -81,7 +86,8 @@ linkedList* objects_getall()
 
 /*==============================
     objects_destroy
-    TODO
+    Destroys an object and frees its memory
+    @param The object to destroy
 ==============================*/
 
 void objects_destroy(GameObject* obj)
@@ -93,7 +99,7 @@ void objects_destroy(GameObject* obj)
 
 /*==============================
     objects_destroyall
-    TODO
+    Destroys all objects in the game and frees their memory.
 ==============================*/
 
 void objects_destroyall()
@@ -101,8 +107,8 @@ void objects_destroyall()
     listNode* listit = global_levelobjects.head;
     while (listit != NULL)
     {
-        objects_destroy((GameObject*)listit->data);
         listit = listit->next;
+        objects_destroy((GameObject*)listit->data);
     }
     list_destroy(&global_levelobjects);
 }
@@ -110,7 +116,9 @@ void objects_destroyall()
 
 /*==============================
     objects_connectplayer
-    TODO
+    Connects the player to the game.
+    @param The number of the player to connected
+    @param The object to use for the player
 ==============================*/
 
 void objects_connectplayer(u8 num, GameObject* obj)
@@ -122,7 +130,8 @@ void objects_connectplayer(u8 num, GameObject* obj)
 
 /*==============================
     objects_disconnectplayer
-    TODO
+    Disconnects a player from the game.
+    @param The number of the player to disconnect
 ==============================*/
 
 void objects_disconnectplayer(u8 num)
@@ -134,7 +143,10 @@ void objects_disconnectplayer(u8 num)
 
 
 /*==============================
-    TODO
+    objects_applycont
+    Applies the controller data to a specific object, clientside.
+    @param The object to manipulate
+    @param The controller data to use
 ==============================*/
 
 void objects_applycont(GameObject* obj, NUContData contdata)
@@ -154,7 +166,10 @@ void objects_applycont(GameObject* obj, NUContData contdata)
 
 
 /*==============================
-    TODO
+    objects_applyphys
+    Applies physics to a specific object, clientside.
+    @param The object to manipulate
+    @param The timestep taken
 ==============================*/
 
 void objects_applyphys(GameObject* obj, float dt)
@@ -191,7 +206,9 @@ void objects_applyphys(GameObject* obj, float dt)
 
 
 /*==============================
-    TODO
+    objects_pusholdtransforms
+    Pushes all the old transforms back one to make room for a new transform
+    @param The object to push the transforms of
 ==============================*/
 
 void objects_pusholdtransforms(GameObject* obj)
@@ -206,7 +223,10 @@ void objects_pusholdtransforms(GameObject* obj)
 
 
 /*==============================
-    TODO
+    objects_synctransforms
+    Syncs the transforms between the client and server values, and performs
+    calculations to fill in any missing ticks in the timeline.
+    @param The object to sync the transforms of
 ==============================*/
 
 void objects_synctransforms(GameObject* obj)

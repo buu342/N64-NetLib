@@ -25,6 +25,11 @@
         PACKETID_PLAYERUPDATE = 11,
     } NetPacketIDs;
     
+    
+    /*********************************
+                 Structs
+    *********************************/
+    
     typedef struct {
         OSTime time;
         NUContData contdata;

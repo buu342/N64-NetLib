@@ -1,7 +1,7 @@
 /***************************************************************
                            graphic.c
                                
-Graphic related display lists, need to be in their own object.
+Graphic related display lists need to be in their own object.
 ***************************************************************/
 
 #include <nusys.h>

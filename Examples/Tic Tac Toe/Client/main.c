@@ -39,7 +39,7 @@ StageDef global_stagetable[STAGE_COUNT];
 Player global_players[2];
 
 // Half a megabyte of heap memory
-char heapmem[1024*512];
+char heapmem[HEAP_LENGTH];
 
 
 /*==============================

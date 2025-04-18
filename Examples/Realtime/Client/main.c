@@ -16,12 +16,6 @@ Program entrypoint.
 #include "objects.h"
 
 
-
-/*********************************
-              Macros
-*********************************/
-
-
 /*********************************
         Function Prototypes
 *********************************/
@@ -37,7 +31,7 @@ static void callback_disconnect();
 *********************************/
 
 // Half a megabyte of heap memory
-static char heapmem[1024*512];
+static char heapmem[HEAP_LENGTH];
 
 // Stage globals
 static volatile StageNum global_curstage = STAGE_INIT;
@@ -176,7 +170,7 @@ static void stagetable_init()
     
     global_stagetable[STAGE_GAME].funcptr_init = &stage_game_init;
     global_stagetable[STAGE_GAME].funcptr_update = &stage_game_update;
-    global_stagetable[STAGE_GAME].funcptr_fixedupdate = &stage_game_fixedupdate;
+    global_stagetable[STAGE_GAME].funcptr_fixedupdate = NULL;
     global_stagetable[STAGE_GAME].funcptr_draw = &stage_game_draw;
     global_stagetable[STAGE_GAME].funcptr_cleanup = &stage_game_cleanup;
     
