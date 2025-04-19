@@ -40,7 +40,7 @@ Check [the Wiki](https://github.com/buu342/N64-NetLib/wiki).
 **A:** Nope. You can manually connect to known server addresses in the browser application. You will need to have the ROM that the server is using in order to be able to join it, however.
 
 **Q: Does the library work for LAN or P2P connections?**</br>
-**A:** In theory, yes. I haven't tried it though, and I haven't designed the browser application for that in mind.
+**A:** In theory, yes. I haven't tried it though, and I haven't designed the browser application for that in mind. You will need to manually connect to these servers.
 
 **Q: Can I make this work with X retail game?**</br>
 **A:** If you have the source code for said game, sure. But even then, such a thing would require a massive rewrite of the game's engine, as it very likely wasn't designed with networking in mind. In real life, game networking is *much more complex than just "sending a player's controller input over the wire"*. See [this article](https://developer.valvesoftware.com/wiki/Source_Multiplayer_Networking) for more information.
