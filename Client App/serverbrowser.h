@@ -64,13 +64,15 @@ typedef struct
     std::list<std::pair<uint32_t, wxLongLong>> chunksleft;
 } FileDownload;
 
-class ServerFinderThread;
-
 
 /*********************************
              Classes
 *********************************/
 
+// Prototypes
+class ServerFinderThread;
+
+// Server browser window
 class ServerBrowser : public wxFrame
 {
     private:
@@ -117,6 +119,7 @@ class ServerBrowser : public wxFrame
         int               GetPort();
 };
 
+// Thread for discovering servers
 class ServerFinderThread : public wxThread
 {
     private:
@@ -137,6 +140,7 @@ class ServerFinderThread : public wxThread
         virtual void* Entry() wxOVERRIDE;
 };
 
+// Window for manual server connections
 class ManualConnectWindow : public wxDialog
 {
     private:

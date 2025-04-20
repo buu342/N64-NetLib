@@ -20,18 +20,14 @@ typedef struct IUnknown IUnknown;
 #include <wx/dialog.h>
 #include <wx/socket.h>
 
-
-/******************************
-             Types
-******************************/
-
-class ROMDownloadThread;
-
-
 /*********************************
              Classes
 *********************************/
 
+// Prototypes
+class ROMDownloadThread;
+
+// ROM download progress window
 class ROMDownloadWindow : public wxDialog
 {
     private:

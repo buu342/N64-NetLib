@@ -29,11 +29,6 @@ typedef enum {
     FLAG_EXPLICITACK = 0x02,
 } PacketFlag;
 
-class UDPHandler;
-class AbstractPacket;
-class S64Packet;
-class NetLibPacket;
-
 
 /******************************
             Globals
@@ -45,6 +40,12 @@ extern asio::io_context* global_asiocontext;
 /*********************************
              Classes
 *********************************/
+
+// Prototypes
+class UDPHandler;
+class AbstractPacket;
+class S64Packet;
+class NetLibPacket;
 
 // Wrapper class for ASIO
 class ASIOSocket
@@ -194,7 +195,7 @@ class NetLibPacket : public AbstractPacket
         wxString AsString();
 };
 
-// Exceptions thrown by the UDPHandler
+// Exception thrown by the UDPHandler when the client timesout
 class ClientTimeoutException : public std::exception
 {
     private:
@@ -205,6 +206,7 @@ class ClientTimeoutException : public std::exception
         wxString what() {return this->m_Address;}
 };
 
+// Exception thrown by the UDPHandler when the packet uses an unsupported version
 class BadPacketVersionException : public std::exception
 {
     private:

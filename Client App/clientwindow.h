@@ -37,16 +37,18 @@ typedef enum {
     CLSTATUS_STOPPED,
 } ClientDeviceStatus;
 
-class ClientWindow;
-class DeviceThread;
-class ServerConnectionThread;
-class UploadThread;
-
 
 /*********************************
              Classes
 *********************************/
 
+// Prototypes
+class ClientWindow;
+class DeviceThread;
+class ServerConnectionThread;
+class UploadThread;
+
+// Client window for N64 <-> Server communication
 class ClientWindow : public wxFrame
 {
     private:
@@ -88,6 +90,7 @@ class ClientWindow : public wxFrame
         int GetPort();
 };
 
+// Thread for handling USB communication
 class DeviceThread : public wxThread
 {
     private:
@@ -115,6 +118,7 @@ class DeviceThread : public wxThread
         virtual void* Entry() wxOVERRIDE;
 };
 
+// Thread for handling ROM upload
 class UploadThread : public wxThread
 {
     private:
@@ -133,6 +137,7 @@ class UploadThread : public wxThread
         virtual void* Entry() wxOVERRIDE;
 };
 
+// Thread for handling server communication
 class ServerConnectionThread : public wxThread
 {
     private:

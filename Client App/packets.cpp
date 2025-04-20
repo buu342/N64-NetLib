@@ -38,10 +38,24 @@ asio::io_context* global_asiocontext;
                          ASIO Wrapper
 =============================================================*/
 
+
+/*==============================
+    InitASIO
+    Initializes ASIO. 
+    Should be called once at the start of the program.
+==============================*/
+
 void ASIOSocket::InitASIO()
 {
     global_asiocontext = new asio::io_context();
 }
+
+
+/*==============================
+    ASIOSocket (Constructor)
+    Initializes the class
+    @param A string with in the address:port format with the server to connect to
+==============================*/
 
 ASIOSocket::ASIOSocket(wxString fulladdress)
 {
@@ -55,6 +69,14 @@ ASIOSocket::ASIOSocket(wxString fulladdress)
     this->m_LastReadCount = 0;
 }
 
+
+/*==============================
+    ASIOSocket (Constructor)
+    Initializes the class
+    @param The server address
+    @param The server port
+==============================*/
+
 ASIOSocket::ASIOSocket(wxString address, int port)
 {
     this->m_Address = address;
@@ -65,12 +87,27 @@ ASIOSocket::ASIOSocket(wxString address, int port)
     this->m_LastReadCount = 0;
 }
 
+
+/*==============================
+    ASIOSocket (Destructor)
+    Cleans up the class before deletion
+==============================*/
+
 ASIOSocket::~ASIOSocket()
 {
     this->m_Socket->close();
     delete this->m_Socket;
     delete this->m_Resolver;
 }
+
+
+/*==============================
+    ASIOSocket::Read
+    Reads from the socket into the given buffer.
+    Does not block.
+    @param The buffer to read into
+    @param The amount of bytes to read
+==============================*/
 
 void ASIOSocket::Read(uint8_t* buff, size_t size)
 {
@@ -83,6 +120,16 @@ void ASIOSocket::Read(uint8_t* buff, size_t size)
     #endif
 }
 
+
+/*==============================
+    ASIOSocket::Send
+    Sends data to a specific address + port
+    @param The destinaiton address
+    @param The destination port
+    @param The data to send
+    @param The size of the data
+==============================*/
+
 void ASIOSocket::Send(wxString address, int port, uint8_t* buff, size_t size)
 {
     udp::resolver::results_type endp = this->m_Resolver->resolve(udp::v4(), address.ToStdString(), wxString::Format(wxT("%d"), (int)port).ToStdString());
@@ -93,6 +140,13 @@ void ASIOSocket::Send(wxString address, int port, uint8_t* buff, size_t size)
         (void)sent;
     #endif
 }
+
+
+/*==============================
+    ASIOSocket::LastReadCount
+    Returns the number of bytes that were read
+    @return The number of bytes read in the previous Read call
+==============================*/
 
 size_t ASIOSocket::LastReadCount()
 {
