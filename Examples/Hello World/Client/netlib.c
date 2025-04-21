@@ -410,6 +410,7 @@ void netlib_register(NetPacket type, void (*callback)(size_t))
 
 void netlib_poll()
 {
+    unsigned int header;
     u64 curtime;
     #ifndef LIBDRAGON
         curtime = osGetTime();
@@ -433,10 +434,10 @@ void netlib_poll()
     }
     
     // Read all incoming net packets first
-    do
+    header = USBHEADER_GETTYPE(usb_poll());
+    while (header != 0)
     {
-        unsigned int header = usb_poll();
-        while (USBHEADER_GETTYPE(header) == DATATYPE_NETPACKET)
+        if (header == DATATYPE_NETPACKET)
         {
             uint8_t version, flags;
             NetPacket type;
@@ -481,22 +482,19 @@ void netlib_poll()
             
             // Refresh the packet time
             global_lastpkt = curtime;
-            
-            // Poll again
-            usb_purge();
-            header = usb_poll();
         }
         
-        // If we queued up a message during polling, send it now (if it's safe to do so)
-        if (global_sendafterpoll && header == 0)
-        {
-            if (usb_write(DATATYPE_NETPACKET, (void*)global_writebuffer, global_writecursize) != 0)
-                global_sendafterpoll = FALSE;
-            else if (usb_timedout())
-                break;
-        }
-    } 
-    while (global_sendafterpoll);
+        // Poll again
+        usb_purge();
+        header = USBHEADER_GETTYPE(usb_poll());
+    }
+    
+    // If we queued up a message during polling, send it now
+    if (global_sendafterpoll)
+    {
+        if (usb_write(DATATYPE_NETPACKET, (void*)global_writebuffer, global_writecursize) != 0)
+            global_sendafterpoll = FALSE;
+    }
 }
 
 
