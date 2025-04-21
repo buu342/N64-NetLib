@@ -310,7 +310,6 @@ void ServerBrowser::StopThread_Finder()
     if (this->m_FinderThread != NULL)
     {
         this->m_FinderThread->Delete();
-        this->m_FinderThread->Wait(wxTHREAD_WAIT_BLOCK);
         delete this->m_FinderThread;
         this->m_FinderThread = NULL;
     }

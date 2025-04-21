@@ -57,4 +57,10 @@
     <ClCompile Include="customview.cpp" />
     <ClCompile Include="helper.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="NetLibBrowser.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="Resources\icon_program.ico" />
+  </ItemGroup>
 </Project>

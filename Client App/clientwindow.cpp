@@ -231,7 +231,6 @@ void ClientWindow::StopThread_Device()
     if (this->m_DeviceThread != NULL)
     {
         this->m_DeviceThread->Delete();
-        this->m_DeviceThread->Wait(wxTHREAD_WAIT_BLOCK);
         delete this->m_DeviceThread;
         this->m_DeviceThread = NULL;
     }
@@ -248,7 +247,6 @@ void ClientWindow::StopThread_Server()
     if (this->m_ServerThread != NULL)
     {
         this->m_ServerThread->Delete();
-        this->m_ServerThread->Wait(wxTHREAD_WAIT_BLOCK);
         delete this->m_ServerThread;
         this->m_ServerThread = NULL;
     }
@@ -563,7 +561,7 @@ void* DeviceThread::Entry()
                     }
                 }
                 rompath = "";
-                this->m_UploadThread->Wait(); // TODO: 64Drive upload can get stuck, causing this thread join to freeze the server browser
+                this->m_UploadThread->Delete(); // TODO: 64Drive upload can get stuck, causing this thread join to freeze the server browser
                 delete this->m_UploadThread;
                 this->m_UploadThread = NULL;
                 this->SetClientDeviceStatus(CLSTATUS_UPLOADDONE);
