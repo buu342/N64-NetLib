@@ -37,6 +37,7 @@ typedef enum {
     // User Input events
     TEVENT_LOADROM,
     TEVENT_CANCELLOAD,
+    TEVENT_LOADDATA,
 } ThreadEventType;
 
 typedef struct {
@@ -105,12 +106,9 @@ ClientWindow::ClientWindow(wxWindow* parent, wxWindowID id, const wxString& titl
     this->m_Gauge_Upload->Hide();
 
     // Reupload/Send text button
+    this->m_DeviceStatus = CLSTATUS_DEAD;
     this->m_Button_Send = new wxButton(this, wxID_ANY, wxT("Reupload"), wxDefaultPosition, wxDefaultSize, 0);
     this->m_Sizer_Input->Add(this->m_Button_Send, wxGBPosition(0, 1), wxGBSpan(1, 1), wxALL, 5);
-
-    // Reconnect to server button
-    this->m_Button_Reconnect = new wxButton(this, wxID_ANY, wxT("Reconnect"), wxDefaultPosition, wxDefaultSize, 0);
-    this->m_Sizer_Input->Add(this->m_Button_Reconnect, wxGBPosition(0, 2), wxGBSpan(1, 1), wxALL, 5);
 
     // Configure the sizers
     this->m_Sizer_Input->AddGrowableCol(0);
@@ -120,7 +118,7 @@ ClientWindow::ClientWindow(wxWindow* parent, wxWindowID id, const wxString& titl
     this->SetSizer(m_Sizer_Main);
     this->Layout();
 
-    // Status bar (currently unused)
+    // Status bar (currently unused, would be nice to display statistics)
     //m_StatusBar_ClientStatus = this->CreateStatusBar(1, wxSTB_SIZEGRIP, wxID_ANY);
 
     // Finalize positioning
@@ -128,7 +126,7 @@ ClientWindow::ClientWindow(wxWindow* parent, wxWindowID id, const wxString& titl
     this->Connect(wxID_ANY, wxEVT_THREAD, wxThreadEventHandler(ClientWindow::ThreadEvent));
 
     // Connect events
-    this->m_Button_Reconnect->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(ClientWindow::m_Button_Reconnect_OnButtonClick), NULL, this);
+    this->m_TextCtrl_Input->Connect(wxEVT_COMMAND_TEXT_UPDATED, wxCommandEventHandler(ClientWindow::m_TextCtrl_Input_OnText), NULL, this);
     this->m_Button_Send->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(ClientWindow::m_Button_Send_OnButtonClick), NULL, this);
 }
 
@@ -145,8 +143,8 @@ ClientWindow::~ClientWindow()
     this->StopThread_Device();
 
     // Disconnect events
-    this->m_Button_Reconnect->Disconnect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(ClientWindow::m_Button_Reconnect_OnButtonClick), NULL, this);
     this->m_Button_Send->Disconnect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(ClientWindow::m_Button_Send_OnButtonClick), NULL, this);
+    this->m_TextCtrl_Input->Disconnect(wxEVT_COMMAND_TEXT_UPDATED, wxCommandEventHandler(ClientWindow::m_TextCtrl_Input_OnText), NULL, this);
 
     // Safe to disconnect the thread handler event
     this->Disconnect(wxID_ANY, wxEVT_THREAD, wxThreadEventHandler(ClientWindow::ThreadEvent));
@@ -169,7 +167,7 @@ void ClientWindow::BeginWorking()
 
 /*==============================
     ClientWindow::LoadROM
-    Sends the USB thread a ROM load message
+    Sends the to USB thread a ROM load message
 ==============================*/
 
 void ClientWindow::LoadROM()
@@ -178,6 +176,21 @@ void ClientWindow::LoadROM()
     usrinput->data = (char*)malloc(this->m_ROMPath.Length()+1);
     strcpy(usrinput->data, this->m_ROMPath.mb_str());
     global_msgqueue_usbthread_input.Post(usrinput);
+}
+
+
+/*==============================
+    ClientWindow::LoadData
+    Sends the to USB thread a data load message
+==============================*/
+
+void ClientWindow::LoadData()
+{
+    InputMessage* usrinput = new InputMessage{ TEVENT_LOADDATA, NULL };
+    usrinput->data = (char*)malloc(this->m_TextCtrl_Input->GetValue().Length() + 1);
+    strcpy(usrinput->data, this->m_TextCtrl_Input->GetValue().mb_str());
+    global_msgqueue_usbthread_input.Post(usrinput);
+    this->m_TextCtrl_Input->SetValue("");
 }
 
 
@@ -215,8 +228,6 @@ void ClientWindow::StartThread_Server()
             delete this->m_ServerThread;
             this->m_ServerThread = NULL;
         }
-        else
-            this->m_Button_Reconnect->Disable();
     }
 }
 
@@ -270,8 +281,14 @@ void ClientWindow::m_Button_Send_OnButtonClick(wxCommandEvent& event)
         case CLSTATUS_UPLOADING:
             global_msgqueue_usbthread_input.Post(new InputMessage{TEVENT_CANCELLOAD, NULL});
             break;
-        case CLSTATUS_UPLOADDONE:
+        case CLSTATUS_DEAD:
             this->LoadROM();
+            break;
+        case CLSTATUS_IDLE:
+            if (this->m_TextCtrl_Input->GetValue() == "")
+                this->LoadROM();
+            else
+                this->LoadData();
             break;
         default: break;
     }
@@ -282,17 +299,17 @@ void ClientWindow::m_Button_Send_OnButtonClick(wxCommandEvent& event)
 
 
 /*==============================
-    ClientWindow::m_Button_Reconnect_OnButtonClick
-    Event handler for reconnect button clicking
+    ClientWindow::m_TextCtrl_Input_OnText
+    Event handler for TextCtrl text changing
     @param The command event
 ==============================*/
 
-void ClientWindow::m_Button_Reconnect_OnButtonClick(wxCommandEvent& event)
+void ClientWindow::m_TextCtrl_Input_OnText(wxCommandEvent& event)
 {
-    this->StartThread_Server();
-
-    // Unused parameter
-    (void)event;
+    if (this->m_TextCtrl_Input->GetValue() == "")
+        this->m_Button_Send->SetLabel(wxT("Reupload"));
+    else
+        this->m_Button_Send->SetLabel(wxT("Send"));
 }
 
 
@@ -305,7 +322,7 @@ void ClientWindow::m_Button_Reconnect_OnButtonClick(wxCommandEvent& event)
 void ClientWindow::SetClientDeviceStatus(ClientDeviceStatus status)
 {
     this->m_DeviceStatus = status;
-    switch(status)
+    switch (status)
     {
         case CLSTATUS_UPLOADING:
             if (this->m_TextCtrl_Input->IsShown())
@@ -318,15 +335,39 @@ void ClientWindow::SetClientDeviceStatus(ClientDeviceStatus status)
                 this->m_Gauge_Upload->Show();
             }
             this->m_Button_Send->SetLabel(wxT("Cancel"));
-            //this->m_Button_Send->Enable();
             this->Layout();
             this->Refresh();
             break;
-        case CLSTATUS_UPLOADDONE:
+        case CLSTATUS_DEAD:
+            if (!this->m_TextCtrl_Input->IsShown())
+            {
+                this->m_Gauge_Upload->SetValue(0);
+                this->m_Gauge_Upload->Disable();
+                this->m_Gauge_Upload->Hide();
+                this->m_Sizer_Input->Detach(this->m_Gauge_Upload);
+                this->m_Sizer_Input->Add(this->m_TextCtrl_Input, wxGBPosition(0, 0), wxGBSpan(1, 1), wxALL | wxEXPAND, 5);
+                this->m_TextCtrl_Input->Show();
+            }
+            this->m_TextCtrl_Input->Disable();
+            this->m_TextCtrl_Input->SetValue("");
             this->m_Button_Send->SetLabel(wxT("Reupload"));
-            //this->m_Button_Send->Enable();
+            this->Layout();
+            this->Refresh();
             break;
-        default:
+        case CLSTATUS_IDLE:
+            if (!this->m_TextCtrl_Input->IsShown())
+            {
+                this->m_Gauge_Upload->SetValue(0);
+                this->m_Gauge_Upload->Disable();
+                this->m_Gauge_Upload->Hide();
+                this->m_Sizer_Input->Detach(this->m_Gauge_Upload);
+                this->m_Sizer_Input->Add(this->m_TextCtrl_Input, wxGBPosition(0, 0), wxGBSpan(1, 1), wxALL | wxEXPAND, 5);
+                this->m_TextCtrl_Input->Show();
+                this->m_TextCtrl_Input->Enable();
+            }
+            this->m_Button_Send->SetLabel(wxT("Reupload"));
+            this->Layout();
+            this->Refresh();
             break;
     }
 }
@@ -447,6 +488,7 @@ DeviceThread::DeviceThread(ClientWindow* win) : wxThread(wxTHREAD_JOINABLE)
     this->m_FirstPrint = true;
     global_msgqueue_usbthread_pkt.Clear();
     device_initialize();
+    this->SetClientDeviceStatus(CLSTATUS_IDLE);
 }
 
 
@@ -457,6 +499,7 @@ DeviceThread::DeviceThread(ClientWindow* win) : wxThread(wxTHREAD_JOINABLE)
 
 DeviceThread::~DeviceThread()
 {
+    this->SetClientDeviceStatus(CLSTATUS_DEAD);
     if (device_isopen())
         device_close();
 }
@@ -564,7 +607,7 @@ void* DeviceThread::Entry()
                 this->m_UploadThread->Delete(); // TODO: 64Drive upload can get stuck, causing this thread join to freeze the server browser
                 delete this->m_UploadThread;
                 this->m_UploadThread = NULL;
-                this->SetClientDeviceStatus(CLSTATUS_UPLOADDONE);
+                this->SetClientDeviceStatus(CLSTATUS_IDLE);
 
                 // Finished uploading
                 if (!cancelled)
@@ -655,6 +698,9 @@ bool DeviceThread::HandleMainInput(wxString* rompath)
                 break;
             case TEVENT_CANCELLOAD:
                 kill = true;
+                break;
+            case TEVENT_LOADDATA:
+                // TODO
                 break;
             default:
                 break;
