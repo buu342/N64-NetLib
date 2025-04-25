@@ -201,6 +201,14 @@ void ClientWindow::LoadData()
 
 void ClientWindow::StartThread_Device()
 {
+    // If the thread is stopped but not null, then free it before creating another
+    if (this->m_DeviceThread != NULL && !this->m_DeviceThread->IsAlive())
+    {
+        this->m_DeviceThread->Delete();
+        this->m_DeviceThread = NULL;
+    }
+
+    // Spawn another device thread if there is none
     if (this->m_DeviceThread == NULL)
     {
         this->m_DeviceThread = new DeviceThread(this);
@@ -499,7 +507,6 @@ DeviceThread::DeviceThread(ClientWindow* win) : wxThread(wxTHREAD_JOINABLE)
 
 DeviceThread::~DeviceThread()
 {
-    this->SetClientDeviceStatus(CLSTATUS_DEAD);
     if (device_isopen())
         device_close();
 }
@@ -521,6 +528,7 @@ void* DeviceThread::Entry()
     if (deverr != DEVICEERR_OK)
     {
         this->WriteConsoleError(wxString::Format("Error finding flashcart. Returned error %d.\n", deverr));
+        this->SetClientDeviceStatus(CLSTATUS_DEAD);
         return NULL;
     }
 
@@ -535,6 +543,7 @@ void* DeviceThread::Entry()
         case CART_NONE: 
             this->WriteConsole("Unknown\n");
             this->WriteConsoleError("USB Disconnected.\n");
+            this->SetClientDeviceStatus(CLSTATUS_DEAD);
             return NULL;
     }
 
@@ -543,6 +552,7 @@ void* DeviceThread::Entry()
     if (device_open() != DEVICEERR_OK)
     {
         this->WriteConsoleError(wxString::Format("Error opening flashcart. Returned error %d.\n", deverr));
+        this->SetClientDeviceStatus(CLSTATUS_DEAD);
         return NULL;
     }
 
@@ -559,6 +569,7 @@ void* DeviceThread::Entry()
                 this->WriteConsoleError("Unable to debug on this flashcart.\n");
                 break;
         }
+        this->SetClientDeviceStatus(CLSTATUS_DEAD);
         return NULL;
     }
     device_setprotocol(USBPROTOCOL_LATEST);
@@ -674,6 +685,7 @@ void* DeviceThread::Entry()
 
     // Finished
     this->WriteConsoleError("\nUSB Disconnected.\n");
+    this->SetClientDeviceStatus(CLSTATUS_DEAD);
     return NULL;
 }
 
