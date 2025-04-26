@@ -69,16 +69,16 @@ public class RealtimeServer {
             Runtime.getRuntime().addShutdownHook(
                 new Thread("App Shutdown Hook") {
                     public void run() { 
-                        UPnP.closePortTCP(port);
+                        UPnP.closePortUDP(port);
                         System.out.println("UPnP port closed");
                     }
                 }
             );
             System.out.println("Attempting UPnP port forwarding...");
             if (UPnP.isUPnPAvailable()) {
-                if (UPnP.isMappedTCP(port)) {
+                if (UPnP.isMappedUDP(port)) {
                     System.out.println("UPnP port is already mapped");
-                } else if (UPnP.openPortTCP(port)) {
+                } else if (UPnP.openPortUDP(port)) {
                     System.out.println("UPnP enabled");
                 } else {
                     System.out.println("UPnP failed");

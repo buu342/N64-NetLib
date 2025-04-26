@@ -6,6 +6,8 @@ import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
+import com.dosse.upnp.UPnP;
+
 import N64.N64ROM;
 import N64.N64Server;
 import NetLib.S64Packet;
@@ -23,6 +25,7 @@ public class MasterServer {
 
     // Default globals
     private static int port = DEFAULTPORT;
+    private static boolean useupnp = true;
     private static String romdir = "roms/";
     
     /**
@@ -42,6 +45,28 @@ public class MasterServer {
         
         // Try to open the port
         try {
+            if (useupnp) {
+                Runtime.getRuntime().addShutdownHook(
+                    new Thread("App Shutdown Hook") {
+                        public void run() { 
+                            UPnP.closePortUDP(port);
+                            System.out.println("UPnP port closed");
+                        }
+                    }
+                );
+                System.out.println("Attempting UPnP port forwarding...");
+                if (UPnP.isUPnPAvailable()) {
+                    if (UPnP.isMappedUDP(port)) {
+                        System.out.println("UPnP port is already mapped");
+                    } else if (UPnP.openPortUDP(port)) {
+                        System.out.println("UPnP enabled");
+                    } else {
+                        System.out.println("UPnP failed");
+                    }
+                } else {
+                    System.out.println("UPnP is not available");
+                }
+            }
             ds = new DatagramSocket(port);
         } catch (IOException e) {
             System.err.println("Failed to open port " + Integer.toString(port) + ".");
@@ -106,6 +131,9 @@ public class MasterServer {
     private static void ReadArguments(String args[]) {
         for (int i=0; i<args.length; i++) {
             switch (args[i]) {
+                case "-noupnp":
+                    useupnp = false;
+                    break;
                 case "-port":
                     if (i+1 >= args.length) {
                         System.err.println("Missing argument for port command");
@@ -136,6 +164,7 @@ public class MasterServer {
     private static void ShowHelp() {
         System.out.println("Program arguments:");
         System.out.println("    -help\t\tDisplay this");
+        System.out.println("    -noupnp\t\tDo not use UPNP to open the port");
         System.out.println("    -port <Number>\tServer port (default '6464')");
         System.out.println("    -dir <Path/To/Dir>\tROM Directory (default 'roms')");
     }
