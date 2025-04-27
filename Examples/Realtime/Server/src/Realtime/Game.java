@@ -164,9 +164,11 @@ public class Game implements Runnable  {
             // Check each player for status changes
             for (Player ply : this.players) {
                 if (ply != null) {
+                    final int HEADERSIZE = 2;
                     ByteArrayOutputStream thisbytes = new ByteArrayOutputStream();
                     GameObject obj = ply.GetObject();
                     thisbytes.write(ByteBuffer.allocate(1).put((byte)ply.GetNumber()).array());
+                    thisbytes.write(ByteBuffer.allocate(1).put((byte)0).array()); // Size of the data, to be filled later
                     
                     // Check for object state changes
     	        	if (obj.GetPos().GetX() != obj.GetPos().GetPreviousX() || obj.GetPos().GetY() != obj.GetPos().GetPreviousY()) {
@@ -190,8 +192,10 @@ public class Game implements Runnable  {
     	        	}
     	        	
     	        	// Only attach this to the output buffer if we actually have stuff to network
-    	        	if (thisbytes.size() > 1) {
-    	        	    bytes.write(thisbytes.toByteArray());
+    	        	if (thisbytes.size() > HEADERSIZE) {
+    	        	    byte finaldata[] = thisbytes.toByteArray();
+    	        	    finaldata[1] = (byte)(finaldata.length - HEADERSIZE);
+    	        	    bytes.write(finaldata);
     	        	    objcount++;
     	        	}
                 }
@@ -228,8 +232,10 @@ public class Game implements Runnable  {
             bytes.write(ByteBuffer.allocate(1).put((byte)0).array()); // First byte is object count. We will fill this in later
             bytes.write(ByteBuffer.allocate(8).putLong(this.gametime).array());
             for (GameObject obj : this.objs) {
+                final int HEADERSIZE = 5;
                 ByteArrayOutputStream thisbytes = new ByteArrayOutputStream();
                 thisbytes.write(ByteBuffer.allocate(4).putInt(obj.GetID()).array());
+                thisbytes.write(ByteBuffer.allocate(1).put((byte)0).array()); // Size of the data, to be filled later
                 
                 // Check for object state changes
                 if (obj.GetPos().GetX() != obj.GetPos().GetPreviousX() || obj.GetPos().GetY() != obj.GetPos().GetPreviousY()) {
@@ -253,8 +259,10 @@ public class Game implements Runnable  {
                 }
                 
                 // Only attach this to the output buffer if we actually have stuff to network
-                if (thisbytes.size() > 4) {
-                    bytes.write(thisbytes.toByteArray());
+                if (thisbytes.size() > HEADERSIZE) {
+                    byte finaldata[] = thisbytes.toByteArray();
+                    finaldata[4] = (byte)(finaldata.length - HEADERSIZE);
+                    bytes.write(finaldata);
                     objcount++;
                 }
             }

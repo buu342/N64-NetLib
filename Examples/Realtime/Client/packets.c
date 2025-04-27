@@ -148,7 +148,7 @@ static GameObject* packet_readobject()
     @param The data size left to read
 ==============================*/
 
-static void packet_readobjectupdate(GameObject* obj, size_t size)
+static void packet_readobjectupdate(GameObject* obj, u8 size)
 {   
     // Read the data in the packet
     while (size > 0)
@@ -279,29 +279,26 @@ static void netcallback_updateobject(size_t size)
     u64 time;
     OSTime ctime;
     
-    // Read the object count
+    // Read the object count and update time
     netlib_readbyte(&objcount);
-    size -= sizeof(u8);
-    
-    // Read the update time
     netlib_readqword(&time);
-    size -= sizeof(u64);
     ctime = OS_NSEC_TO_CYCLES(time);
     
     // Read each object's data
     while (objcount > 0)
     {
         u32 id;
+        u8 datasize;
         GameObject* obj;
         
-        // Get the affected object's ID
+        // Get the affected object's ID and the data size
         netlib_readdword(&id);
-        size -= sizeof(u32);
+        netlib_readbyte(&datasize);
         obj = objects_findbyid(id);
         
         // Update the object and handle the next one
         objects_pusholdtransforms(obj);
-        packet_readobjectupdate(obj, size);
+        packet_readobjectupdate(obj, datasize);
         if (obj != NULL)
         {
             obj->sv_trans.timestamp = ctime;
@@ -325,23 +322,20 @@ static void netcallback_updateplayer(size_t size)
     bool reconcile = FALSE;
     GameObject* clobj = global_players[netlib_getclient()-1].obj;
     
-    // Read the object count
+    // Read the object count and the last acknowledged input time
     netlib_readbyte(&objcount);
-    size -= sizeof(u8);
-    
-    // Read the last acknowledged input time
     netlib_readqword(&time);
-    size -= sizeof(u64);
     
     // Read each object's data
     while (objcount > 0)
     {
         u8 plynum;
+        u8 datasize;
         GameObject* obj;
         
-        // Get the affected player's object
+        // Get the affected player's object and the data size
         netlib_readbyte(&plynum);
-        size -= sizeof(u8);
+        netlib_readbyte(&datasize);
         obj = global_players[plynum-1].obj;
         
         // If this object is the client, then we need to reconcile later
@@ -351,7 +345,7 @@ static void netcallback_updateplayer(size_t size)
         // Read the player update data
         // We pass in obj, even if null, so that it still reads the data from the packet (rather, skips the data)
         objects_pusholdtransforms(obj);
-        packet_readobjectupdate(obj, size);
+        packet_readobjectupdate(obj, datasize);
         if (obj != NULL)
         {
             obj->sv_trans.timestamp = time;
