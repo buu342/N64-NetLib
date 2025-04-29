@@ -318,6 +318,9 @@ void ClientWindow::m_TextCtrl_Input_OnText(wxCommandEvent& event)
         this->m_Button_Send->SetLabel(wxT("Reupload"));
     else
         this->m_Button_Send->SetLabel(wxT("Send"));
+
+    // Unused parameter
+    (void)event;
 }
 
 
@@ -610,6 +613,13 @@ void* DeviceThread::Entry()
                         device_cancelupload();
                         this->WriteConsoleError("\nUpload interrupted.\n");
                         this->m_FirstPrint = true;
+                        cancelled = true;
+                        break;
+                    }
+
+                    // Check for thread death
+                    if (device_getuploadprogress() < 100.0f && !this->m_UploadThread->IsAlive())
+                    {
                         cancelled = true;
                         break;
                     }
