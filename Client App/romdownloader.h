@@ -18,7 +18,6 @@ typedef struct IUnknown IUnknown;
 #include <wx/icon.h>
 #include <wx/sizer.h>
 #include <wx/dialog.h>
-#include <wx/socket.h>
 
 /*********************************
              Classes

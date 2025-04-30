@@ -23,6 +23,7 @@ typedef struct IUnknown IUnknown;
 #include <wx/button.h>
 #include <wx/sizer.h>
 #include <wx/dialog.h>
+#include <wx/socket.h>
 #include <unordered_map>
 #include <list>
 #include "customview.h"
@@ -54,15 +55,6 @@ typedef struct
     wxString romhash;
     bool romdownloadable;
 } FoundServer;
-
-typedef struct
-{
-    wxString filepath;
-    uint8_t* filedata;
-    uint32_t filesize;
-    uint32_t chunksize;
-    std::list<std::pair<uint32_t, wxLongLong>> chunksleft;
-} FileDownload;
 
 
 /*********************************
@@ -125,11 +117,10 @@ class ServerFinderThread : public wxThread
     private:
         ServerBrowser* m_Window;
         
-        void          HandleMainInput(UDPHandler* handler, FileDownload** filedl, wxString* filedl_path);
-        FoundServer   ParsePacket_Server(ASIOSocket* socket, S64Packet* pkt);
-        void          DiscoveredServer(std::unordered_map<wxString, std::pair<FoundServer, wxLongLong>>* serverlist, S64Packet* pkt);
-        FileDownload* BeginFileDownload(S64Packet* pkt, wxString filepath);
-        void          HandleFileData(S64Packet* pkt, FileDownload** filedlp);
+        void         HandleMainInput(UDPHandler* handler, wxString* filedl_path);
+        FoundServer  ParsePacket_Server(ASIOSocket* socket, S64Packet* pkt);
+        void         DiscoveredServer(std::unordered_map<wxString, std::pair<FoundServer, wxLongLong>>* serverlist, S64Packet* pkt);
+        void         FileDownload(S64Packet* pkt, wxString filepath);
 
     protected:
 

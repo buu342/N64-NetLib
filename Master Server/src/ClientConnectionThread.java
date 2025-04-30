@@ -6,11 +6,14 @@ import NetLib.ClientTimeoutException;
 import NetLib.PacketFlag;
 import NetLib.S64Packet;
 import NetLib.UDPHandler;
-import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.net.DatagramSocket;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.net.SocketException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.concurrent.ConcurrentHashMap;
@@ -27,10 +30,6 @@ public class ClientConnectionThread extends Thread {
     // Database structs
     private ConcurrentHashMap<String, N64ROM> roms;
     private ConcurrentHashMap<String, N64Server> servers;
-
-    // ROM download trackers
-    private File romtodownload;
-    private int romchunkcount;
     
     // Thread communication
     private ConcurrentLinkedQueue<byte[]> msgqueue = new ConcurrentLinkedQueue<byte[]>();
@@ -47,8 +46,6 @@ public class ClientConnectionThread extends Thread {
         this.servers = servers;
         this.roms = roms;
         this.handler = new UDPHandler(socket, addr, port);
-        this.romtodownload = null;
-        this.romchunkcount = 0;
     }
     
     /**
@@ -85,11 +82,6 @@ public class ClientConnectionThread extends Thread {
                         break;
                     } else if (pkt.GetType().equals("DOWNLOAD")) {
                         this.DownloadROM(pkt.GetData());
-                        continue;
-                    } else if (pkt.GetType().equals("FILEDATA")) {
-                        this.SendROMChunk(pkt.GetData());
-                        continue;
-                    } else if (pkt.GetType().equals("FILEDONE")) {
                         break;
                     } else if (pkt.GetType().equals("HEARTBEAT")) {
                         this.HandleServerHeartbeat();
@@ -194,14 +186,20 @@ public class ClientConnectionThread extends Thread {
      * @throws ClientTimeoutException  Shouldn't happen as we are sending unreliable flags
      * @throws IOException             If an I/O error occurs
      * @throws InvalidROMException     If a file is found which is not a valid N64 ROM
+     * @throws InterruptedException    The file transfer was interrupted
      */
-    private void DownloadROM(byte[] data) throws IOException, ClientTimeoutException, InvalidROMException {
+    private void DownloadROM(byte[] data) throws IOException, ClientTimeoutException, InvalidROMException, InterruptedException {
+        long chunks;
         byte[] hash;
         N64ROM rom;
         String romhashstr;
         File romfile;
         ByteBuffer bb = ByteBuffer.wrap(data);
         String addrport = this.handler.GetAddress() + ":" + this.handler.GetPort();
+        ServerSocket ss;
+        Socket sock;
+        FileInputStream fis;
+        OutputStream out;
         System.out.println("Client " + addrport + " wants to download ROM");
         
         // Store the hash
@@ -237,50 +235,34 @@ public class ClientConnectionThread extends Thread {
             return;
         }
         
-        // Send file data
-        this.romtodownload = romfile;
-        this.romchunkcount = (int)Math.ceil(((float)rom.GetSize())/FILECHUNKSIZE);
+        // Send the download packet
         bb = ByteBuffer.allocate(8);
         bb.putInt(rom.GetSize());
         bb.putInt(FILECHUNKSIZE);
+        chunks = (long)Math.ceil(((float)rom.GetSize()) / FILECHUNKSIZE);
         this.handler.SendPacket(new S64Packet("DOWNLOAD", bb.array(), PacketFlag.FLAG_UNRELIABLE.GetInt()));
-    }
-    
-    /**
-     * Handle a S64Packet with the type "FILEDATA"
-     * This packet is sent by clients when they want a chunk of the current file to download
-     * @throws ClientTimeoutException  Shouldn't happen as we are sending unreliable flags
-     * @throws IOException             If an I/O error occurs
-     */
-    private void SendROMChunk(byte[] data) throws IOException, ClientTimeoutException {
-        int readcount;
-        int requestedchunk;
-        byte[] buffer = new byte[FILECHUNKSIZE];
-        BufferedInputStream bis;
-        ByteBuffer bb = ByteBuffer.wrap(data);
+        System.out.println("    Sent download packet");
         
-        // If we don't have a ROM to download, notify the client
-        if (this.romtodownload == null) {
-            this.handler.SendPacket(new S64Packet("FILEDATA", null, PacketFlag.FLAG_UNRELIABLE.GetInt()));
-            return;
+        // Send file data by opening a TCP socket
+        ss = new ServerSocket(6464);
+        fis = new FileInputStream(romfile);
+        try {
+            sock = ss.accept();
+            out = sock.getOutputStream();
+            System.out.println("    Opened TCP Socket");
+            for (long i = 0; i < chunks; i++) {
+                byte[] sendbuf = fis.readNBytes(FILECHUNKSIZE);
+                out.write(sendbuf);
+                Thread.sleep(10);
+            }
+            
+            // Finished
+            System.out.println("    Finished");
+            out.close();
+        } catch (SocketException e) {
+            System.out.println("    Download cancelled due to broken pipe");
         }
-        
-        // Check if the client requested a valid chunk
-        requestedchunk = bb.getInt();
-        if (requestedchunk < 0 || requestedchunk > this.romchunkcount){
-            this.handler.SendPacket(new S64Packet("FILEDATA", null, PacketFlag.FLAG_UNRELIABLE.GetInt()));
-            return;
-        }
-        
-        // Transfer the ROM chunk
-        bis = new BufferedInputStream(new FileInputStream(this.romtodownload));
-        bis.skip(requestedchunk*FILECHUNKSIZE);
-        readcount = bis.read(buffer);
-        bb = ByteBuffer.allocate(readcount + 4 + 4);
-        bb.putInt(requestedchunk);
-        bb.putInt(readcount);
-        bb.put(buffer, 0, readcount);
-        this.handler.SendPacket(new S64Packet("FILEDATA", bb.array(), PacketFlag.FLAG_UNRELIABLE.GetInt()));
-        bis.close();
+        fis.close();
+        ss.close(); 
     }
 }

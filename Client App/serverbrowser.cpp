@@ -703,7 +703,6 @@ void* ServerFinderThread::Entry()
     ASIOSocket* sock = new ASIOSocket(this->m_Window->GetAddress(), this->m_Window->GetPort());
     UDPHandler* handler = new UDPHandler(sock, this->m_Window->GetAddress(), this->m_Window->GetPort());
     uint8_t* buff = (uint8_t*)malloc(4096);
-    FileDownload* filedl = NULL;
     wxString filedl_path = "";
 
     // Run in a loop until the main thread wants to kill us
@@ -732,9 +731,7 @@ void* ServerFinderThread::Entry()
                         else if (!strncmp(pkt->GetType(), "DONELISTING", 11))
                             printf("Master server finished sending server list\n");
                         else if (!strncmp(pkt->GetType(), "DOWNLOAD", 8))
-                            filedl = this->BeginFileDownload(pkt, filedl_path);
-                        else if (!strncmp(pkt->GetType(), "FILEDATA", 8))
-                            this->HandleFileData(pkt, &filedl);
+                            this->FileDownload(pkt, filedl_path);
                         else if (!strncmp(pkt->GetType(), "DISCOVER", 8))
                             this->DiscoveredServer(&serversleft, pkt);
                         else
@@ -752,47 +749,18 @@ void* ServerFinderThread::Entry()
             }
             handler->ResendMissingPackets();
 
-            // If we have a file download in progress, request some chunks
-            if (filedl != NULL)
-            {
-                std::list<std::pair<uint32_t, wxLongLong>>::iterator it;
-                for (it = filedl->chunksleft.begin(); it != filedl->chunksleft.end(); ++it)
-                {
-                    std::pair<uint32_t, wxLongLong> itpair = *it;
-                    if (itpair.second == 0 || wxGetLocalTimeMillis() - itpair.second > 1000)
-                    {
-                        uint32_t chunk = swap_endian32(itpair.first);
-                        handler->SendPacket(new S64Packet("FILEDATA", sizeof(uint32_t), (uint8_t*)&chunk, FLAG_UNRELIABLE));
-                        itpair.second = wxGetLocalTimeMillis();
-                        wxMilliSleep(50); // TODO: Write a congestion avoidance algorithm so that we can send packets faster than this
-                        break;
-                    }
-                }
-            }
-            else
-                wxMilliSleep(10);
+            // Rest for a second
+            wxMilliSleep(10);
 
             // Check for messages from the main thread
-            this->HandleMainInput(handler, &filedl, &filedl_path);
+            this->HandleMainInput(handler, &filedl_path);
         }
         catch (ClientTimeoutException& e)
         {
             wxString fulladdr = wxString::Format("%s:%d", handler->GetAddress(), handler->GetPort());
 
             // Log error messages based on what server timed out
-            if (e.what() == fulladdr)
-            {
-                printf("Master server timed out\n");
-                if (filedl != NULL)
-                {
-                    filedl_path = "";
-                    free(filedl->filedata);
-                    delete filedl;
-                    filedl = NULL;
-                }
-                break;
-            }
-            else
+            if (e.what() != fulladdr)
             {
                 if (serversleft.find(fulladdr) != serversleft.end())
                 {
@@ -802,6 +770,8 @@ void* ServerFinderThread::Entry()
                     serversleft.erase(fulladdr);
                 }
             }
+            else
+                printf("Master server timed out\n");
         }
     }
 
@@ -819,11 +789,10 @@ void* ServerFinderThread::Entry()
     ServerFinderThread::HandleMainInput
     Handle input from the main thread
     @param A pointer to the UDP handler
-    @param A pointer to the pointer of the file download struct
     @param A pointer to the string with the file download path
 ==============================*/
 
-void ServerFinderThread::HandleMainInput(UDPHandler* handler, FileDownload** filedl, wxString* filedl_path)
+void ServerFinderThread::HandleMainInput(UDPHandler* handler, wxString* filedl_path)
 {
     InputMessage* usrinput = NULL;
     while (global_msgqueue_serverthread_input.ReceiveTimeout(0, usrinput) == wxMSGQUEUE_NO_ERROR)
@@ -831,19 +800,15 @@ void ServerFinderThread::HandleMainInput(UDPHandler* handler, FileDownload** fil
         switch (usrinput->type)
         {
             case TEVENT_DOLIST:
-                handler->SendPacket(new S64Packet("LIST", 0, NULL, FLAG_UNRELIABLE));
+                if (handler != NULL)
+                    handler->SendPacket(new S64Packet("LIST", 0, NULL, FLAG_UNRELIABLE));
                 break;
             case TEVENT_DODL:
-                handler->SendPacket(new S64Packet("DOWNLOAD", 32, (uint8_t*)usrinput->data, FLAG_UNRELIABLE));
+                if (handler != NULL)
+                    handler->SendPacket(new S64Packet("DOWNLOAD", 32, (uint8_t*)usrinput->data, FLAG_UNRELIABLE));
                 break;
             case TEVENT_CANCELDL:
-                if (*filedl != NULL)
-                {
-                    *filedl_path = "";
-                    free((*filedl)->filedata);
-                    delete *filedl;
-                    *filedl = NULL;
-                }
+                *filedl_path = "";
                 break;
             case TEVENT_FILENAME:
                 *filedl_path = wxString(usrinput->data);
@@ -987,94 +952,81 @@ void ServerFinderThread::DiscoveredServer(std::unordered_map<wxString, std::pair
 
 
 /*==============================
-    ServerFinderThread::BeginFileDownload
-    Prepare a file for download from the master server
+    ServerFinderThread::FileDownload
+    Download a file from the master server
     @param The packet with the file info
     @param The filepath to store the file in
 ==============================*/
 
-FileDownload* ServerFinderThread::BeginFileDownload(S64Packet* pkt, wxString filepath)
+void ServerFinderThread::FileDownload(S64Packet* pkt, wxString filepath)
 {
-    uint32_t chunkcount;
-    FileDownload* ret = NULL;
+    uint8_t* filedata;
+    uint32_t chunkcount, chunksread, chunksize, filesize;
+    wxSocketClient* tcpsock;
+    wxIPV4address addr;
     if (filepath == "" || pkt->GetSize() == 0)
-        return NULL;
-    ret = new FileDownload();
+        return;
 
     // Assign file info
-    ret->filepath = filepath;
-    memcpy(&ret->filesize, &pkt->GetData()[0], sizeof(uint32_t));
-    ret->filesize = swap_endian32(ret->filesize);
-    ret->filedata = (uint8_t*)malloc(ret->filesize);
-    if (ret->filedata == NULL)
-    {
-        delete ret;
-        return NULL;
-    }
-
-    // Get chunk data
-    memcpy(&ret->chunksize, &pkt->GetData()[4], sizeof(uint32_t));
-    ret->chunksize = swap_endian32(ret->chunksize);
-    chunkcount = ceilf(((float)ret->filesize)/ret->chunksize);
-    for (uint32_t i=0; i<chunkcount; i++)
-        ret->chunksleft.push_back(std::make_pair(i, 0));
-
-    // Done
-    return ret;
-}
-
-
-/*==============================
-    ServerFinderThread::HandleFileData
-    Handle a file chunk from the server
-    @param The packet with the file chunk
-    @param A pointer to the file download struct
-==============================*/
-
-void ServerFinderThread::HandleFileData(S64Packet* pkt, FileDownload** filedlp)
-{
-    FileDownload* filedl = *filedlp;
-    uint32_t chunknum, readsize;
-    std::list<std::pair<uint32_t, wxLongLong>>::iterator it;
-
-    // Ensure we have a valid packet
-    if (filedl == NULL || pkt->GetSize() == 0)
+    memcpy(&filesize, &pkt->GetData()[0], sizeof(uint32_t));
+    filesize = swap_endian32(filesize);
+    filedata = (uint8_t*)malloc(filesize);
+    if (filedata == NULL)
         return;
 
-    // Read data from the packet
-    memcpy(&chunknum, &pkt->GetData()[0], sizeof(uint32_t));
-    chunknum = swap_endian32(chunknum);
-    memcpy(&readsize, &pkt->GetData()[4], sizeof(uint32_t));
-    readsize = swap_endian32(readsize);
-    memcpy(&filedl->filedata[chunknum*filedl->chunksize], &pkt->GetData()[8], readsize);
+    // Get chunk size
+    memcpy(&chunksize, &pkt->GetData()[4], sizeof(uint32_t));
+    chunksize = swap_endian32(chunksize);
+    chunkcount = ceilf(((float)filesize)/chunksize);
 
-    // Remove this chunk from the list
-    for (it = filedl->chunksleft.begin(); it != filedl->chunksleft.end(); ++it)
+    // Connect to the TCP socket
+    tcpsock = new wxSocketClient(wxSOCKET_BLOCK);
+    addr.Hostname(this->m_Window->GetAddress());
+    addr.Service(this->m_Window->GetPort());
+    tcpsock->Connect(addr);
+    printf("    Filesize %d\n", filesize);
+
+    // Download the file chunks
+    chunksread = 0;
+    while (chunksread < chunkcount)
     {
-        std::pair<uint32_t, wxLongLong> itpair = *it;
-        if (itpair.first == chunknum)
+        if (tcpsock->IsData())
         {
-            filedl->chunksleft.erase(it);
+            tcpsock->Read(filedata+chunksread*chunksize, chunksize);
+            if (tcpsock->LastReadCount() != 0)
+            {
+                chunksread++;
+                this->m_Window->m_DownloadWindow->UpdateDownloadProgress((((float)chunksread)/chunkcount)*100);
+            }
+        }
+
+        // Check for cancellation
+        this->HandleMainInput(NULL, &filepath);
+        if (filepath == "")
+        {
+            printf("    Download cancelled\n");
             break;
         }
-    }
 
-    // If no chunks are left, dump this ROM to a file
-    if (filedl->chunksleft.size() == 0)
+        // Rest a bit
+        wxMilliSleep(10);
+    }
+    tcpsock->Close();
+
+    // Dump the ROM to a file if it finished
+    if (chunksread == chunkcount)
     {
-        printf("Download done, saving file\n");
-        FILE* fp = fopen(filedl->filepath, "wb+");
-        fwrite(filedl->filedata, 1, filedl->filesize, fp);
+        FILE* fp = fopen(filepath.c_str(), "wb+");
+        fwrite(filedata, 1, filesize, fp);
         fclose(fp);
-        this->m_Window->m_DownloadWindow->UpdateDownloadProgress(100);
-        free(filedl->filedata);
-        delete filedl;
-        filedl = NULL;
-        return;
+        printf("    File saved\n");
     }
-    this->m_Window->m_DownloadWindow->UpdateDownloadProgress((1-((float)filedl->chunksize*filedl->chunksleft.size())/filedl->filesize)*100);
-}
 
+    // Done
+    printf("Download finished\n");
+    free(filedata);
+    return;
+}
 
 
 /*=============================================================

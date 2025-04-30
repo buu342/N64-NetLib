@@ -64,8 +64,9 @@ bool App::OnInit()
     // Initialize image handlers
     wxInitAllImageHandlers();
 
-    // Initialize asio
+    // Initialize asio and wxSockets
     ASIOSocket::InitASIO();
+    wxSocketBase::Initialize();
 
     // Initialize config file
     wxStandardPaths::Get().SetFileLayout(wxStandardPaths::FileLayout_XDG);

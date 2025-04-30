@@ -49,6 +49,7 @@ public class MasterServer {
                 Runtime.getRuntime().addShutdownHook(
                     new Thread("App Shutdown Hook") {
                         public void run() { 
+                            UPnP.closePortTCP(port);
                             UPnP.closePortUDP(port);
                             System.out.println("UPnP port closed");
                         }
@@ -56,9 +57,9 @@ public class MasterServer {
                 );
                 System.out.println("Attempting UPnP port forwarding...");
                 if (UPnP.isUPnPAvailable()) {
-                    if (UPnP.isMappedUDP(port)) {
+                    if (UPnP.isMappedUDP(port) && UPnP.isMappedTCP(port)) {
                         System.out.println("UPnP port is already mapped");
-                    } else if (UPnP.openPortUDP(port)) {
+                    } else if (UPnP.openPortUDP(port) && UPnP.openPortTCP(port)) {
                         System.out.println("UPnP enabled");
                     } else {
                         System.out.println("UPnP failed");
