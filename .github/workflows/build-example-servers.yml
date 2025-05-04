@@ -1,18 +1,24 @@
 name: Compile Example Servers
 
+env:
+  ARTIFACT_NAME: 'ExampleServers'
+  HELLO_PATH: 'Examples/Hello World/Server'
+  REALTIME_PATH: 'Examples/Realtime/Server'
+  TTT_PATH: 'Examples/Tic Tac Toe/Server'
+
 on:
   push:
+    branches: [ "main" ]
     paths:
       - 'Examples/Hello World/Server/**'
       - 'Examples/Realtime/Server/**'
       - 'Examples/Tic Tac Toe/Server/**'
-    branches: [ "main" ]
   pull_request:
+    branches: [ "main" ]
     paths:
       - 'Examples/Hello World/Server/**'
       - 'Examples/Realtime/Server/**'
       - 'Examples/Tic Tac Toe/Server/**'
-    branches: [ "main" ]
 
 jobs:
   build:
@@ -21,14 +27,25 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - name: Set up JDK 21
+    - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
-        java-version: '21'
+        java-version: '17'
         distribution: 'temurin'
     - name: Build 'Hello World' with Ant
-      run: ant -noinput -buildfile 'Examples/Hello World/Server/build.xml'
+      run: ant -noinput -buildfile '${{ env.HELLO_PATH }}/build.xml'
     - name: Build 'Realtime' with Ant
-      run: ant -noinput -buildfile 'Examples/Realtime/Server/build.xml'
+      run: ant -noinput -buildfile '${{ env.REALTIME_PATH }}/build.xml'
     - name: Build 'Tic Tac Toe' with Ant
-      run: ant -noinput -buildfile 'Examples/Tic Tac Toe/Server/build.xml'
+      run: ant -noinput -buildfile '${{ env.TTT_PATH }}/build.xml'
+    - name: Move files
+      run: |
+        mkdir ${{ env.ARTIFACT_NAME }}
+        find "${{ env.HELLO_PATH }}" -maxdepth 1 -name '*.jar' -exec mv '{}' ${{ env.ARTIFACT_NAME }} \;
+        find "${{ env.REALTIME_PATH }}" -maxdepth 1 -name '*.jar' -exec mv '{}' ${{ env.ARTIFACT_NAME }} \;
+        find "${{ env.TTT_PATH }}" -maxdepth 1 -name '*.jar' -exec mv '{}' ${{ env.ARTIFACT_NAME }} \;
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.ARTIFACT_NAME }}
+        path: ${{ env.ARTIFACT_NAME }}/*
