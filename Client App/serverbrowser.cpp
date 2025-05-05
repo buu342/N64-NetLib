@@ -23,7 +23,7 @@ The server browser window
 ******************************/
 
 typedef enum {
-    TEVENT_ADDSERVER,
+    TEVENT_ADDSERVER, 
 
     // User Input events
     TEVENT_DOLIST,
