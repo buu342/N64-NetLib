@@ -16,7 +16,7 @@ on:
 env:
   WXVERSION: v3.2.8
   WINDOWS_ARTIFACT_NAME: NetLibBrowser-Windows-x86
-  #LINUX_ARTIFACT_NAME: UNFLoader-Linux-x64
+  LINUX_ARTIFACT_NAME: NetLibBrowser-Linux-x64
   #MACOS_ARTIFACT_NAME: UNFLoader-macOS-x64
 
 jobs:
@@ -25,6 +25,7 @@ jobs:
     env:
       SOLUTION_FILE_PATH: ./Client App/NetLibBrowser.sln
       BUILD_CONFIGURATION: Release
+      BUILD_PLATFORM: x86
       BUILD_DIRECTORY: ./Client App/Release
       WXWIN: D:/wxWidgets/
 
@@ -52,51 +53,54 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build NetLib Browser
         working-directory: ${{ env.GITHUB_WORKSPACE }}
-        run: msbuild /m /p:Configuration=${{ env.BUILD_CONFIGURATION }} ${{ env.SOLUTION_FILE_PATH }}
+        run: |
+          echo %WXWIN%
+          msbuild /m /p:Configuration=${{ env.BUILD_CONFIGURATION }} /p:Platform=${{ env.BUILD_PLATFORM }} "${{ env.SOLUTION_FILE_PATH }}"
 
-#    - uses: actions/checkout@v4
-#
-#    - name: Add MSBuild to PATH
-#      uses: microsoft/setup-msbuild@v2
-#      with:
-#        vs-version: '16.0'
-#        msbuild-architecture: x86
-#
-#    - name: Build
-#      working-directory: ${{ env.GITHUB_WORKSPACE }}
-#      run: msbuild /m /p:Configuration=${{ env.BUILD_CONFIGURATION }} ${{ env.SOLUTION_FILE_PATH }}
-#
-#    - name: Upload artifact
-#      uses: actions/upload-artifact@v4
-#      with:
-#        name: ${{ env.WINDOWS_ARTIFACT_NAME }}
-#        path: ${{ env.BUILD_DIRECTORY }}/UNFLoader.exe
-#
-#  build-linux:
-#    runs-on: ubuntu-latest
-#    env:
-#      LIBFTD2XX_VERSION: '1.4.27'
-#      SOURCES_DIRECTORY: ./UNFLoader
-#      BUILD_DIRECTORY: ./UNFLoader
-#
-#    steps:
-#      - uses: actions/checkout@v4
-#
-#      - name: Install dependencies
-#        run: sudo apt-get install libncurses5-dev libncursesw5-dev libftdi1-dev libusb-1.0-0-dev libudev-dev
-#
-#      - name: Build
-#        run: |
-#          cd ${{ env.SOURCES_DIRECTORY }}
-#          make
-#
-#      - name: Upload artifact
-#        uses: actions/upload-artifact@v4
-#        with:
-#          name: ${{ env.LINUX_ARTIFACT_NAME }}
-#          path: |
-#            ${{ env.BUILD_DIRECTORY }}/UNFLoader
-#            ${{ env.BUILD_DIRECTORY }}/installer_linux.sh
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.WINDOWS_ARTIFACT_NAME }}
+          path: ${{ env.BUILD_DIRECTORY }}/NetLibBrowser.exe
+
+  build-linux:
+    runs-on: ubuntu-latest
+    env:
+      SOURCES_DIRECTORY: Client App
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get install build-essential libgtk-3-dev freeglut3-dev libftdi1-dev libusb-1.0-0-dev libudev-dev
+          
+      - name: Build wxWidgets
+        run: |
+          echo Download wxWidgets
+          git clone https://github.com/wxWidgets/wxWidgets.git
+          cd wxWidgets
+          git checkout tags/${{ env.WXVERSION }}
+          git submodule update --init --recursive
+
+          mkdir gtk-build
+          cd gtk-build
+          ../configure --with-opengl --disable-shared
+          make -j$(nproc)
+          sudo make install
+          sudo ldconfig
+
+      - name: Build
+        run: |
+          cd "${{ env.SOURCES_DIRECTORY }}/"
+          make
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.LINUX_ARTIFACT_NAME }}
+          path: |
+            ${{ env.BUILD_DIRECTORY }}/build/NetLibBrowser
 #
 #  build-macos:
 #    runs-on: macos-latest
