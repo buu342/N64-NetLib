@@ -18,7 +18,7 @@ The client window that handles USB and server communication
 #define USBPROTOCOL_VERSION PROTOCOL_VERSION2
 #define HEARTBEAT_VERSION   1
 
-#define DATATYPE_NETPACKET  (USBDataType)0x27
+#define DATATYPE_NETPACKET  0x27
 
 #define STOPONERROR  0
 
@@ -655,10 +655,10 @@ void* DeviceThread::Entry()
         if (dataheader != 0 && outbuff != NULL)
         {
             uint32_t size = dataheader & 0xFFFFFF;
-            USBDataType command = (USBDataType)((dataheader >> 24) & 0xFF);
+            uint8_t command = ((dataheader >> 24) & 0xFF);
 
             // Decide what to do with the data based off the command type
-            switch ((int)command)
+            switch (command)
             {
                 case DATATYPE_TEXT:      this->ParseUSB_TextPacket(outbuff, size); break;
                 case DATATYPE_NETPACKET: this->ParseUSB_NetLibPacket(outbuff); break;
@@ -679,7 +679,7 @@ void* DeviceThread::Entry()
             if (global_msgqueue_usbthread_pkt.ReceiveTimeout(0, pkt) == wxMSGQUEUE_NO_ERROR)
             {
                 uint8_t* pktasbytes = pkt->GetAsBytes();
-                device_senddata(DATATYPE_NETPACKET, (byte*)pktasbytes, (uint32_t)pkt->GetAsBytes_Size());
+                device_senddata((USBDataType)DATATYPE_NETPACKET, (byte*)pktasbytes, (uint32_t)pkt->GetAsBytes_Size());
                 workdone = true;
                 free(pktasbytes);
             }

@@ -42,7 +42,7 @@ jobs:
       - name: Compile wxWidgets
         run: |
           cd D:/wxWidgets/build/msw
-          nmake /f makefile.vc BUILD=release TARGET_CPU=X86
+          msbuild /m /p:Configuration=Release /p:Platform=Win32 /p:PlatformToolset=v141_xp wx_vc16.sln
 
       - name: Add MSBuild to PATH
         uses: microsoft/setup-msbuild@v2
