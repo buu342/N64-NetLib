@@ -1,5 +1,5 @@
 CODEFILES   = app.cpp serverbrowser.cpp customview.cpp clientwindow.cpp romdownloader.cpp packets.cpp helper.cpp sha256.cpp
-LIBFILES    = Include/ftd2xx.lib
+LIBFILES    = 
 ifeq ($(DEBUG),1)
 	LIBFILES += Include/flashcart_d.a
 else

@@ -26,11 +26,14 @@ jobs:
       SOLUTION_FILE_PATH: ./Client App/NetLibBrowser.sln
       BUILD_CONFIGURATION: Release
       BUILD_PLATFORM: x86
+      BUILD_PLATFORM2: Win32
+      BUILD_TOOLSET: v141_xp
       BUILD_DIRECTORY: ./Client App/Release
       WXWIN: D:/wxWidgets/
 
     steps:
       - uses: actions/checkout@v4
+      - uses: ilammy/msvc-dev-cmd@v1
 
       - name: Download wxWidgets
         run: |
@@ -40,10 +43,18 @@ jobs:
           git checkout tags/${{ env.WXVERSION }}
           git submodule update --init --recursive
 
+          cd build/msw
+          Get-ChildItem *.vcxproj -recurse |
+            Foreach-Object {
+                $c = ($_ | Get-Content) 
+                $c = $c -replace 'MultiThreadedDLL','MultiThreaded'
+                [IO.File]::WriteAllText($_.FullName, ($c -join "`r`n"))
+            }
+
       - name: Compile wxWidgets
         run: |
           cd D:/wxWidgets/build/msw
-          msbuild /m /p:Configuration=Release /p:Platform=Win32 /p:PlatformToolset=v141_xp wx_vc16.sln
+          msbuild /m /p:Configuration=${{ env.BUILD_CONFIGURATION }} /p:Platform=${{ env.BUILD_PLATFORM2 }} /p:PlatformToolset=${{ env.BUILD_TOOLSET }} /p:RuntimeLibrary=MultiThreaded wx_vc16.sln
 
       - name: Download UNFLoader
         run: |
@@ -55,7 +66,7 @@ jobs:
       - name: Compile UNFLoader
         run: |
           cd D:/N64-UNFLoader/UNFLoader
-          msbuild /m /p:Configuration=Release /p:Platform=Win32 /p:PlatformToolset=v141_xp FlashcartLib_Static.vcxproj
+          msbuild /m /p:Configuration=${{ env.BUILD_CONFIGURATION }} /p:Platform=${{ env.BUILD_PLATFORM2 }} /p:PlatformToolset=${{ env.BUILD_TOOLSET }} FlashcartLib_Static.vcxproj
 
       - name: Add MSBuild to PATH
         uses: microsoft/setup-msbuild@v2
@@ -66,8 +77,10 @@ jobs:
       - name: Build NetLib Browser
         working-directory: ${{ env.GITHUB_WORKSPACE }}
         run: |
-          xcopy /Y "D:/N64-UNFLoader/UNFLoader/Release/Flashcart.lib" "${{ env.GITHUB_WORKSPACE }}/Client App/Include"
-          msbuild /m /p:Configuration=${{ env.BUILD_CONFIGURATION }} /p:Platform=${{ env.BUILD_PLATFORM }} "${{ env.SOLUTION_FILE_PATH }}"
+          cd "Client App/Include/"
+          Copy-Item "D:/N64-UNFLoader/UNFLoader/Release/Flashcart.lib"
+          cd ../..
+          msbuild /m /p:Configuration=${{ env.BUILD_CONFIGURATION }} /p:Platform=${{ env.BUILD_PLATFORM }} /p:PlatformToolset=${{ env.BUILD_TOOLSET }} "${{ env.SOLUTION_FILE_PATH }}"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -110,7 +123,7 @@ jobs:
 
           cd UNFLoader
           make static
-          cp -f flashcart.a "${{ env.SOURCES_DIRECTORY }}/Include"
+          cp -f flashcart.a "../../${{ env.SOURCES_DIRECTORY }}/Include/"
 
       - name: Build NetLib Browser
         run: |
@@ -159,7 +172,7 @@ jobs:
 
           cd UNFLoader
           make static
-          cp -f flashcart.a "${{ env.SOURCES_DIRECTORY }}/Include"
+          cp -f flashcart.a "../../${{ env.SOURCES_DIRECTORY }}/Include/"
 
       - name: Build NetLib Browser
         run: |

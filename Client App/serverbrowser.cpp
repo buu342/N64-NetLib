@@ -372,7 +372,7 @@ void ServerBrowser::m_DataViewListCtrl_Servers_OnDataViewListCtrlItemActivated(w
         wxMessageDialog dialog(this, wxString("In order to join this server, the ROM '") + romname + wxString("' must be downloaded. This ROM is available to download from the Master Server.\n\nContinue?"), wxString("Download ROM?"), wxICON_QUESTION | wxYES_NO);
         if (dialog.ShowModal() == wxID_YES)
         {
-            // Create the ROM download dialog    
+            // Create the ROM download dialog
             this->m_DownloadWindow = new ROMDownloadWindow(this);
             this->RequestDownload(romhash, rompath);
             if (this->m_DownloadWindow->ShowModal() != 1)
