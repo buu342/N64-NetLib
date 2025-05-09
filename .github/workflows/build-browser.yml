@@ -54,7 +54,7 @@ jobs:
       - name: Compile wxWidgets
         run: |
           cd D:/wxWidgets/build/msw
-          msbuild /m /p:Configuration=${{ env.BUILD_CONFIGURATION }} /p:Platform=${{ env.BUILD_PLATFORM2 }} /p:PlatformToolset=${{ env.BUILD_TOOLSET }} /p:RuntimeLibrary=MultiThreaded wx_vc16.sln
+          msbuild /m /p:Configuration=${{ env.BUILD_CONFIGURATION }} /p:Platform=${{ env.BUILD_PLATFORM2 }} /p:PlatformToolset=${{ env.BUILD_TOOLSET }} wx_vc16.sln
 
       - name: Download UNFLoader
         run: |

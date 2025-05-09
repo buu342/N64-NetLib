@@ -1,5 +1,7 @@
 # N64 NetLib
 
+![Build Status](https://github.com/buu342/N64-NetLib/actions/workflows/build.yml/badge.svg)
+
 A set of tools and libraries to connect your Nintendo 64 homebrew to the internet for multiplayer using your flashcart's USB slot.
 
 This repository is organized as such:
@@ -13,7 +15,7 @@ This repository is organized as such:
 ##### How to play:
 1. If you haven't used [UNFLoader](https://github.com/buu342/N64-UNFLoader) before, it is recommended you do so to ensure your USB communication is working.
 2. Connect your flashcart to a computer that has an internet connection. 
-3. Put your flashcart in a state where it's ready for USB uploading. 
+3. Put your flashcart in a state where it's ready for USB uploading (this varies between flashcarts). 
 4. Open the NetLibBrowser application on your PC.
 5. Find a server (or manually connect to one).
 6. Play on your console.

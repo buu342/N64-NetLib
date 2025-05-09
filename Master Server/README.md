@@ -8,11 +8,13 @@ By default, ROMs should be placed in a `roms` directory in the working directory
 
 Unless you have a good reason to (like you want to host your own master server), you do not need to ever touch this application.
 
-### Compiling the Master Server
-
+### Compiling the Master Server with Eclipse
 Open the project in [Eclipse](https://www.eclipse.org). By default, Eclipse should just compile it as soon as you open the project.
 
 You can export a `.jar` by right clicking the project in the Project Explorer, going to Export, and selecting Runnable JAR file.
+
+### Compiling the Master Server with Ant
+Simply call `ant -noinput -buildfile build.xml`
 
 ### Running the Master Server
 

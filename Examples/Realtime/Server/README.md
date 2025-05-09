@@ -2,10 +2,13 @@
 
 This folder contains the server implementation of the realtime example.
 
-### Compiling the Server
+### Compiling the Server with Eclipse
 Open the project in [Eclipse](https://www.eclipse.org). By default, Eclipse should just compile it as soon as you open the project.
 
 You can export a `.jar` by right clicking the project in the Project Explorer, going to Export, and selecting Runnable JAR file.
+
+### Compiling the Server with Ant
+Simply call `ant -noinput -buildfile build.xml`
 
 ### Running the Server
 
