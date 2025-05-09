@@ -1,6 +1,8 @@
 # N64 NetLib
 
-![Build Status](https://github.com/buu342/N64-NetLib/actions/workflows/build.yml/badge.svg)
+[![Build NetLib Browser](https://github.com/buu342/N64-NetLib/actions/workflows/build-browser.yml/badge.svg)](https://github.com/buu342/N64-NetLib/actions/workflows/build-browser.yml)
+[![Compile Example Servers](https://github.com/buu342/N64-NetLib/actions/workflows/build-example-servers.yml/badge.svg)](https://github.com/buu342/N64-NetLib/actions/workflows/build-example-servers.yml)
+[![Compile Master Server](https://github.com/buu342/N64-NetLib/actions/workflows/build-master.yml/badge.svg)](https://github.com/buu342/N64-NetLib/actions/workflows/build-master.yml)
 
 A set of tools and libraries to connect your Nintendo 64 homebrew to the internet for multiplayer using your flashcart's USB slot.
 
