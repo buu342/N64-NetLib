@@ -415,3 +415,7 @@ bin2c
 *.o
 *.out
 *.cvt
+Client App/Include/flashcart.a
+Client App/Include/Flashcart.lib
+Client App/Include/flashcart_d.a
+Client App/Include/Flashcart_d.lib
