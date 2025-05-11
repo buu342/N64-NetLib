@@ -47,3 +47,4 @@ If you have successfully installed wxWidgets and built the flashcart library, th
 ### Credits
 
 * Brad Conte for the [SHA256 library](https://github.com/B-Con/crypto-algorithms/blob/master/sha256.c) used for ROM hashing.
+* The [ASIO C++ Library](https://think-async.com/Asio/) used to replace wxWidgets' buggy as hell `wxDatagramSocket`.

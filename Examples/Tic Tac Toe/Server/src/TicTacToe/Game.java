@@ -59,12 +59,16 @@ public class Game implements Runnable  {
                     
                     // Check everyone is ready
                     if (pkt.GetType() == PacketIDs.PACKETID_PLAYERREADY.GetInt()) {
-                        if (pkt.GetSender() == 1) {
-                            player1_ready = (pkt.GetData()[0] == 1);
-                            this.NotifyReady(this.players[1], this.players[0], player1_ready);
-                        } else {
-                            player2_ready = (pkt.GetData()[0] == 1);
-                            this.NotifyReady(this.players[0], this.players[1], player2_ready);
+                        try {
+                            if (pkt.GetSender() == 1) {
+                                player1_ready = (pkt.GetData()[0] == 1);
+                                this.NotifyReady(this.players[1], this.players[0], player1_ready);
+                            } else {
+                                player2_ready = (pkt.GetData()[0] == 1);
+                                this.NotifyReady(this.players[0], this.players[1], player2_ready);
+                            }
+                        } catch (Exception e) { // Catch malformed packets
+                            System.out.println(e);
                         }
                     }
                 }
@@ -104,12 +108,17 @@ public class Game implements Runnable  {
                         continue;
                     
                     // Make the move
-                    boardx = pkt.GetData()[0];
-                    boardy = pkt.GetData()[1];
-                    movex = pkt.GetData()[2];
-                    movey = pkt.GetData()[3];
-                    if (!this.board.MakeMove(this.turn, boardx, boardy, movex, movey))
-                        continue; // If the move wasn't valid, restart the loop and try again
+                    try {
+                        boardx = pkt.GetData()[0];
+                        boardy = pkt.GetData()[1];
+                        movex = pkt.GetData()[2];
+                        movey = pkt.GetData()[3];
+                        if (!this.board.MakeMove(this.turn, boardx, boardy, movex, movey))
+                            continue; // If the move wasn't valid, restart the loop and try again
+                    } catch (Exception e) { // Catch malformed packets
+                        System.out.println(e);
+                        continue;
+                    }
                     
                     // Valid move, notify other players of the move
                     this.NotifyMove(this.turn, 1 + boardx + boardy*3, movex, movey);
