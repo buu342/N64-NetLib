@@ -22,7 +22,7 @@ java -jar <FileName.jar> <Program arguments>
 
 By default, when you try launch the server, it will assume you want to register it to the Master Server. Because of this, you are required to both provide a name for the server (using the `-name` argument) and the ROM which connecting players need (using the `-rom` argument). If you don't wish to register the server, use `-noregister`. You can also use the `-master` command to provide a different Master Server to register the server to.
 
-The server will use a default port of 6460. You can change this with the `-port` command. It will also attempt to use UPnP to let you host a server without port forwarding. You can disable UPnP with the `-noupnp` argument.
+The server will use a default port of 6462. You can change this with the `-port` command. It will also attempt to use UPnP to let you host a server without port forwarding. You can disable UPnP with the `-noupnp` argument.
 
 A list of arguments is available with the `-help` arguments.
 

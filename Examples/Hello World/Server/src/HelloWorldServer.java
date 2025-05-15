@@ -16,7 +16,7 @@ import NetLib.S64Packet;
 public class HelloWorldServer {
 
     // Constants
-    private static final String MASTER_DEFAULTADDRESS = "127.0.0.1";
+    private static final String MASTER_DEFAULTADDRESS = "master.n64brew.dev";
     private static final int    MASTER_DEFAULTPORT = 6464;
     
     // Server settings

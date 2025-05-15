@@ -16,11 +16,11 @@ import NetLib.S64Packet;
 public class RealtimeServer {
 
     // Constants
-    private static final String MASTER_DEFAULTADDRESS = "127.0.0.1";
+    private static final String MASTER_DEFAULTADDRESS = "master.n64brew.dev";
     private static final int    MASTER_DEFAULTPORT = 6464;
     
     // Server settings
-    private static int port = 6460;
+    private static int port = 6462;
     private static boolean useupnp = true;
     private static boolean register = true;
     private static String servername = "";

@@ -96,7 +96,7 @@ void stage_game_update(void)
             {
                 cursor_toboard(global_forcedboard);
             }
-            else if (global_gridstate_large[cbx][cby] != 0) // If the player's cursor is now inside a completed board, move its
+            else if (global_gridstate_large[cbx][cby] != 0) // If the player's cursor is now inside a completed board, move it
             {
                 // If the center board is complete, move it to the first non empty board.
                 if (global_gridstate_large[1][1] != 0)

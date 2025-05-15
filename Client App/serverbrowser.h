@@ -35,7 +35,7 @@ typedef struct IUnknown IUnknown;
              Macros
 ******************************/
 
-#define DEFAULT_MASTERSERVER_ADDRESS "localhost"
+#define DEFAULT_MASTERSERVER_ADDRESS "master.n64brew.dev"
 #define DEFAULT_MASTERSERVER_PORT    6464
 
 

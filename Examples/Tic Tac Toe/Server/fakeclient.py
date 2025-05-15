@@ -8,7 +8,7 @@ import threading
 
 # Server address
 HOST = "127.0.0.1"
-PORT = 6460
+PORT = 6461
 
 # Current version of the NetLib packets
 NETLIB_VERSION = 1
