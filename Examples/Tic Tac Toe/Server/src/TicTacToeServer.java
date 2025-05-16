@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
+import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.security.MessageDigest;
@@ -50,9 +51,12 @@ public class TicTacToeServer {
         
         // Read the master server address
         if (register) {
+            InetAddress masterinet;
             int cpos = masteraddress.indexOf(":");
             masterport = Integer.parseInt(masteraddress.substring(cpos+1 , masteraddress.length()));
             masteraddress = masteraddress.substring(0 , cpos);
+            masterinet = java.net.InetAddress.getByName(masteraddress); // Convert domain name to IP address
+            masteraddress = masterinet.getHostAddress();
             
             // If the name or ROM arguments are invalid, exit
             if (servername.equals("") || romname.equals("")) {
