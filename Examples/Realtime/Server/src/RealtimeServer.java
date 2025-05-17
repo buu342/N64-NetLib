@@ -24,6 +24,7 @@ public class RealtimeServer {
     private static int port = 6462;
     private static boolean useupnp = true;
     private static boolean register = true;
+    private static boolean headless = false;
     private static String servername = "";
     private static int maxplayers = 2;
     private static String masteraddress = MASTER_DEFAULTADDRESS + ":" + MASTER_DEFAULTPORT;
@@ -106,7 +107,7 @@ public class RealtimeServer {
         }
         
         // Begin the game
-        game = new Realtime.Game();
+        game = new Realtime.Game(headless);
         new Thread(game).start();
         
         // Allow clients to connect, and pass messages over to them
@@ -185,6 +186,9 @@ public class RealtimeServer {
                     break;
                 case "-noregister":
                     register = false;
+                    break;
+                case "-headless":
+                    headless = true;
                     break;
                 case "-noupnp":
                     useupnp = false;

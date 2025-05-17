@@ -34,7 +34,7 @@ public class Game implements Runnable  {
     /**
      * Object representation of the realtime game
      */
-    public Game() {
+    public Game(boolean headless) {
     	this.messages = new ConcurrentLinkedQueue<NetLibPacket>();
         this.players = new Player[32];
         this.objs = new LinkedList<GameObject>();
@@ -42,7 +42,10 @@ public class Game implements Runnable  {
         this.obj_npc.SetSpeed(100);
         this.obj_npc.SetBounce(true);
         this.objs.add(this.obj_npc);
-        this.window = new PreviewWindow(this);
+        if (!headless)
+            this.window = new PreviewWindow(this);
+        else
+            this.window = null;
         this.gametime = 0;
         System.out.println("Realtime initialized");
     }
@@ -76,8 +79,11 @@ public class Game implements Runnable  {
                 }
                 
                 // Draw the frame
-                this.window.repaint();
-                Toolkit.getDefaultToolkit().sync();
+                if (this.window != null)
+                {
+                    this.window.repaint();
+                    Toolkit.getDefaultToolkit().sync();
+                }
                 
                 // Sleep for a bit
                 Thread.sleep(10);   
