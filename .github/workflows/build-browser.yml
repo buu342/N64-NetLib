@@ -21,7 +21,7 @@ env:
 
 jobs:
   build-windows:
-    runs-on: windows-2019
+    runs-on: windows-latest
     env:
       SOLUTION_FILE_PATH: ./Client App/NetLibBrowser.sln
       BUILD_CONFIGURATION: Release
@@ -29,15 +29,18 @@ jobs:
       BUILD_PLATFORM2: Win32
       BUILD_TOOLSET: v141_xp
       BUILD_DIRECTORY: ./Client App/Release
-      WXWIN: D:/wxWidgets/
+      WXWIN: C:/wxWidgets/
 
     steps:
       - uses: actions/checkout@v4
-      - uses: ilammy/msvc-dev-cmd@v1
-
+      - name: Install Visual Studio 2019
+        run: |
+          cd ".github/windows/"
+          move vsconfig c:\vsconfig
+          ./install.bat
       - name: Download wxWidgets
         run: |
-          cd D:/
+          cd C:/
           git clone https://github.com/wxWidgets/wxWidgets.git
           cd wxWidgets
           git checkout tags/${{ env.WXVERSION }}
@@ -51,34 +54,34 @@ jobs:
                 [IO.File]::WriteAllText($_.FullName, ($c -join "`r`n"))
             }
 
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          vsversion: 2019
       - name: Compile wxWidgets
         run: |
-          cd D:/wxWidgets/build/msw
+          cd C:/wxWidgets/build/msw
           msbuild /m /p:Configuration=${{ env.BUILD_CONFIGURATION }} /p:Platform=${{ env.BUILD_PLATFORM2 }} /p:PlatformToolset=${{ env.BUILD_TOOLSET }} wx_vc16.sln
 
       - name: Download UNFLoader
         run: |
-          cd D:/
+          cd C:/
           git clone https://github.com/buu342/N64-UNFLoader
           cd N64-UNFLoader
           git submodule update --init --recursive
 
       - name: Compile UNFLoader
         run: |
-          cd D:/N64-UNFLoader/UNFLoader
+          cd C:/N64-UNFLoader/UNFLoader
           msbuild /m /p:Configuration=${{ env.BUILD_CONFIGURATION }} /p:Platform=${{ env.BUILD_PLATFORM2 }} /p:PlatformToolset=${{ env.BUILD_TOOLSET }} FlashcartLib_Static.vcxproj
 
-      - name: Add MSBuild to PATH
-        uses: microsoft/setup-msbuild@v2
+      - uses: ilammy/msvc-dev-cmd@v1
         with:
-          vs-version: '16.0'
-          msbuild-architecture: x86
-
+          vsversion: 2019
       - name: Build NetLib Browser
         working-directory: ${{ env.GITHUB_WORKSPACE }}
         run: |
           cd "Client App/Include/"
-          Copy-Item "D:/N64-UNFLoader/UNFLoader/Release/Flashcart.lib"
+          Copy-Item "C:/N64-UNFLoader/UNFLoader/Release/Flashcart.lib"
           cd ../..
           msbuild /m /p:Configuration=${{ env.BUILD_CONFIGURATION }} /p:Platform=${{ env.BUILD_PLATFORM }} /p:PlatformToolset=${{ env.BUILD_TOOLSET }} "${{ env.SOLUTION_FILE_PATH }}"
 
