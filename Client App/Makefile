@@ -28,10 +28,15 @@ CPPFLAGS ?=
 
 # Standard linker flags 
 ifeq ($(OS_NAME),Darwin)
+	slash:= /
+	empty:=
+	space:= $(empty) $(empty)
 	HOMEBREW_PREFIX=$(shell brew --prefix)
 	HOMEBREW_CELLAR=$(shell brew --cellar)
+	LIBUSB_VER=$(subst $(space),$(slash),$(shell brew list libusb --versions| awk  '{print $2}'))
+	LIBFTDI_VER=$(subst $(space),$(slash),$(shell brew list libftdi --versions| awk  '{print $2}'))
 	CXXFLAGS += -I$(HOMEBREW_PREFIX)/include
-	LDFLAGS ?= $(shell pkg-config --libs-only-other --static libftdi1) $(HOMEBREW_CELLAR)/libusb/1.0.29/lib/libusb-1.0.a $(HOMEBREW_CELLAR)/libftdi/1.5_2/lib/libftdi1.a
+	LDFLAGS ?= $(shell pkg-config --libs-only-other --static libftdi1) $(HOMEBREW_CELLAR)/libusb/$(LIBUSB_VER)/lib/libusb-1.0.a $(HOMEBREW_CELLAR)/libftdi/$(LIBFTDI_VER)/lib/libftdi1.a
 else
 	LDFLAGS ?= -l:libftdi1.a -l:libusb-1.0.a -ludev
 endif
