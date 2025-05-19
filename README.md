@@ -14,21 +14,53 @@ This repository is organized as such:
 
 ### How to use
 
-##### How to play:
-1. If you haven't used [UNFLoader](https://github.com/buu342/N64-UNFLoader) before, it is recommended you do so to ensure your USB communication is working.
+#### How to play:
+
+##### System Requirements
+<details><summary>Windows</summary>
+<p>
+    
+* Windows XP or higher
+    * Windows XP users should be on the latest Service Pack
+* [The Windows version of this FDTI driver](https://www.ftdichip.com/Drivers/D2XX.htm). In the comments column, there is a link for a Setup Executable, which is the recommended way of installing the driver. A restart may be required. 
+    * If you are on Windows XP, be sure you download the XP driver lower in the page, and not the first one.
+</p>
+</details>
+    
+<details><summary>Linux</summary>
+<p>
+    
+* Ubuntu (Haven't tested with others)
+* Run the included `installer_linux.sh` script to set up everything for you. If you are unable to launch the script, remember to mark it as executable.
+
+If you do not wish to run the script, then:
+* You must run NetLib Browser with `sudo`.
+</details>
+
+<details><summary>macOS</summary>
+<p>
+    
+![The macOS System Information window showing an FTDI device connected to a USB3 port](.github/macos/macos_system_report.png)
+* Connect your flashcart to your computer via a Micro-USB cable. Confirm that the corresponding FTDI USB device appears in **System Information** window.
+* If you grabbed a pre-built NetLib Browser binary (AKA you didn't compile it yourself from the source code), you'll have to deal with the fact that macOS prevents running unsigned binaries by default. To fix this, go to the Security & Privacy panel in the System Preferences menu and explicitly allow NetLib Browser to be run.
+</p>
+</details>
+</br>
+
+1. First, make sure you fulfill the prerequisites detailed above for your operating system.
 2. Connect your flashcart to a computer that has an internet connection. 
-3. Put your flashcart in a state where it's ready for USB uploading (this varies between flashcarts). 
+3. Put your flashcart in a state where it's ready for USB uploading. With the EverDrive, this means the console is ON and in the menu. For the rest, your console should be off.
 4. Open the NetLibBrowser application on your PC.
 5. Find a server (or manually connect to one).
 6. Play on your console.
 
 
-##### How to host a server:
+#### How to host a server:
 
 Simply launch one of the example servers. The example servers all support UPnP, if supported and enabled by your router. If it does not, you will need to [forward your ports](https://www.noip.com/support/knowledgebase/general-port-forwarding-guide). Check the [Examples folder](https://github.com/buu342/N64-NetLib/tree/main/Examples) for further READMEs.
 
 
-##### How to develop:
+#### How to develop:
 
 Check [the Wiki](https://github.com/buu342/N64-NetLib/wiki).
 
