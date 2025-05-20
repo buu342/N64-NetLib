@@ -36,7 +36,7 @@ ifeq ($(OS_NAME),Darwin)
 	LIBUSB_VER=$(subst $(space),$(slash),$(shell brew list libusb --versions| awk  '{print $2}'))
 	LIBFTDI_VER=$(subst $(space),$(slash),$(shell brew list libftdi --versions| awk  '{print $2}'))
 	CXXFLAGS += -I$(HOMEBREW_PREFIX)/include
-	LDFLAGS ?= $(shell pkg-config --libs-only-other --static libftdi1) $(HOMEBREW_CELLAR)/libusb/$(LIBUSB_VER)/lib/libusb-1.0.a $(HOMEBREW_CELLAR)/libftdi/$(LIBFTDI_VER)/lib/libftdi1.a
+	LDFLAGS ?= $(shell pkg-config --libs-only-other --static libftdi1) $(HOMEBREW_CELLAR)/$(LIBUSB_VER)/lib/libusb-1.0.a $(HOMEBREW_CELLAR)/$(LIBFTDI_VER)/lib/libftdi1.a
 else
 	LDFLAGS ?= -l:libftdi1.a -l:libusb-1.0.a -ludev
 endif
