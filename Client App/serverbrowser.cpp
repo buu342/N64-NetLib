@@ -961,7 +961,7 @@ void ServerFinderThread::DiscoveredServer(std::unordered_map<wxString, std::pair
 void ServerFinderThread::FileDownload(S64Packet* pkt, wxString filepath)
 {
     uint8_t* filedata;
-    uint32_t chunkcount, chunksread, chunksize, filesize;
+    uint32_t chunksize, filesize, fileleft, fileread;
     wxSocketClient* tcpsock;
     wxIPV4address addr;
     if (filepath == "" || pkt->GetSize() == 0)
@@ -970,6 +970,7 @@ void ServerFinderThread::FileDownload(S64Packet* pkt, wxString filepath)
     // Assign file info
     memcpy(&filesize, &pkt->GetData()[0], sizeof(uint32_t));
     filesize = swap_endian32(filesize);
+    fileleft = filesize;
     filedata = (uint8_t*)malloc(filesize);
     if (filedata == NULL)
         return;
@@ -977,7 +978,6 @@ void ServerFinderThread::FileDownload(S64Packet* pkt, wxString filepath)
     // Get chunk size
     memcpy(&chunksize, &pkt->GetData()[4], sizeof(uint32_t));
     chunksize = swap_endian32(chunksize);
-    chunkcount = ceilf(((float)filesize)/chunksize);
 
     // Connect to the TCP socket
     tcpsock = new wxSocketClient(wxSOCKET_BLOCK);
@@ -987,16 +987,21 @@ void ServerFinderThread::FileDownload(S64Packet* pkt, wxString filepath)
     printf("    Filesize %d\n", filesize);
 
     // Download the file chunks
-    chunksread = 0;
-    while (chunksread < chunkcount)
+    fileread = 0;
+    while (fileread < filesize)
     {
         if (tcpsock->IsData())
         {
-            tcpsock->Read(filedata+chunksread*chunksize, chunksize);
+            uint32_t readcount;
+            uint32_t readsize = chunksize;
+            if (fileread + readsize < filesize)
+                readsize = filesize - fileread;
+            tcpsock->Read(filedata+fileread, readsize);
+            readcount = tcpsock->LastReadCount();
             if (tcpsock->LastReadCount() != 0)
             {
-                chunksread++;
-                this->m_Window->m_DownloadWindow->UpdateDownloadProgress((((float)chunksread)/chunkcount)*100);
+                fileread += readcount;
+                this->m_Window->m_DownloadWindow->UpdateDownloadProgress((((float)fileread)/filesize)*100);
             }
         }
 
@@ -1014,7 +1019,7 @@ void ServerFinderThread::FileDownload(S64Packet* pkt, wxString filepath)
     tcpsock->Close();
 
     // Dump the ROM to a file if it finished
-    if (chunksread == chunkcount)
+    if (fileread == filesize)
     {
         FILE* fp = fopen(filepath.c_str(), "wb+");
         fwrite(filedata, 1, filesize, fp);
