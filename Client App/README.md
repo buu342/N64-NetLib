@@ -13,7 +13,7 @@ To build, I use Visual Studio 2019, I specifically used the `v141_xp` toolset fo
 
 Start by installing or building wxWidgets using this [guide](https://docs.wxwidgets.org/trunk/plat_msw_install.html). Since I use VS2019, I opened `build/msw/wx_vc16.sln`, changed /MD to /MT in the solution properties, changed the toolset to `v141_xp`, and then built a 32-bit release. Once it's done, check if the `WXWIN` environment variable is set, and if it isn't, make one to point to your wxWidgets folder.
 
-After that, download [UNFLoader](https://github.com/buu342/N64-UNFLoader/), open `UNFLoader/FlashcartLib_Static.vcxproj`, and make sure it had the exact same configuration (32-bit release, /MT, and built with `v141_xp`). This should compile a `Flashcart.lib`, which you should now place inside the `Include` folder in the `Client App` folder.
+After that, download [UNFLoader](https://github.com/buu342/N64-UNFLoader/), open `UNFLoader/FlashcartLib_Static.vcxproj`, and make sure it had the exact same configuration (32-bit release, /MT, and built with `v141_xp`). This should compile a `Flashcart.lib`, which you should now place inside the `Include` folder in the `Client App` folder. If you want compile a debug version of the NetLib Broweser, then build a debug version of the Flashcart library and rename it to `Flashcart_d.lib` before adding it to the include folder.
 
 If you have successfully installed wxWidgets and built the flashcart library, then simply open `NetLibBrowser.vcxproj` and compile (again, make sure you have the same configuration).
 
