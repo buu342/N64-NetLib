@@ -17,7 +17,7 @@ env:
   WXVERSION: v3.2.8
   WINDOWS_ARTIFACT_NAME: NetLibBrowser-Windows-x86
   LINUX_ARTIFACT_NAME: NetLibBrowser-Linux-x64
-  MACOS_ARTIFACT_NAME: NetLibBrowser-macOS-x64
+  MACOS_ARTIFACT_NAME: NetLibBrowser-macOS-arm64
 
 jobs:
   build-windows:
@@ -60,7 +60,7 @@ jobs:
       - name: Compile wxWidgets
         run: |
           cd C:/wxWidgets/build/msw
-          msbuild /m /p:Configuration=${{ env.BUILD_CONFIGURATION }} /p:Platform=${{ env.BUILD_PLATFORM }} /p:PlatformToolset=${{ env.BUILD_TOOLSET }} wx_vc16.sln
+          msbuild /m /p:Configuration="${{ env.BUILD_CONFIGURATION }}" /p:Platform="${{ env.BUILD_PLATFORM }}" /p:PlatformToolset=${{ env.BUILD_TOOLSET }} wx_vc16.sln
 
       - name: Download UNFLoader
         run: |
@@ -72,7 +72,7 @@ jobs:
       - name: Compile UNFLoader
         run: |
           cd C:/N64-UNFLoader/UNFLoader
-          msbuild /m /p:Configuration=${{ env.BUILD_CONFIGURATION }} /p:Platform=${{ env.BUILD_PLATFORM }} /p:PlatformToolset=${{ env.BUILD_TOOLSET }} FlashcartLib_Static.vcxproj
+          msbuild /m /p:Configuration="${{ env.BUILD_CONFIGURATION }}" /p:Platform="${{ env.BUILD_PLATFORM }}" FlashcartLib_Static.vcxproj  /p:OutputPath=.
 
       - uses: ilammy/msvc-dev-cmd@v1
         with:
@@ -83,7 +83,7 @@ jobs:
           cd "Client App/Include/"
           Copy-Item "C:/N64-UNFLoader/UNFLoader/Release/Flashcart.lib"
           cd ../..
-          msbuild /m /p:Configuration=${{ env.BUILD_CONFIGURATION }} /p:Platform=${{ env.BUILD_PLATFORM2 }} /p:PlatformToolset=${{ env.BUILD_TOOLSET }} "${{ env.SOLUTION_FILE_PATH }}"
+          msbuild /m /p:Configuration="${{ env.BUILD_CONFIGURATION }}" /p:Platform="${{ env.BUILD_PLATFORM2 }}" "${{ env.SOLUTION_FILE_PATH }}"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

@@ -564,8 +564,8 @@ void* DeviceThread::Entry()
     {
         switch (device_getcart())
         {
-            case CART_64DRIVE1: 
-            case CART_64DRIVE2: 
+            case CART_64DRIVE1:
+            case CART_64DRIVE2:
                 this->WriteConsoleError("Please upgrade to firmware 2.05 or higher to access full USB functionality.\n");
                 break;
             default:
