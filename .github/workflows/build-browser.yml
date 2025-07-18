@@ -113,7 +113,7 @@ jobs:
 
           mkdir gtk-build
           cd gtk-build
-          ../configure --with-opengl --disable-shared
+          ../configure --with-opengl --disable-shared --with-libjpeg=builtin
           make -j$(nproc)
           sudo make install
           sudo ldconfig
