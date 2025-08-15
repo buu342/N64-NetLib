@@ -25,7 +25,7 @@ public class HelloWorldServer {
     private static boolean useupnp = true;
     private static boolean register = true;
     private static String servername = "";
-    private static int maxplayers = 32;
+    private static int maxplayers = 1;
     private static String masteraddress = MASTER_DEFAULTADDRESS + ":" + MASTER_DEFAULTPORT;
     private static String romname = "";
     private static byte[] romhash;

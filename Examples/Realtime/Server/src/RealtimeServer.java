@@ -26,7 +26,7 @@ public class RealtimeServer {
     private static boolean register = true;
     private static boolean headless = false;
     private static String servername = "";
-    private static int maxplayers = 2;
+    private static int maxplayers = 32;
     private static String masteraddress = MASTER_DEFAULTADDRESS + ":" + MASTER_DEFAULTPORT;
     private static String romname = "";
     private static byte[] romhash;
